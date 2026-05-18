@@ -1,7 +1,7 @@
-using AdegaRoyal.Api.Filters;
+using WorkEz.Api.Filters;
 using Microsoft.OpenApi;
 
-namespace AdegaRoyal.Api.Extensions;
+namespace WorkEz.Api.Extensions;
 
 internal static class ServiceCollectionExtensions
 {

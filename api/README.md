@@ -1,4 +1,4 @@
-# Adega Royal API — Guia de Uso
+# WorkEz API — Guia de Uso
 
 Base URL local: `http://localhost:5065`
 

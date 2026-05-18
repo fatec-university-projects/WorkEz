@@ -1,8 +1,8 @@
-using AdegaRoyal.Api.Entities;
-using AdegaRoyal.Api.Enums;
+using WorkEz.Api.Entities;
+using WorkEz.Api.Enums;
 using Microsoft.EntityFrameworkCore;
 
-namespace AdegaRoyal.Api.Data;
+namespace WorkEz.Api.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {

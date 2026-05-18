@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace AdegaRoyal.Api.DTOs;
+namespace WorkEz.Api.DTOs;
 
 /// <summary>
 /// Payload for partial checkout: customer selects which CartItem IDs to convert to an Order.

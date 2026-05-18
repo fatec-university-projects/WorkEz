@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.Entities;
+namespace WorkEz.Api.Entities;
 
 /// <summary>
 /// Represents a custom claim associated with a user (e.g., permissions, attributes).

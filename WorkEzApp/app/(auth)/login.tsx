@@ -1,39 +1,31 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { authService } from '@/services/authService';
 
-export default function RegisterScreen() {
+export default function LoginScreen() {
   const router = useRouter();
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleRegister = async () => {
-    if (!name || !email || !password) {
+  const handleLogin = async () => {
+    if (!email || !password) {
       Alert.alert('Erro', 'Por favor, preencha todos os campos.');
       return;
     }
     
-    if (password.length < 8) {
-      Alert.alert('Atenção', 'A senha deve ter no mínimo 8 caracteres.');
-      return;
-    }
-
     setLoading(true);
     try {
-      const { data, error } = await authService.register(name, email, password);
+      const { data, error } = await authService.login(email, password);
 
       if (data) {
-        Alert.alert('Bem-vindo!', 'Conta criada com sucesso. Faça login para continuar.', [
-          { text: 'OK', onPress: () => router.back() }
-        ]);
+        router.replace('/(tabs)');
       } else {
-        Alert.alert('Erro', error || 'Erro ao criar a conta.');
+        Alert.alert('Erro', error || 'Credenciais inválidas.');
       }
     } catch {
       Alert.alert('Erro', 'Ocorreu um erro ao conectar com o servidor.');
@@ -48,32 +40,18 @@ export default function RegisterScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={['#120000', '#2A0800', '#000000']}
+        colors={['#2A0800', '#120000', '#000000']}
         style={styles.background}
       />
       
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#D4AF37" />
-        </TouchableOpacity>
-
-        <View style={styles.headerContainer}>
-          <Text style={styles.title}>Criar Conta</Text>
-          <Text style={styles.subtitle}>Junte-se ao clube Adega Royal</Text>
+      <View style={styles.content}>
+        <View style={styles.logoContainer}>
+          <Ionicons name="wine" size={60} color="#D4AF37" />
+          <Text style={styles.title}>WorkEz</Text>
+          <Text style={styles.subtitle}>Experiência Premium</Text>
         </View>
 
         <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color="#888" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Nome completo"
-              placeholderTextColor="#888"
-              value={name}
-              onChangeText={setName}
-            />
-          </View>
-
           <View style={styles.inputContainer}>
             <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
@@ -91,7 +69,7 @@ export default function RegisterScreen() {
             <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Senha (mínimo 8 caracteres)"
+              placeholder="Senha"
               placeholderTextColor="#888"
               secureTextEntry={!showPassword}
               value={password}
@@ -102,23 +80,32 @@ export default function RegisterScreen() {
             </TouchableOpacity>
           </View>
 
+          <TouchableOpacity style={styles.forgotPassword}>
+            <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity 
-            style={styles.registerButton} 
-            onPress={handleRegister}
+            style={styles.loginButton} 
+            onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#000" />
             ) : (
-              <Text style={styles.registerButtonText}>CADASTRAR</Text>
+              <Text style={styles.loginButtonText}>ENTRAR</Text>
             )}
           </TouchableOpacity>
 
-          <Text style={styles.termsText}>
-            Ao se cadastrar, você concorda com nossos Termos de Serviço e Política de Privacidade.
-          </Text>
+          <View style={styles.registerContainer}>
+            <Text style={styles.registerText}>Ainda não tem conta? </Text>
+            <Link href="/(auth)/register" asChild>
+              <TouchableOpacity>
+                <Text style={styles.registerLink}>Cadastre-se</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
         </View>
-      </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -134,32 +121,28 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
     padding: 30,
     justifyContent: 'center',
   },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 10,
-    padding: 10,
-  },
-  headerContainer: {
-    marginTop: 80,
-    marginBottom: 40,
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 50,
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '300',
     color: '#D4AF37',
-    letterSpacing: 1,
+    marginTop: 10,
+    letterSpacing: 2,
   },
   subtitle: {
     fontSize: 14,
     color: '#A0A0A0',
-    marginTop: 10,
+    marginTop: 5,
+    letterSpacing: 4,
+    textTransform: 'uppercase',
   },
   formContainer: {
     width: '100%',
@@ -183,30 +166,44 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
   },
-  registerButton: {
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginBottom: 30,
+  },
+  forgotPasswordText: {
+    color: '#D4AF37',
+    fontSize: 14,
+  },
+  loginButton: {
     backgroundColor: '#D4AF37',
     height: 60,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
     shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 8,
   },
-  registerButtonText: {
+  loginButtonText: {
     color: '#120000',
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 2,
   },
-  termsText: {
-    color: '#666',
-    fontSize: 12,
-    textAlign: 'center',
+  registerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     marginTop: 30,
-    lineHeight: 18,
+  },
+  registerText: {
+    color: '#888',
+    fontSize: 15,
+  },
+  registerLink: {
+    color: '#D4AF37',
+    fontSize: 15,
+    fontWeight: 'bold',
   },
 });

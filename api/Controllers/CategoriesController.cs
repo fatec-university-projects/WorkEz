@@ -1,9 +1,9 @@
-using AdegaRoyal.Api.DTOs;
-using AdegaRoyal.Api.Services;
+using WorkEz.Api.DTOs;
+using WorkEz.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace AdegaRoyal.Api.Controllers;
+namespace WorkEz.Api.Controllers;
 
 /// <summary>
 /// API endpoints for managing product categories.

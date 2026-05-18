@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-namespace AdegaRoyal.Api.Filters;
+namespace WorkEz.Api.Filters;
 
 public class AuthorizeCheckOperationFilter : IOperationFilter
 {

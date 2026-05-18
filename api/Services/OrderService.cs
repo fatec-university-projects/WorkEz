@@ -1,10 +1,10 @@
-using AdegaRoyal.Api.Data;
-using AdegaRoyal.Api.DTOs;
-using AdegaRoyal.Api.Entities;
-using AdegaRoyal.Api.Enums;
+using WorkEz.Api.Data;
+using WorkEz.Api.DTOs;
+using WorkEz.Api.Entities;
+using WorkEz.Api.Enums;
 using Microsoft.EntityFrameworkCore;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 /// <summary>
 /// Order management service supporting partial checkout from cart items.

@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using AdegaRoyal.Api.Services;
+using WorkEz.Api.Services;
 using System.Security.Claims;
 
-namespace AdegaRoyal.Api.Controllers;
+namespace WorkEz.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]

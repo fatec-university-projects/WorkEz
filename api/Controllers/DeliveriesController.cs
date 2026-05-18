@@ -1,11 +1,11 @@
-using AdegaRoyal.Api.DTOs;
-using AdegaRoyal.Api.Enums;
-using AdegaRoyal.Api.Services;
+using WorkEz.Api.DTOs;
+using WorkEz.Api.Enums;
+using WorkEz.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace AdegaRoyal.Api.Controllers;
+namespace WorkEz.Api.Controllers;
 
 /// <summary>
 /// Manages delivery records and OTP-based delivery confirmation.

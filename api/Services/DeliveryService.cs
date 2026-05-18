@@ -1,11 +1,11 @@
-using AdegaRoyal.Api.Data;
-using AdegaRoyal.Api.DTOs;
-using AdegaRoyal.Api.Entities;
-using AdegaRoyal.Api.Enums;
+using WorkEz.Api.Data;
+using WorkEz.Api.DTOs;
+using WorkEz.Api.Entities;
+using WorkEz.Api.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 /// <summary>
 /// Delivery management service with OTP generation and verification.

@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.DTOs;
+namespace WorkEz.Api.DTOs;
 
 public class CreateUserDto
 {

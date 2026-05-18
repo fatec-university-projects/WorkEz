@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.Entities;
+namespace WorkEz.Api.Entities;
 
 /// <summary>
 /// Represents a shopping cart belonging to a single user.

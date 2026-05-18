@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace AdegaRoyal.Api.DTOs;
+namespace WorkEz.Api.DTOs;
 
 /// <summary>Request body for the POST /api/auth/refresh endpoint.</summary>
 public class RefreshTokenRequestDto

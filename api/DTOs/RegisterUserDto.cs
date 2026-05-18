@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace AdegaRoyal.Api.DTOs;
+namespace WorkEz.Api.DTOs;
 
 /// <summary>Payload for registering a new user.</summary>
 public class RegisterUserDto

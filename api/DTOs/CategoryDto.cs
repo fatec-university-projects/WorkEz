@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.DTOs;
+namespace WorkEz.Api.DTOs;
 
 /// <summary>
 /// Response DTO for Category data (prevents circular references).

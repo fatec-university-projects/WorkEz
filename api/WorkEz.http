@@ -95,7 +95,7 @@ Content-Type: application/json
   "description": "Premium red wine from Douro Valley with 40 months aging",
   "price": 199.90,
   "stockQuantity": 50,
-  "imageUrl": "https://cdn.adegaroyal.com/products/vinho-tinto-reserva-2015.jpg",
+  "imageUrl": "https://cdn.WorkEz.com/products/vinho-tinto-reserva-2015.jpg",
   "categoryId": "@categoryId"
 }
 ```

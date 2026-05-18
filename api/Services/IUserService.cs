@@ -1,7 +1,7 @@
-using AdegaRoyal.Api.DTOs;
-using AdegaRoyal.Api.Enums;
+using WorkEz.Api.DTOs;
+using WorkEz.Api.Enums;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 public interface IUserService
 {

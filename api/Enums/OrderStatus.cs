@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.Enums;
+namespace WorkEz.Api.Enums;
 
 /// <summary>
 /// Represents the lifecycle status of an order in the Adega Royal system.

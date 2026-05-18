@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 /// <summary>
 /// Contract for hashing and verifying passwords using the compound input (email + password).

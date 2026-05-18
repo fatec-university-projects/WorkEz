@@ -1,8 +1,8 @@
-using AdegaRoyal.Api.Data;
-using AdegaRoyal.Api.Entities;
+using WorkEz.Api.Data;
+using WorkEz.Api.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 /// <summary>
 /// Legacy task management service — kept for backward compatibility.

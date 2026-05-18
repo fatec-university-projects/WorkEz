@@ -1,8 +1,8 @@
-# Adega Royal API - Architecture Documentation
+# WorkEz API - Architecture Documentation
 
 ## Overview
 
-This document describes the architecture of the Adega Royal API, a modern e-commerce backend built with .NET 10 and C# 12, designed for React Native mobile application consumption.
+This document describes the architecture of the WorkEz API, a modern e-commerce backend built with .NET 10 and C# 12, designed for React Native mobile application consumption.
 
 ## Technology Stack
 
@@ -226,7 +226,7 @@ Optimized for performance:
 ### Commands
 ```bash
 # Create initial migration
-dotnet ef migrations add InitialAdegaroyalMigration
+dotnet ef migrations add InitialWorkEzMigration
 
 # Apply migration to database
 dotnet ef database update

@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.DTOs;
+namespace WorkEz.Api.DTOs;
 
 /// <summary>Request payload sent to Abacate Pay for payment processing.</summary>
 public class PaymentRequestDto

@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.Enums;
+namespace WorkEz.Api.Enums;
 
 /// <summary>
 /// Represents the roles available in the Adega Royal system, aligned with Keycloak realm roles.

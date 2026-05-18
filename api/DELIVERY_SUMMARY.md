@@ -1,4 +1,4 @@
-# 📦 Adega Royal API - Complete Delivery Summary
+# 📦 WorkEz API - Complete Delivery Summary
 
 **Date**: April 23, 2026  
 **Technology**: .NET 10 with C# 12 (Primary Constructors)  
@@ -191,7 +191,7 @@ services.AddScoped<IOrderService, OrderService>();
 |------|---------|
 | `ARCHITECTURE.md` | System design, layers, relationships, security model, performance considerations |
 | `MIGRATION_INSTRUCTIONS.md` | Step-by-step database setup, SQL scripts, troubleshooting |
-| `AdegaRoyal.http` | HTTP test examples for all endpoints (VS Code REST Client compatible) |
+| `WorkEz.http` | HTTP test examples for all endpoints (VS Code REST Client compatible) |
 | `IMPLEMENTATION_GUIDE.md` | Quick start, setup instructions, React Native integration examples |
 
 ---
@@ -316,15 +316,15 @@ console.log(products.data[0].stockQuantity);
 // appsettings.json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=.;Database=AdegaroyalDb;Trusted_Connection=true;TrustServerCertificate=true;"
+    "DefaultConnection": "Server=.;Database=WorkEzDb;Trusted_Connection=true;TrustServerCertificate=true;"
   }
 }
 ```
 
 ### 2. Create Database
 ```bash
-cd d:\Dev\AdegaRoyal\api
-dotnet ef migrations add InitialAdegaroyalMigration
+cd d:\Dev\WorkEz\api
+dotnet ef migrations add InitialWorkEzMigration
 dotnet ef database update
 ```
 
@@ -384,7 +384,7 @@ curl -H "Authorization: Bearer {{token}}" http://localhost:5000/api/orders/{{id}
 ```
 
 ### Test File
-Use `AdegaRoyal.http` with VS Code REST Client extension for comprehensive testing
+Use `WorkEz.http` with VS Code REST Client extension for comprehensive testing
 
 ---
 
@@ -402,7 +402,7 @@ Use `AdegaRoyal.http` with VS Code REST Client extension for comprehensive testi
 
 ### Step 1: Prepare Database
 ```bash
-dotnet ef migrations add InitialAdegaroyalMigration
+dotnet ef migrations add InitialWorkEzMigration
 ```
 
 ### Step 2: Apply Schema
@@ -426,7 +426,7 @@ Add to Program.cs before app.Run()
 |------|----------|
 | See architecture | Read `ARCHITECTURE.md` |
 | Setup database | Follow `MIGRATION_INSTRUCTIONS.md` |
-| Test endpoints | Use `AdegaRoyal.http` |
+| Test endpoints | Use `WorkEz.http` |
 | Quick start | Read `IMPLEMENTATION_GUIDE.md` |
 | React Native code | See examples in `IMPLEMENTATION_GUIDE.md` |
 

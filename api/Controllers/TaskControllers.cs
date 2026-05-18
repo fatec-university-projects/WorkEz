@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using AdegaRoyal.Api.Services;
+using WorkEz.Api.Services;
 using System.Security.Claims;
-using AdegaRoyal.Api.DTOs;
+using WorkEz.Api.DTOs;
 
 [ApiController]
 [Route("api/[controller]")]

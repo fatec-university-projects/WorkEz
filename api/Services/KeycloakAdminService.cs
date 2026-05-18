@@ -1,9 +1,9 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using AdegaRoyal.Api.DTOs;
+using WorkEz.Api.DTOs;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 public class KeycloakAdminService(HttpClient httpClient, IConfiguration config) : IKeycloakAdminService
 {

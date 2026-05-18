@@ -1,11 +1,11 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+﻿FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY ["AdegaRoyal.Api.csproj", "./"] 
-RUN dotnet restore "AdegaRoyal.Api.csproj"
+COPY ["WorkEz.Api.csproj", "./"] 
+RUN dotnet restore "WorkEz.Api.csproj"
 
 COPY . .
-RUN dotnet publish "AdegaRoyal.Api.csproj" -c Release -o /app/publish -r linux-x64 --self-contained false
+RUN dotnet publish "WorkEz.Api.csproj" -c Release -o /app/publish -r linux-x64 --self-contained false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
@@ -17,4 +17,4 @@ COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:10000
 EXPOSE 10000
 
-ENTRYPOINT ["dotnet", "AdegaRoyal.Api.dll"]
+ENTRYPOINT ["dotnet", "WorkEz.Api.dll"]

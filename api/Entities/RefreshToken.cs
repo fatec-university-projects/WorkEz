@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.Entities;
+namespace WorkEz.Api.Entities;
 
 /// <summary>
 /// Persists opaque refresh tokens so they can be validated, rotated, and revoked.

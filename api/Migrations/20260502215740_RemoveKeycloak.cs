@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace AdegaRoyal.Api.Migrations
+namespace WorkEz.Api.Migrations
 {
     /// <inheritdoc />
     public partial class RemoveKeycloak : Migration

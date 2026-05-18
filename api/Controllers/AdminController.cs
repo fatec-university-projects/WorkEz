@@ -1,12 +1,12 @@
-using AdegaRoyal.Api.Data;
-using AdegaRoyal.Api.DTOs;
-using AdegaRoyal.Api.Entities;
-using AdegaRoyal.Api.Services;
+using WorkEz.Api.Data;
+using WorkEz.Api.DTOs;
+using WorkEz.Api.Entities;
+using WorkEz.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace AdegaRoyal.Api.Controllers;
+namespace WorkEz.Api.Controllers;
 
 /// <summary>
 /// Admin-only endpoints for managing users and their claims.

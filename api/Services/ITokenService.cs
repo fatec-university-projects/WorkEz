@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 /// <summary>
 /// Contract for generating JWT access tokens and opaque refresh tokens.

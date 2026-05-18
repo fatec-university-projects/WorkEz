@@ -1,6 +1,6 @@
-using AdegaRoyal.Api.Enums;
+using WorkEz.Api.Enums;
 
-namespace AdegaRoyal.Api.Entities;
+namespace WorkEz.Api.Entities;
 
 /// <summary>
 /// Represents a delivery record tied to a specific order.

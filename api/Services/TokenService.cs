@@ -5,7 +5,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 /// <summary>
 /// Generates signed JWT access tokens and cryptographically secure refresh tokens.
@@ -29,8 +29,8 @@ namespace AdegaRoyal.Api.Services;
 /// <code>
 /// "Jwt": {
 ///   "SecretKey": "at-least-32-character-secret-key",
-///   "Issuer":    "AdegaRoyal",
-///   "Audience":  "AdegaRoyalClient",
+///   "Issuer":    "WorkEz",
+///   "Audience":  "WorkEzClient",
 ///   "AccessTokenExpirationMinutes": 15,
 ///   "RefreshTokenExpirationDays":   7
 /// }
@@ -58,8 +58,8 @@ public class TokenService : ITokenService
         if (_secretKey.Length < 32)
             throw new InvalidOperationException("JWT SecretKey must be at least 32 characters long.");
 
-        _issuer = jwtSection["Issuer"] ?? "AdegaRoyal";
-        _audience = jwtSection["Audience"] ?? "AdegaRoyalClient";
+        _issuer = jwtSection["Issuer"] ?? "WorkEz";
+        _audience = jwtSection["Audience"] ?? "WorkEzClient";
         _accessTokenExpirationMinutes = int.TryParse(jwtSection["AccessTokenExpirationMinutes"], out var atMin) ? atMin : 15;
         _refreshTokenExpirationDays = int.TryParse(jwtSection["RefreshTokenExpirationDays"], out var rtDays) ? rtDays : 7;
     }

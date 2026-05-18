@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.DTOs;
+namespace WorkEz.Api.DTOs;
 
 /// <summary>
 /// Request DTO for updating an existing Product.

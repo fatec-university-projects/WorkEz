@@ -15,19 +15,19 @@ Edit `appsettings.json`:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=.;Database=AdegaroyalDb;Trusted_Connection=true;TrustServerCertificate=true;"
+    "DefaultConnection": "Server=.;Database=WorkEzDb;Trusted_Connection=true;TrustServerCertificate=true;"
   }
 }
 ```
 
 **For Docker SQL Server**:
 ```json
-"DefaultConnection": "Server=localhost,1433;Database=AdegaroyalDb;User Id=sa;Password=YourPassword@123;TrustServerCertificate=true;"
+"DefaultConnection": "Server=localhost,1433;Database=WorkEzDb;User Id=sa;Password=YourPassword@123;TrustServerCertificate=true;"
 ```
 
 **For Azure SQL Database**:
 ```json
-"DefaultConnection": "Server=tcp:yourserver.database.windows.net,1433;Initial Catalog=AdegaroyalDb;Persist Security Info=False;User ID=yourusername;Password=yourpassword;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+"DefaultConnection": "Server=tcp:yourserver.database.windows.net,1433;Initial Catalog=WorkEzDb;Persist Security Info=False;User ID=yourusername;Password=yourpassword;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 ```
 
 ## Step-by-Step Migration Process
@@ -35,28 +35,28 @@ Edit `appsettings.json`:
 ### Step 1: Navigate to Project Directory
 
 ```bash
-cd d:\Dev\AdegaRoyal\api
+cd d:\Dev\WorkEz\api
 ```
 
 ### Step 2: Create Initial Migration
 
-This will generate all tables for the new Adega Royal entities (Category, Product, Order, OrderItem):
+This will generate all tables for the new WorkEz entities (Category, Product, Order, OrderItem):
 
 ```bash
-dotnet ef migrations add InitialAdegaroyalMigration
+dotnet ef migrations add InitialWorkEzMigration
 ```
 
 **What this does**:
 - Analyzes your DbContext and existing entities
 - Generates SQL migration files in `Migrations/` folder
-- Creates both `{timestamp}_InitialAdegaroyalMigration.cs` and `.Designer.cs` files
+- Creates both `{timestamp}_InitialWorkEzMigration.cs` and `.Designer.cs` files
 
 ### Step 3: Review Migration (Optional)
 
 Open the generated migration file to verify it matches your expectations:
 
 ```
-Migrations/20260423120000_InitialAdegaroyalMigration.cs
+Migrations/20260423120000_InitialWorkEzMigration.cs
 ```
 
 Expected tables to be created:
@@ -101,7 +101,7 @@ dotnet ef migrations list
 You should see:
 ```
 20250420015036_InitialMigration
-20260423120000_InitialAdegaroyalMigration
+20260423120000_InitialWorkEzMigration
 ```
 
 ## Database Schema Overview
@@ -243,7 +243,7 @@ dotnet ef database update
 
 1. **Backup your database** - Always!
    ```sql
-   BACKUP DATABASE [AdegaroyalDb] TO DISK = 'C:\Backups\AdegaroyalDb.bak'
+   BACKUP DATABASE [WorkEzDb] TO DISK = 'C:\Backups\WorkEzDb.bak'
    ```
 
 2. **Test migrations in staging** environment first
@@ -303,7 +303,7 @@ SELECT * FROM [__EFMigrationsHistory] ORDER BY [MigrationId] DESC;
 ### View Active Queries
 
 ```sql
-SELECT * FROM sys.dm_exec_sessions WHERE database_id = DB_ID('AdegaroyalDb');
+SELECT * FROM sys.dm_exec_sessions WHERE database_id = DB_ID('WorkEzDb');
 ```
 
 ## Useful Commands Reference
@@ -313,7 +313,7 @@ SELECT * FROM sys.dm_exec_sessions WHERE database_id = DB_ID('AdegaroyalDb');
 dotnet ef migrations list
 
 # Show migration details
-dotnet ef migrations show 20260423120000_InitialAdegaroyalMigration
+dotnet ef migrations show 20260423120000_InitialWorkEzMigration
 
 # Generate SQL script without executing
 dotnet ef migrations script
@@ -328,5 +328,5 @@ dotnet ef dbcontext scaffold "connection-string" Microsoft.EntityFrameworkCore.S
 ---
 
 **Migration created on**: 2026-04-23
-**Migration applies to**: Adega Royal API
+**Migration applies to**: WorkEz API
 **Includes**: Categories, Products, Orders, OrderItems tables

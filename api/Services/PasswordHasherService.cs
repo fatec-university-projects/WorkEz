@@ -1,6 +1,6 @@
 using BC = BCrypt.Net.BCrypt;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 /// <summary>
 /// Implements password hashing using <b>BCrypt</b> (BCrypt.Net-Next, work-factor 12).

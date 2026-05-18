@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.Entities;
+namespace WorkEz.Api.Entities;
 
 /// <summary>
 /// Represents a product in the Adega Royal catalog (wine, spirits, beer, etc.).

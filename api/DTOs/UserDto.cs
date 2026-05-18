@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.DTOs;
+namespace WorkEz.Api.DTOs;
 
 /// <summary>DTO returned when a user profile is retrieved or created.</summary>
 public class UserDto

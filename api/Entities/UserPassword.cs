@@ -1,4 +1,4 @@
-namespace AdegaRoyal.Api.Entities;
+namespace WorkEz.Api.Entities;
 
 /// <summary>
 /// Stores the BCrypt hash of a user's password.

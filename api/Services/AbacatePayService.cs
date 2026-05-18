@@ -1,7 +1,7 @@
-using AdegaRoyal.Api.DTOs;
+using WorkEz.Api.DTOs;
 using Microsoft.Extensions.Logging;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 /// <summary>
 /// Simulated Abacate Pay integration.

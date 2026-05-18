@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.Design;
 
-namespace AdegaRoyal.Api.Entities;
+namespace WorkEz.Api.Entities;
 
 public class TaskItem	
 {

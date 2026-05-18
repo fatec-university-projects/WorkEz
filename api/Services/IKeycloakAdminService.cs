@@ -1,6 +1,6 @@
-using AdegaRoyal.Api.DTOs;
+using WorkEz.Api.DTOs;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 /// <summary>
 /// Manages Keycloak Admin API operations: user creation, role assignment and attribute management.

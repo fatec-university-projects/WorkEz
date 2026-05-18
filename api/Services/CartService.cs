@@ -1,9 +1,9 @@
-using AdegaRoyal.Api.Data;
-using AdegaRoyal.Api.DTOs;
-using AdegaRoyal.Api.Entities;
+using WorkEz.Api.Data;
+using WorkEz.Api.DTOs;
+using WorkEz.Api.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 /// <summary>
 /// Cart management service using primary constructor DI.

@@ -3,9 +3,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using AdegaRoyal.Api.Data;
-using AdegaRoyal.Api.Extensions;
-using AdegaRoyal.Api.Services;
+using WorkEz.Api.Data;
+using WorkEz.Api.Extensions;
+using WorkEz.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -62,9 +62,9 @@ builder.Services
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer           = true,
-            ValidIssuer              = jwtSection["Issuer"] ?? "AdegaRoyal",
+            ValidIssuer              = jwtSection["Issuer"] ?? "WorkEz",
             ValidateAudience         = true,
-            ValidAudience            = jwtSection["Audience"] ?? "AdegaRoyalClient",
+            ValidAudience            = jwtSection["Audience"] ?? "WorkEzClient",
             ValidateLifetime         = true,
             ClockSkew                = TimeSpan.Zero,
             ValidateIssuerSigningKey = true,

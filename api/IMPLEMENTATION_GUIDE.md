@@ -1,4 +1,4 @@
-# Adega Royal API - Implementation Guide
+# WorkEz API - Implementation Guide
 
 ## 🎯 Quick Start Checklist
 
@@ -13,7 +13,7 @@
 
 ## 📋 Project Summary
 
-You now have a production-ready e-commerce API for the Adega Royal wine shop with:
+You now have a production-ready e-commerce API for the WorkEz wine shop with:
 
 ### ✅ Implemented Features
 
@@ -67,7 +67,7 @@ You now have a production-ready e-commerce API for the Adega Royal wine shop wit
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=.;Database=AdegaroyalDb;Trusted_Connection=true;TrustServerCertificate=true;"
+    "DefaultConnection": "Server=.;Database=WorkEzDb;Trusted_Connection=true;TrustServerCertificate=true;"
   }
 }
 ```
@@ -75,10 +75,10 @@ You now have a production-ready e-commerce API for the Adega Royal wine shop wit
 ### 2. Create Database Migrations
 
 ```bash
-cd d:\Dev\AdegaRoyal\api
+cd d:\Dev\WorkEz\api
 
 # Create migration
-dotnet ef migrations add InitialAdegaroyalMigration
+dotnet ef migrations add InitialWorkEzMigration
 
 # Apply to database
 dotnet ef database update
@@ -106,7 +106,7 @@ info: Microsoft.Hosting.Lifetime[14]
 
 **Option A**: Use VS Code REST Client
 - Install extension: "REST Client" by Huachao Mao
-- Open `AdegaRoyal.http`
+- Open `WorkEz.http`
 - Click "Send Request" on any test
 
 **Option B**: Use curl
@@ -168,7 +168,7 @@ KeycloakAuth/
 ├── Program.cs                   # Updated DI configuration
 ├── ARCHITECTURE.md              # Architecture documentation
 ├── MIGRATION_INSTRUCTIONS.md    # Database setup guide
-├── AdegaRoyal.http              # HTTP test examples
+├── WorkEz.http              # HTTP test examples
 └── README.md
 ```
 
@@ -516,7 +516,7 @@ public class OrderServiceTests
 **Solution**:
 ```bash
 # Ensure you're in the correct directory
-cd d:\Dev\AdegaRoyal\api
+cd d:\Dev\WorkEz\api
 
 # Reinstall EF tools if needed
 dotnet tool install -g dotnet-ef
@@ -548,7 +548,7 @@ dotnet ef database update
 |------|---------|
 | `ARCHITECTURE.md` | System design and implementation details |
 | `MIGRATION_INSTRUCTIONS.md` | Database setup and migration guide |
-| `AdegaRoyal.http` | HTTP test examples for all endpoints |
+| `WorkEz.http` | HTTP test examples for all endpoints |
 | `IMPLEMENTATION_GUIDE.md` | This file - quick start and overview |
 
 ---
@@ -591,7 +591,7 @@ For issues or questions:
 1. Check the error message in the response
 2. Review `ARCHITECTURE.md` for system design
 3. Review `MIGRATION_INSTRUCTIONS.md` for database issues
-4. Test with `AdegaRoyal.http` examples
+4. Test with `WorkEz.http` examples
 5. Check Keycloak and SQL Server are running
 
 ---

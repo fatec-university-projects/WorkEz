@@ -1,6 +1,6 @@
-services:
+﻿services:
   - type: web
-    name: adega-api
+    name: workez-api
     plan: free
     runtime: docker
     rootDir: api
@@ -12,9 +12,9 @@ services:
       - key: ConnectionStrings__DefaultConnection
         value: "Host=ep-rapid-forest-ams8xemm-pooler.c-5.us-east-1.aws.neon.tech;Database=neondb;Username=neondb_owner;Password=npg_OwuCLEAoh9G5;SslMode=Require;Trust Server Certificate=true;"
       - key: Jwt__Issuer
-        value: AdegaRoyal
+        value: WorkEz
       - key: Jwt__Audience
-        value: AdegaRoyalClient
+        value: WorkEzClient
       - key: Jwt__SecretKey
         value: "ad73a326-5687-4684-8d45-2b9641e0715e-b75c5aab-2dc5-4906-8dc4-3253d3e6dd89" 
       - key: Jwt__ExpiryInMinutes

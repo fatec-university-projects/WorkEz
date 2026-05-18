@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AdegaRoyal.Api.Entities;
+using WorkEz.Api.Entities;
 
-namespace AdegaRoyal.Api.Services;
+namespace WorkEz.Api.Services;
 
 public interface ITaskService
 {
