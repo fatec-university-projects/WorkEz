@@ -51,6 +51,6 @@ public class UserService(AppDbContext context) : IUserService
         Email     = user.Email,
         Role      = user.Role.ToString(),
         CreatedAt = user.CreatedAt,
-        IsActive  = user.IsActive
+        AccountStatus = user.AccountStatus.ToString()
     };
 }
