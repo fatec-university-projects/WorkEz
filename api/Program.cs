@@ -42,12 +42,7 @@ builder.Services.AddSingleton<IPasswordHasherService, PasswordHasherService>();
 builder.Services.AddSingleton<ITokenService, TokenService>();
 
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<ICartService, CartService>();
-builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IPaymentService, AbacatePayService>();
-builder.Services.AddScoped<IDeliveryService, DeliveryService>();
 
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -58,7 +53,7 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false; 
+        options.RequireHttpsMetadata = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer           = true,
@@ -76,10 +71,10 @@ builder.Services
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy => 
+    options.AddPolicy("AdminOnly", policy =>
         policy.RequireClaim("role", "Admin"));
-        
-    options.AddPolicy("CustomerOnly", policy => 
+
+    options.AddPolicy("CustomerOnly", policy =>
         policy.RequireClaim("role", "Customer"));
 });
 
