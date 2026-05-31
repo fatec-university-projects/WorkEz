@@ -1,7 +1,7 @@
 namespace WorkEz.Api.Enums;
 
 /// <summary>
-/// Represents the roles available in the Adega Royal system, aligned with Keycloak realm roles.
+/// Represents the roles available in the WorkEz system, aligned with Keycloak realm roles.
 /// </summary>
 public enum UserRole
 {

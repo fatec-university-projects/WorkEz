@@ -1,6 +1,6 @@
-# Adega Royal API - HTTP Test Examples
+# WorkEz API - HTTP Test Examples
 
-This file contains HTTP requests for testing all Adega Royal API endpoints.
+This file contains HTTP requests for testing all WorkEz API endpoints.
 Use with VS Code REST Client extension or similar tools.
 
 ## Environment Variables

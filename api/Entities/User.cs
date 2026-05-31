@@ -3,7 +3,7 @@ using WorkEz.Api.Enums;
 namespace WorkEz.Api.Entities;
 
 /// <summary>
-/// Represents a registered user in the Adega Royal system.
+/// Represents a registered user in the WorkEz system.
 /// </summary>
 public class User(string name, string email, UserRole role = UserRole.Customer)
 {
