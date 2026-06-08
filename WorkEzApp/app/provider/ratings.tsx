@@ -9,7 +9,7 @@ export default function ReceivedRatings() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()}>
             <ArrowLeft className="w-6 h-6" />
           </TouchableOpacity>
@@ -18,7 +18,7 @@ export default function ReceivedRatings() {
       </View>
       <View className="p-6 space-y-3">
         <View className="bg-white rounded-2xl p-6 text-center">
-          <View className="flex items-center justify-center gap-2 mb-2">
+          <View className="flex-row items-center justify-center gap-2 mb-2">
             <Star className="w-8 h-8 fill-[#FBBF24] text-[#FBBF24]" />
             <Text className="text-4xl font-bold">4.9</Text>
           </View>

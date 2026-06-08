@@ -35,7 +35,7 @@ export function Toast({ type, message, onClose }: ToastProps) {
 
   return (
     <View
-      className={`fixed top-4 left-4 right-4 ${bg} ${text} rounded-xl p-4 shadow-lg flex items-center gap-3 animate-in slide-in-from-top z-50`}
+      className={`fixed top-4 left-4 right-4 ${bg} ${text} rounded-xl p-4 shadow-lg flex-row items-center gap-3 animate-in slide-in-from-top z-50`}
       onPress={onClose}
     >
       <Icon className="w-5 h-5 flex-shrink-0" />

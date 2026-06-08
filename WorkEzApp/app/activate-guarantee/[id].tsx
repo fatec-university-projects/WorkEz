@@ -11,7 +11,7 @@ export default function ActivateGuarantee() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -26,7 +26,7 @@ export default function ActivateGuarantee() {
 
       <View className="p-6 space-y-6">
         <View className="bg-[#FEF3C7] border border-[#FDE047] rounded-xl p-5">
-          <View className="flex items-start gap-3">
+          <View className="flex-row items-start gap-3">
             <AlertTriangle className="w-6 h-6 text-[#854D0E] flex-shrink-0 mt-0.5" />
             <View>
               <Text className="font-semibold text-[#854D0E] mb-1">
@@ -49,10 +49,7 @@ export default function ActivateGuarantee() {
             onChangeText={setDescription}
             placeholder="Explique detalhadamente o que aconteceu..."
             rows={6}
-            className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl
-              text-[#0F172A] placeholder:text-[#94A3B8]
-              focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10
-              transition-all resize-none"
+            className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all resize-none"
           />
         </View>
 

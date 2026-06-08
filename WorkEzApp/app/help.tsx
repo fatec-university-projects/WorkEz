@@ -23,7 +23,7 @@ export default function Help() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -68,7 +68,7 @@ export default function Help() {
           </Text>
 
           <View className="space-y-3">
-            <TouchableOpacity className="w-full flex items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#EFF6FF] transition-colors">
+            <TouchableOpacity className="w-full flex-row items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#EFF6FF] transition-colors">
               <MessageCircle className="w-5 h-5 text-[#2563EB]" />
               <View className="text-left flex-1">
                 <Text className="font-medium text-[#0F172A]">Chat ao vivo</Text>
@@ -76,7 +76,7 @@ export default function Help() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity className="w-full flex items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#EFF6FF] transition-colors">
+            <TouchableOpacity className="w-full flex-row items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#EFF6FF] transition-colors">
               <Mail className="w-5 h-5 text-[#2563EB]" />
               <View className="text-left flex-1">
                 <Text className="font-medium text-[#0F172A]">E-mail</Text>
@@ -84,7 +84,7 @@ export default function Help() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity className="w-full flex items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#EFF6FF] transition-colors">
+            <TouchableOpacity className="w-full flex-row items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#EFF6FF] transition-colors">
               <Phone className="w-5 h-5 text-[#2563EB]" />
               <View className="text-left flex-1">
                 <Text className="font-medium text-[#0F172A]">Telefone</Text>

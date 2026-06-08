@@ -17,7 +17,7 @@ export default function ProviderSettings() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()}>
             <ArrowLeft className="w-6 h-6" />
           </TouchableOpacity>
@@ -32,7 +32,7 @@ export default function ProviderSettings() {
               <TouchableOpacity
                 key={i}
                 onPress={() => router.push(item.path)}
-                className="w-full flex items-center gap-3 px-6 py-4 border-b last:border-0"
+                className="w-full flex-row items-center gap-3 px-6 py-4 border-b last:border-0"
               >
                 <Icon className="w-5 h-5 text-[#64748B]" />
                 <Text className="flex-1 text-left">{item.label}</Text>
@@ -43,7 +43,7 @@ export default function ProviderSettings() {
         </View>
         <TouchableOpacity
           onPress={() => router.push('/')}
-          className="w-full flex items-center gap-3 px-6 py-4 bg-white rounded-2xl text-red-500"
+          className="w-full flex-row items-center gap-3 px-6 py-4 bg-white rounded-2xl text-red-500"
         >
           <LogOut className="w-5 h-5" />
           <Text className="flex-1 text-left font-medium">Sair</Text>

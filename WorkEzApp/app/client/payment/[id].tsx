@@ -11,7 +11,7 @@ export default function Payment() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -31,21 +31,21 @@ export default function Payment() {
           </Text>
 
           <View className="space-y-3 pb-4 border-b border-[#E2E8F0]">
-            <View className="flex justify-between">
+            <View className="flex-row justify-between">
               <Text className="text-[#64748B]">Profissional</Text>
               <Text className="font-medium text-[#0F172A]">Carlos Silva</Text>
             </View>
-            <View className="flex justify-between">
+            <View className="flex-row justify-between">
               <Text className="text-[#64748B]">Serviço</Text>
               <Text className="font-medium text-[#0F172A]">Encanador</Text>
             </View>
-            <View className="flex justify-between">
+            <View className="flex-row justify-between">
               <Text className="text-[#64748B]">Duração</Text>
               <Text className="font-medium text-[#0F172A]">1h 15min</Text>
             </View>
           </View>
 
-          <View className="flex justify-between items-center pt-4">
+          <View className="flex-row justify-between items-center pt-4">
             <Text className="text-lg font-semibold text-[#0F172A]">Total</Text>
             <Text className="text-2xl font-bold text-[#2563EB]">R$ 150,00</Text>
           </View>
@@ -59,14 +59,10 @@ export default function Payment() {
           <View className="space-y-3">
             <TouchableOpacity
               onPress={() => setPaymentMethod('pix')}
-              className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                paymentMethod === 'pix'
-                  ? 'border-[#2563EB] bg-[#2563EB]/5'
-                  : 'border-[#E2E8F0]'
-              }`}
+              className={`w-full p-4 rounded-xl border-2 transition-all text-left ${ paymentMethod === 'pix' ? 'border-[#2563EB] bg-[#2563EB]/5' : 'border-[#E2E8F0]' }`}
             >
-              <View className="flex items-center gap-3">
-                <View className="w-12 h-12 bg-[#00C89F]/10 rounded-lg flex items-center justify-center">
+              <View className="flex-row items-center gap-3">
+                <View className="w-12 h-12 bg-[#00C89F]/10 rounded-lg flex-row items-center justify-center">
                   <DollarSign className="w-5 h-5 text-[#10B981]" />
                 </View>
                 <View className="flex-1">
@@ -78,14 +74,10 @@ export default function Payment() {
 
             <TouchableOpacity
               onPress={() => setPaymentMethod('card')}
-              className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                paymentMethod === 'card'
-                  ? 'border-[#2563EB] bg-[#2563EB]/5'
-                  : 'border-[#E2E8F0]'
-              }`}
+              className={`w-full p-4 rounded-xl border-2 transition-all text-left ${ paymentMethod === 'card' ? 'border-[#2563EB] bg-[#2563EB]/5' : 'border-[#E2E8F0]' }`}
             >
-              <View className="flex items-center gap-3">
-                <View className="w-12 h-12 bg-[#2563EB]/10 rounded-lg flex items-center justify-center">
+              <View className="flex-row items-center gap-3">
+                <View className="w-12 h-12 bg-[#2563EB]/10 rounded-lg flex-row items-center justify-center">
                   <CreditCard className="w-6 h-6 text-[#2563EB]" />
                 </View>
                 <View className="flex-1">
@@ -98,7 +90,7 @@ export default function Payment() {
         </View>
 
         <View className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-4">
-          <View className="flex items-start gap-3">
+          <View className="flex-row items-start gap-3">
             <Shield className="w-5 h-5 text-[#2563EB] flex-shrink-0 mt-0.5" />
             <View>
               <Text className="font-medium text-[#1d4ed8] mb-1">

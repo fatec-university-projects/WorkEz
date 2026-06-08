@@ -39,8 +39,8 @@ export default function DocumentVerification() {
                 key={index}
                 className="bg-[#F8FAFC] rounded-xl p-4 border-2 border-dashed border-[#E2E8F0] hover:border-[#2563EB] transition-all cursor-pointer"
               >
-                <View className="flex items-center gap-4">
-                  <View className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
+                <View className="flex-row items-center gap-4">
+                  <View className="w-12 h-12 bg-white rounded-lg flex-row items-center justify-center">
                     <Icon className="w-6 h-6 text-[#64748B]" />
                   </View>
                   <View className="flex-1">

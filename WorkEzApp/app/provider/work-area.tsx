@@ -47,11 +47,7 @@ export default function WorkArea() {
                 <TouchableOpacity
                   key={cat}
                   onPress={() => setCategory(cat)}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    category === cat
-                      ? 'border-[#2563EB] bg-[#2563EB]/5'
-                      : 'border-[#E2E8F0]'
-                  }`}
+                  className={`p-4 rounded-xl border-2 transition-all ${ category === cat ? 'border-[#2563EB] bg-[#2563EB]/5' : 'border-[#E2E8F0]' }`}
                 >
                   <Text className="font-medium text-[#0F172A]">{cat}</Text>
                 </TouchableOpacity>
@@ -80,10 +76,7 @@ export default function WorkArea() {
               onChangeText={setDescription}
               placeholder="Descreva suas habilidades e especialidades..."
               rows={4}
-              className="w-full px-4 py-3.5 bg-white border-2 border-[#E2E8F0] rounded-xl
-                text-[#0F172A] placeholder:text-[#94A3B8]
-                focus:outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10
-                transition-all duration-200 resize-none"
+              className="w-full px-4 py-3.5 bg-white border-2 border-[#E2E8F0] rounded-xl text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10 transition-all duration-200 resize-none"
             />
           </View>
         </View>

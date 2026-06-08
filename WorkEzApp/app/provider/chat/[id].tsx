@@ -10,7 +10,7 @@ export default function ProviderChat() {
   return (
     <View className="min-h-screen bg-[#F8FAFC] flex flex-col">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()}>
             <ArrowLeft className="w-6 h-6" />
           </TouchableOpacity>
@@ -18,7 +18,7 @@ export default function ProviderChat() {
         </View>
       </View>
       <View className="flex-1"></View>
-      <View className="bg-white p-4 border-t flex gap-2">
+      <View className="bg-white p-4 border-t flex-row gap-2">
         <TextInput
           type="text"
           value={message}

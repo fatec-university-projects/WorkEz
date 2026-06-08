@@ -9,7 +9,7 @@ export default function ConfirmCall() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -30,8 +30,8 @@ export default function ConfirmCall() {
 
           <View className="space-y-4">
             <View>
-              <View className="flex items-start gap-3">
-                <View className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <View className="flex-row items-start gap-3">
+                <View className="w-10 h-10 bg-blue-50 rounded-xl flex-row items-center justify-center flex-shrink-0">
                   <Wrench className="w-5 h-5 text-[#3B82F6]" />
                 </View>
                 <View className="flex-1">
@@ -41,8 +41,8 @@ export default function ConfirmCall() {
               </View>
             </View>
 
-            <View className="flex items-start gap-3">
-              <View className="w-10 h-10 bg-[#F1F5F9] rounded-xl flex items-center justify-center flex-shrink-0">
+            <View className="flex-row items-start gap-3">
+              <View className="w-10 h-10 bg-[#F1F5F9] rounded-xl flex-row items-center justify-center flex-shrink-0">
                 <FileText className="w-5 h-5 text-[#64748B]" />
               </View>
               <View className="flex-1">
@@ -53,8 +53,8 @@ export default function ConfirmCall() {
               </View>
             </View>
 
-            <View className="flex items-start gap-3">
-              <View className="w-10 h-10 bg-[#F1F5F9] rounded-xl flex items-center justify-center flex-shrink-0">
+            <View className="flex-row items-start gap-3">
+              <View className="w-10 h-10 bg-[#F1F5F9] rounded-xl flex-row items-center justify-center flex-shrink-0">
                 <MapPin className="w-5 h-5 text-[#64748B]" />
               </View>
               <View className="flex-1">
@@ -65,13 +65,13 @@ export default function ConfirmCall() {
               </View>
             </View>
 
-            <View className="flex items-start gap-3">
-              <View className="w-10 h-10 bg-[#F1F5F9] rounded-xl flex items-center justify-center flex-shrink-0">
+            <View className="flex-row items-start gap-3">
+              <View className="w-10 h-10 bg-[#F1F5F9] rounded-xl flex-row items-center justify-center flex-shrink-0">
                 <ImageIcon className="w-5 h-5 text-[#64748B]" />
               </View>
               <View className="flex-1">
                 <Text className="text-sm text-[#64748B]">Fotos anexadas</Text>
-                <View className="flex gap-2 mt-2">
+                <View className="flex-row gap-2 mt-2">
                   <View className="w-16 h-16 bg-[#E2E8F0] rounded-lg"></View>
                   <View className="w-16 h-16 bg-[#E2E8F0] rounded-lg"></View>
                 </View>

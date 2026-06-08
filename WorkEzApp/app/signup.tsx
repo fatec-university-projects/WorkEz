@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, User, Mail, Lock, Phone } from 'lucide-react-native';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { AntigravityTheme } from '../constants/theme';
 
 export default function SignUp() {
   const router = useRouter();
@@ -19,83 +20,154 @@ export default function SignUp() {
   };
 
   return (
-    <View className="min-h-screen bg-white">
-      <View className="p-6">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
-        </TouchableOpacity>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <ArrowLeft size={24} color={AntigravityTheme.colors.text} />
+          </TouchableOpacity>
 
-        <Text className="text-3xl font-bold text-[#0F172A] mt-8 mb-2">
-          Criar conta
-        </Text>
-        <Text className="text-[#94A3B8]">
-          Preencha seus dados para começar
-        </Text>
+          <Text style={styles.title}>
+            Criar conta
+          </Text>
+          <Text style={styles.subtitle}>
+            Preencha seus dados para começar
+          </Text>
+        </View>
 
-        <View className="mt-8 space-y-4">
-          <View className="relative">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" />
+        <View style={styles.formContainer}>
+          <View style={styles.inputWrapper}>
+            <User size={20} color={AntigravityTheme.colors.textSecondary} style={styles.inputIcon} />
             <Input
               placeholder="Nome completo"
               value={formData.name}
-              onChangeText={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="pl-12"
+              onChangeText={(val) => setFormData({ ...formData, name: val })}
+              style={styles.inputWithIcon}
             />
           </View>
 
-          <View className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" />
+          <View style={styles.inputWrapper}>
+            <Mail size={20} color={AntigravityTheme.colors.textSecondary} style={styles.inputIcon} />
             <Input
               type="email"
               placeholder="E-mail"
               value={formData.email}
-              onChangeText={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="pl-12"
+              onChangeText={(val) => setFormData({ ...formData, email: val })}
+              style={styles.inputWithIcon}
             />
           </View>
 
-          <View className="relative">
-            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" />
+          <View style={styles.inputWrapper}>
+            <Phone size={20} color={AntigravityTheme.colors.textSecondary} style={styles.inputIcon} />
             <Input
               type="tel"
               placeholder="Telefone"
               value={formData.phone}
-              onChangeText={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="pl-12"
+              onChangeText={(val) => setFormData({ ...formData, phone: val })}
+              style={styles.inputWithIcon}
             />
           </View>
 
-          <View className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" />
+          <View style={styles.inputWrapper}>
+            <Lock size={20} color={AntigravityTheme.colors.textSecondary} style={styles.inputIcon} />
             <Input
               type="password"
               placeholder="Criar senha"
               value={formData.password}
-              onChangeText={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="pl-12"
+              onChangeText={(val) => setFormData({ ...formData, password: val })}
+              style={styles.inputWithIcon}
             />
           </View>
         </View>
 
-        <View className="mt-8 space-y-3">
+        <View style={styles.footerContainer}>
           <Button fullWidth onPress={handleSignUp}>
             Continuar
           </Button>
 
-          <View className="text-center text-sm text-[#94A3B8]">
-            Já tem uma conta?{' '}
-            <TouchableOpacity
-              onPress={() => router.push('/login')}
-              className="text-[#2563EB] font-medium"
-            >
-              Entrar
+          <View style={styles.loginContainer}>
+            <Text style={styles.loginText}>
+              Já tem uma conta?{' '}
+            </Text>
+            <TouchableOpacity onPress={() => router.push('/login')}>
+              <Text style={styles.loginLinkText}>
+                Entrar
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: AntigravityTheme.colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 24,
+    justifyContent: 'center',
+  },
+  header: {
+    marginBottom: 32,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 32,
+  },
+  title: {
+    ...AntigravityTheme.typography.xl,
+    fontWeight: AntigravityTheme.typography.fontWeight.bold,
+    color: AntigravityTheme.colors.text,
+    marginBottom: 8,
+  },
+  subtitle: {
+    ...AntigravityTheme.typography.base,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+  formContainer: {
+    gap: 16,
+    marginBottom: 32,
+  },
+  inputWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  inputIcon: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 1,
+  },
+  inputWithIcon: {
+    paddingLeft: 48,
+  },
+  footerContainer: {
+    gap: 12,
+  },
+  loginContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  loginText: {
+    ...AntigravityTheme.typography.sm,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+  loginLinkText: {
+    ...AntigravityTheme.typography.sm,
+    fontWeight: AntigravityTheme.typography.fontWeight.medium,
+    color: '#2563EB',
+  },
+});

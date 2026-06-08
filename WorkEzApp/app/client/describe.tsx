@@ -13,7 +13,7 @@ export default function DescribeService() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -36,10 +36,7 @@ export default function DescribeService() {
             onChangeText={setDescription}
             placeholder="Descreva detalhadamente o problema ou serviço que precisa..."
             rows={4}
-            className="w-full px-4 py-3.5 bg-white border-2 border-[#E2E8F0] rounded-xl
-              text-[#0F172A] placeholder:text-[#94A3B8]
-              focus:outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10
-              transition-all duration-200 resize-none"
+            className="w-full px-4 py-3.5 bg-white border-2 border-[#E2E8F0] rounded-xl text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10 transition-all duration-200 resize-none"
           />
         </View>
 

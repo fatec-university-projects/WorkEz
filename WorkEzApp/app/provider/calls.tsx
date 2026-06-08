@@ -1,25 +1,52 @@
 import { useRouter } from 'expo-router';
 import { ServiceCard } from '../../components/ServiceCard';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { AntigravityTheme } from '../../constants/theme';
 
 export default function ProviderCalls() {
   const router = useRouter();
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b">
-        <Text className="text-2xl font-bold">Chamados</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Chamados</Text>
       </View>
-      <View className="p-6 space-y-3">
+      <View style={styles.content}>
         <ServiceCard
           category="Encanador"
           description="Torneira da cozinha vazando"
           status="in-progress"
           date="Hoje, 14:30"
           professional="João Silva"
-          onPress={() => router.push('/provider/new-call/1')}
+          onClick={() => router.push('/provider/new-call/1')}
         />
       </View>
-    </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  header: {
+    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: AntigravityTheme.colors.border,
+  },
+  headerTitle: {
+    ...AntigravityTheme.typography.xl,
+    fontWeight: AntigravityTheme.typography.fontWeight.bold,
+    color: AntigravityTheme.colors.text,
+  },
+  content: {
+    padding: 24,
+    gap: 12,
+  },
+});

@@ -51,13 +51,9 @@ export default function Favorites() {
         ))}
 
         {favorites.length === 0 && (
-          <View className="text-center py-12">
-            <Text className="text-lg text-[#0F172A] mb-2">
-              Nenhum favorito ainda
-            </Text>
-            <Text className="text-[#64748B]">
-              Salve profissionais que você gostou para chamá-los novamente
-            </Text>
+          <View className="py-12 items-center">
+            <Text className="text-lg text-[#0F172A] mb-2">Nenhum favorito ainda</Text>
+            <Text className="text-[#64748B] text-center">Salve profissionais que você gostou para chamá-los novamente</Text>
           </View>
         )}
       </View>

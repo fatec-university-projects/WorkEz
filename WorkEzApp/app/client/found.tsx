@@ -11,7 +11,7 @@ export default function ProfessionalFound() {
     <View className="min-h-screen bg-[#F8FAFC] flex flex-col">
       <View className="flex-1 p-6">
         <View className="text-center mb-6">
-          <View className="w-16 h-16 bg-[#26FFF5]/10 rounded-full flex items-center justify-center mx-auto mb-3">
+          <View className="w-16 h-16 bg-[#26FFF5]/10 rounded-full flex-row items-center justify-center mx-auto mb-3">
             <CheckCircle className="w-8 h-8 text-[#26FFF5]" />
           </View>
           <Text className="text-2xl font-bold text-[#0F172A] mb-2">
@@ -23,7 +23,7 @@ export default function ProfessionalFound() {
         </View>
 
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-start gap-4 mb-6">
+          <View className="flex-row items-start gap-4 mb-6">
             <View className="relative">
               <Image
                 source="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop"
@@ -41,8 +41,8 @@ export default function ProfessionalFound() {
               </Text>
               <Badge variant="verified" size="sm" />
 
-              <View className="flex items-center gap-4 mt-3">
-                <View className="flex items-center gap-1">
+              <View className="flex-row items-center gap-4 mt-3">
+                <View className="flex-row items-center gap-1">
                   <Star className="w-4 h-4 fill-[#FBBF24] text-[#FBBF24]" />
                   <Text className="font-semibold text-[#0F172A]">4.9</Text>
                 </View>
@@ -54,15 +54,15 @@ export default function ProfessionalFound() {
           </View>
 
           <View className="space-y-3 pt-4 border-t border-[#E2E8F0]">
-            <View className="flex justify-between">
+            <View className="flex-row justify-between">
               <Text className="text-[#64748B]">Tempo estimado</Text>
               <Text className="font-medium text-[#0F172A]">15-20 min</Text>
             </View>
-            <View className="flex justify-between">
+            <View className="flex-row justify-between">
               <Text className="text-[#64748B]">Distância</Text>
               <Text className="font-medium text-[#0F172A]">2.3 km</Text>
             </View>
-            <View className="flex justify-between">
+            <View className="flex-row justify-between">
               <Text className="text-[#64748B]">Especialidade</Text>
               <Text className="font-medium text-[#0F172A]">Encanador</Text>
             </View>

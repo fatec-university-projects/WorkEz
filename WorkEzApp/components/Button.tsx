@@ -1,43 +1,108 @@
-import { TouchableOpacity, TouchableOpacityProps, Text } from 'react-native';
+import React, { Children } from 'react';
+import { Pressable, PressableProps, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { AntigravityTheme } from '../constants/theme';
 
-interface ButtonProps extends TouchableOpacityProps {
+interface ButtonProps extends Omit<PressableProps, 'style'> {
   variant?: 'primary' | 'secondary' | 'ghost';
   fullWidth?: boolean;
+  style?: ViewStyle | ViewStyle[];
 }
 
 export function Button({
   variant = 'primary',
   fullWidth = false,
   children,
-  className = '',
+  style,
   ...props
 }: ButtonProps) {
-  const baseClasses = 'px-6 py-3.5 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
-
-  const variants = {
-    primary: 'bg-[#2563EB] text-white hover:bg-[#1d4ed8] active:scale-95 shadow-sm',
-    secondary: 'bg-white text-[#0F172A] border-2 border-[#E2E8F0] hover:border-[#2563EB] hover:text-[#2563EB] active:scale-95',
-    ghost: 'text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F1F5F9]',
-  };
-
-  const widthClass = fullWidth ? 'w-full' : '';
-
-  const textVariants = {
-    primary: 'text-white text-center font-semibold',
-    secondary: 'text-[#0F172A] text-center font-semibold',
-    ghost: 'text-[#94A3B8] text-center font-semibold',
-  };
+  const isPrimary = variant === 'primary';
+  const isSecondary = variant === 'secondary';
+  const isGhost = variant === 'ghost';
 
   return (
-    <TouchableOpacity
-      className={`${baseClasses} ${variants[variant]} ${widthClass} ${className}`}
+    <Pressable
+      style={({ pressed }) => [
+        styles.baseButton,
+        isPrimary && styles.primaryButton,
+        isSecondary && styles.secondaryButton,
+        isGhost && styles.ghostButton,
+        fullWidth && styles.fullWidth,
+        pressed && styles.pressed,
+        props.disabled && styles.disabled,
+        style,
+      ]}
       {...props}
     >
-      {typeof children === 'string' ? (
-        <Text className={textVariants[variant]}>{children}</Text>
-      ) : (
-        children
-      )}
-    </TouchableOpacity>
+      {Children.map(children, (child) => {
+        if (child === null || child === undefined || typeof child === 'boolean') return null;
+        if (typeof child === 'string' || typeof child === 'number') {
+          return (
+            <Text
+              style={[
+                styles.baseText,
+                isPrimary && styles.primaryText,
+                isSecondary && styles.secondaryText,
+                isGhost && styles.ghostText,
+              ]}
+            >
+              {child}
+            </Text>
+          );
+        }
+        return child;
+      })}
+    </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  baseButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: AntigravityTheme.borderRadius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: AntigravityTheme.spacing.sm,
+  },
+  fullWidth: {
+    width: '100%',
+  },
+  pressed: {
+    transform: [{ scale: 0.95 }],
+    opacity: 0.8,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  primaryButton: {
+    backgroundColor: '#2563EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  secondaryButton: {
+    backgroundColor: AntigravityTheme.colors.background,
+    borderWidth: 2,
+    borderColor: AntigravityTheme.colors.border,
+  },
+  ghostButton: {
+    backgroundColor: 'transparent',
+  },
+  baseText: {
+    textAlign: 'center',
+    ...AntigravityTheme.typography.base,
+    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
+  },
+  primaryText: {
+    color: '#FFFFFF',
+  },
+  secondaryText: {
+    color: AntigravityTheme.colors.text,
+  },
+  ghostText: {
+    color: AntigravityTheme.colors.textSecondary,
+  },
+});

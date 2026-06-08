@@ -14,7 +14,7 @@ export default function Portfolio() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()}>
             <ArrowLeft className="w-6 h-6" />
           </TouchableOpacity>

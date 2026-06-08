@@ -1,6 +1,6 @@
 import { Href, usePathname, useRouter } from 'expo-router';
 import { Briefcase, Heart, Home, User, Wallet } from 'lucide-react-native';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 
 interface NavItem {
   icon: typeof Home;
@@ -33,20 +33,29 @@ export function BottomNav({ type }: BottomNavProps) {
   const items = type === 'client' ? clientNav : providerNav;
 
   return (
-    <View className="bg-white border-t border-[#E2E8F0] z-50">
-      <View className="max-w-md mx-auto w-full flex flex-row items-center justify-around px-2 py-2 pb-6">
+    <View style={styles.container}>
+      <View style={styles.navContent}>
         {items.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.path;
+          const isActive = pathname === (item.path as string);
 
           return (
             <TouchableOpacity
               key={item.path as string}
               onPress={() => router.push(item.path)}
-              className="flex flex-col items-center gap-1 py-2 px-4 rounded-lg transition-all"
+              style={styles.navItem}
             >
-              <Icon className={`w-6 h-6 ${isActive ? 'text-[#2563EB] stroke-[2.5]' : 'text-[#94A3B8]'}`} />
-              <Text className={`text-xs font-medium ${isActive ? 'text-[#2563EB]' : 'text-[#94A3B8]'}`}>
+              <Icon
+                size={24}
+                color={isActive ? '#2563EB' : '#94A3B8'}
+                strokeWidth={isActive ? 2.5 : 1.8}
+              />
+              <Text
+                style={[
+                  styles.navText,
+                  { color: isActive ? '#2563EB' : '#94A3B8' }
+                ]}
+              >
                 {item.label}
               </Text>
             </TouchableOpacity>
@@ -56,3 +65,35 @@ export function BottomNav({ type }: BottomNavProps) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    zIndex: 50,
+  },
+  navContent: {
+    maxWidth: 448,
+    alignSelf: 'center',
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  navItem: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  navText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+});

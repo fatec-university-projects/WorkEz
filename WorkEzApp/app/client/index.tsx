@@ -1,68 +1,67 @@
 import { useRouter } from 'expo-router';
 import { Search, Zap, Shield, ShieldCheck, Star, Wrench, Brush, Paintbrush, Hammer, Settings } from 'lucide-react-native';
 import { Button } from '../../components/Button';
-import { View, Text, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { AntigravityTheme } from '../../constants/theme';
 
 export default function ClientHome() {
   const router = useRouter();
 
   const categories = [
-    { name: 'Encanador', icon: Wrench, color: 'bg-blue-50', iconColor: 'text-blue-500' },
-    { name: 'Eletricista', icon: Zap, color: 'bg-yellow-50', iconColor: 'text-yellow-500' },
-    { name: 'Diarista', icon: Brush, color: 'bg-purple-50', iconColor: 'text-purple-500' },
-    { name: 'Pintor', icon: Paintbrush, color: 'bg-green-50', iconColor: 'text-green-500' },
-    { name: 'Montador', icon: Hammer, color: 'bg-orange-50', iconColor: 'text-orange-500' },
-    { name: 'Técnico', icon: Settings, color: 'bg-red-50', iconColor: 'text-red-500' },
+    { name: 'Encanador', icon: Wrench, bgColor: '#eff6ff', iconColor: '#3b82f6' },
+    { name: 'Eletricista', icon: Zap, bgColor: '#fefce8', iconColor: '#eab308' },
+    { name: 'Diarista', icon: Brush, bgColor: '#faf5ff', iconColor: '#a855f7' },
+    { name: 'Pintor', icon: Paintbrush, bgColor: '#f0fdf4', iconColor: '#22c55e' },
+    { name: 'Montador', icon: Hammer, bgColor: '#fff7ed', iconColor: '#f97316' },
+    { name: 'Técnico', icon: Settings, bgColor: '#fef2f2', iconColor: '#ef4444' },
   ];
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] px-6 pt-12 pb-8 rounded-b-3xl">
-        <Text className="text-2xl font-bold text-white mb-1">
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.headerBackground}>
+        <Text style={styles.greetingText}>
           Olá, João! 👋
         </Text>
-        <Text className="text-white/80">
+        <Text style={styles.subtitleText}>
           Qual serviço você precisa hoje?
         </Text>
 
-        <View className="mt-6 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748B]" />
+        <View style={styles.searchContainer}>
+          <Search size={20} color="#64748B" style={styles.searchIcon} />
           <TextInput
-            type="text"
             placeholder="Buscar serviços..."
-            className="w-full pl-12 pr-4 py-3.5 bg-white rounded-xl border-0 focus:outline-none focus:ring-4 focus:ring-white/20"
+            style={styles.searchInput}
+            placeholderTextColor="#94A3B8"
           />
         </View>
       </View>
 
-      <View className="px-6 -mt-4">
+      <View style={styles.callNowContainer}>
         <Button
           fullWidth
           onPress={() => router.push('/client/category')}
-          className="shadow-lg"
         >
-          <Zap className="w-5 h-5 inline mr-2" />
-          Chamar agora
+          <Zap size={20} color="#FFF" style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Chamar agora</Text>
         </Button>
       </View>
 
-      <View className="px-6 mt-8">
-        <Text className="text-lg font-semibold text-[#0F172A] mb-4">
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionTitle}>
           Categorias de serviço
         </Text>
 
-        <View className="flex flex-row flex-wrap justify-between gap-y-3">
+        <View style={styles.categoriesGrid}>
           {categories.map((category) => {
             const Icon = category.icon;
             return (
               <TouchableOpacity
                 key={category.name}
                 onPress={() => router.push('/client/category')}
-                className={`${category.color} rounded-2xl p-4 flex flex-col items-center justify-center`}
-                style={{ width: '31%' }}
+                style={[styles.categoryCard, { backgroundColor: category.bgColor }]}
               >
-                <Icon className={`w-8 h-8 mb-2 ${category.iconColor}`} />
-                <Text className="text-xs font-medium text-[#0F172A] text-center">
+                <Icon size={32} color={category.iconColor} style={styles.categoryIcon} />
+                <Text style={styles.categoryText}>
                   {category.name}
                 </Text>
               </TouchableOpacity>
@@ -71,54 +70,54 @@ export default function ClientHome() {
         </View>
       </View>
 
-      <View className="px-6 mt-8 mb-8">
-        <Text className="text-lg font-semibold text-[#0F172A] mb-4">
+      <View style={styles.sectionContainerBottom}>
+        <Text style={styles.sectionTitle}>
           Por que escolher o WorkEz?
         </Text>
 
-        <View className="space-y-3">
-          <View className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]">
-            <View className="flex items-start gap-3">
-              <View className="w-10 h-10 bg-[#26FFF5]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                <ShieldCheck className="w-5 h-5 text-[#26FFF5]" />
+        <View style={styles.benefitsContainer}>
+          <View style={styles.benefitCard}>
+            <View style={styles.benefitContentRow}>
+              <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(38, 255, 245, 0.1)' }]}>
+                <ShieldCheck size={20} color={AntigravityTheme.colors.primary} />
               </View>
-              <View>
-                <Text className="font-medium text-[#0F172A] mb-1">
+              <View style={styles.benefitTextContainer}>
+                <Text style={styles.benefitTitle}>
                   Profissionais verificados
                 </Text>
-                <Text className="text-sm text-[#64748B]">
+                <Text style={styles.benefitDescription}>
                   Documentos checados e antecedentes verificados
                 </Text>
               </View>
             </View>
           </View>
 
-          <View className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]">
-            <View className="flex items-start gap-3">
-              <View className="w-10 h-10 bg-[#2563EB]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Shield className="w-5 h-5 text-[#2563EB]" />
+          <View style={styles.benefitCard}>
+            <View style={styles.benefitContentRow}>
+              <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(37, 99, 235, 0.1)' }]}>
+                <Shield size={20} color="#2563EB" />
               </View>
-              <View>
-                <Text className="font-medium text-[#0F172A] mb-1">
+              <View style={styles.benefitTextContainer}>
+                <Text style={styles.benefitTitle}>
                   Pagamento seguro
                 </Text>
-                <Text className="text-sm text-[#64748B]">
+                <Text style={styles.benefitDescription}>
                   Pague pelo app com proteção total
                 </Text>
               </View>
             </View>
           </View>
 
-          <View className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]">
-            <View className="flex items-start gap-3">
-              <View className="w-10 h-10 bg-[#FBBF24]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Star className="w-5 h-5 text-[#FBBF24]" />
+          <View style={styles.benefitCard}>
+            <View style={styles.benefitContentRow}>
+              <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(251, 191, 36, 0.1)' }]}>
+                <Star size={20} color={AntigravityTheme.colors.warning} />
               </View>
-              <View>
-                <Text className="font-medium text-[#0F172A] mb-1">
+              <View style={styles.benefitTextContainer}>
+                <Text style={styles.benefitTitle}>
                   Avaliações reais
                 </Text>
-                <Text className="text-sm text-[#64748B]">
+                <Text style={styles.benefitDescription}>
                   Profissionais avaliados por clientes como você
                 </Text>
               </View>
@@ -126,6 +125,143 @@ export default function ClientHome() {
           </View>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: AntigravityTheme.spacing.xl,
+  },
+  headerBackground: {
+    backgroundColor: '#2563EB', // gradient simplified or use expo-linear-gradient if needed
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 32,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  greetingText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  subtitleText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 16,
+  },
+  searchContainer: {
+    marginTop: 24,
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 1,
+  },
+  searchInput: {
+    width: '100%',
+    paddingLeft: 48,
+    paddingRight: 16,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    fontSize: 16,
+  },
+  callNowContainer: {
+    paddingHorizontal: 24,
+    marginTop: -16,
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  buttonText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  sectionContainer: {
+    paddingHorizontal: 24,
+    marginTop: 32,
+  },
+  sectionContainerBottom: {
+    paddingHorizontal: 24,
+    marginTop: 32,
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: AntigravityTheme.colors.text,
+    marginBottom: 16,
+  },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  categoryCard: {
+    width: '31%',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  categoryIcon: {
+    marginBottom: 8,
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: AntigravityTheme.colors.text,
+    textAlign: 'center',
+  },
+  benefitsContainer: {
+    gap: 12,
+  },
+  benefitCard: {
+    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: AntigravityTheme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  benefitContentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  benefitIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  benefitTextContainer: {
+    flex: 1,
+  },
+  benefitTitle: {
+    fontWeight: '500',
+    color: AntigravityTheme.colors.text,
+    marginBottom: 4,
+  },
+  benefitDescription: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+});

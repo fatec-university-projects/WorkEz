@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Star, Award, Image as ImageIcon } from 'lucide-react-native';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, ScrollView } from 'react-native';
 
 export default function ProviderProfile() {
   const router = useRouter();
@@ -21,19 +21,20 @@ export default function ProviderProfile() {
 
       <View className="p-6 space-y-6">
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-start gap-4 mb-4">
-            <Image
-              source="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop"
-              alt="Carlos Silva"
-              className="w-20 h-20 rounded-full object-cover"
-            />
+          <View className="flex-row items-start gap-4 mb-4">
+            <View className="w-20 h-20 rounded-full overflow-hidden">
+              <Image
+                source={{ uri: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop' }}
+                className="w-20 h-20"
+              />
+            </View>
             <View className="flex-1">
               <Text className="text-2xl font-bold text-[#0F172A] mb-1">
                 Carlos Silva
               </Text>
               <Badge variant="verified" size="md" />
-              <View className="flex items-center gap-3 mt-3">
-                <View className="flex items-center gap-1">
+              <View className="flex-row items-center gap-3 mt-3">
+                <View className="flex-row items-center gap-1">
                   <Star className="w-5 h-5 fill-[#FBBF24] text-[#FBBF24]" />
                   <Text className="text-lg font-semibold text-[#0F172A]">4.9</Text>
                 </View>
@@ -42,7 +43,7 @@ export default function ProviderProfile() {
             </View>
           </View>
 
-          <View className="flex flex-wrap gap-2 mb-4">
+          <View className="flex-row flex-wrap gap-2 mb-4">
             <Text className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full">
               Encanamento
             </Text>
@@ -69,8 +70,8 @@ export default function ProviderProfile() {
         </View>
 
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-center justify-between mb-4">
-            <View className="flex items-center gap-2">
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-2">
               <ImageIcon className="w-5 h-5 text-[#0F172A]" />
               <Text className="font-semibold text-[#0F172A]">Portfólio</Text>
             </View>
@@ -83,14 +84,11 @@ export default function ProviderProfile() {
             </Button>
           </View>
 
-          <View className="grid grid-cols-3 gap-2">
+          <View className="flex-row flex-wrap gap-2">
             {portfolio.map((img, index) => (
-              <Image
-                key={index}
-                source={img}
-                alt={`Trabalho ${index + 1}`}
-                className="w-full h-24 object-cover rounded-lg"
-              />
+              <View key={index} className="rounded-lg overflow-hidden" style={{ width: '31%', height: 96 }}>
+                <Image source={{ uri: img }} className="w-full h-full" />
+              </View>
             ))}
           </View>
 
@@ -105,8 +103,8 @@ export default function ProviderProfile() {
         </View>
 
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-center justify-between mb-4">
-            <View className="flex items-center gap-2">
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-2">
               <Award className="w-5 h-5 text-[#0F172A]" />
               <Text className="font-semibold text-[#0F172A]">Avaliações</Text>
             </View>
@@ -119,7 +117,7 @@ export default function ProviderProfile() {
             </Button>
           </View>
 
-          <View className="grid grid-cols-3 gap-4 text-center">
+          <View className="flex-row justify-around">
             <View>
               <Text className="text-2xl font-bold text-[#0F172A]">4.9</Text>
               <Text className="text-sm text-[#64748B]">Nota média</Text>

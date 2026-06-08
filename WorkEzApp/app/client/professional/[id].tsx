@@ -3,7 +3,7 @@ import { ArrowLeft, Star, Award, ShieldCheck, Image as ImageIcon } from 'lucide-
 import { Badge } from '../../../components/Badge';
 import { RatingCard } from '../../../components/RatingCard';
 import { Button } from '../../../components/Button';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
 
 export default function ProfessionalProfile() {
   const router = useRouter();
@@ -16,8 +16,8 @@ export default function ProfessionalProfile() {
 
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0] sticky top-0 z-10">
-        <View className="flex items-center gap-3">
+      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -32,19 +32,20 @@ export default function ProfessionalProfile() {
 
       <View className="p-6 space-y-6">
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-start gap-4 mb-4">
-            <Image
-              source="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop"
-              alt="Carlos Silva"
-              className="w-20 h-20 rounded-full object-cover"
-            />
+          <View className="flex-row items-start gap-4 mb-4">
+            <View className="w-20 h-20 rounded-full overflow-hidden">
+              <Image
+                source={{ uri: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop' }}
+                className="w-20 h-20"
+              />
+            </View>
             <View className="flex-1">
               <Text className="text-2xl font-bold text-[#0F172A] mb-1">
                 Carlos Silva
               </Text>
               <Badge variant="verified" size="md" />
-              <View className="flex items-center gap-3 mt-3">
-                <View className="flex items-center gap-1">
+              <View className="flex-row items-center gap-3 mt-3">
+                <View className="flex-row items-center gap-1">
                   <Star className="w-5 h-5 fill-[#FBBF24] text-[#FBBF24]" />
                   <Text className="text-lg font-semibold text-[#0F172A]">4.9</Text>
                 </View>
@@ -53,7 +54,7 @@ export default function ProfessionalProfile() {
             </View>
           </View>
 
-          <View className="flex flex-wrap gap-2 mb-4">
+          <View className="flex-row flex-wrap gap-2 mb-4">
             <Text className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full">
               Encanamento
             </Text>
@@ -71,25 +72,25 @@ export default function ProfessionalProfile() {
         </View>
 
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-center gap-2 mb-4">
+          <View className="flex-row items-center gap-2 mb-4">
             <ImageIcon className="w-5 h-5 text-[#0F172A]" />
             <Text className="font-semibold text-[#0F172A]">Portfólio</Text>
           </View>
-          <View className="grid grid-cols-3 gap-2">
+          <View className="flex-row flex-wrap gap-2">
             {portfolio.map((img, index) => (
-              <Image
-                key={index}
-                source={img}
-                alt={`Trabalho ${index + 1}`}
-                className="w-full h-24 object-cover rounded-lg"
-              />
+              <View key={index} className="rounded-lg overflow-hidden" style={{ width: '31%', height: 96 }}>
+                <Image
+                  source={{ uri: img }}
+                  className="w-full h-full"
+                />
+              </View>
             ))}
           </View>
         </View>
 
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-center justify-between mb-4">
-            <View className="flex items-center gap-2">
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-2">
               <Award className="w-5 h-5 text-[#0F172A]" />
               <Text className="font-semibold text-[#0F172A]">Avaliações</Text>
             </View>
@@ -118,7 +119,7 @@ export default function ProfessionalProfile() {
         </View>
 
         <View className="bg-[#FEF3C7] border border-[#FDE047] rounded-xl p-4">
-          <View className="flex items-start gap-3">
+          <View className="flex-row items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-[#854D0E] flex-shrink-0 mt-0.5" />
             <View>
               <Text className="font-medium text-[#854D0E] mb-1">
@@ -132,10 +133,8 @@ export default function ProfessionalProfile() {
         </View>
       </View>
 
-      <View className="fixed bottom-0 left-0 right-0 bg-white p-6 border-t border-[#E2E8F0]">
-        <Button fullWidth onPress={() => router.push('/client/tracking/1')}>
-          Acompanhar serviço
-        </Button>
+      <View className="bg-white p-6 border-t border-[#E2E8F0]">
+        <Button fullWidth onPress={() => router.push('/client/tracking/1')}>Acompanhar serviço</Button>
       </View>
     </View>
   );

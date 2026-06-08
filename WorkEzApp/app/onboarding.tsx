@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ShieldCheck, Zap, CreditCard, ChevronRight } from 'lucide-react-native';
 import { Button } from '../components/Button';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { AntigravityTheme } from '../constants/theme';
 
 const slides = [
   {
@@ -38,38 +39,41 @@ export default function Onboarding() {
   const Icon = slide.icon;
 
   return (
-    <View className="min-h-screen bg-white flex flex-col">
-      <View className="flex-1 flex flex-col items-center justify-center p-8">
-        <View className="w-24 h-24 bg-[#2563EB]/10 rounded-3xl flex items-center justify-center mb-8">
-          <Icon className="w-12 h-12 text-[#2563EB]" />
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.iconContainer}>
+          <Icon size={48} color={AntigravityTheme.colors.primary} />
         </View>
 
-        <Text className="text-2xl font-bold text-[#0F172A] text-center mb-4">
+        <Text style={styles.title}>
           {slide.title}
         </Text>
 
-        <Text className="text-[#94A3B8] text-center max-w-sm leading-relaxed">
+        <Text style={styles.description}>
           {slide.description}
         </Text>
 
-        <View className="flex gap-2 mt-12">
+        <View style={styles.paginationContainer}>
           {slides.map((_, index) => (
             <View
               key={index}
-              className={`h-2 rounded-full transition-all ${
-                index === currentSlide
-                  ? 'w-8 bg-[#2563EB]'
-                  : 'w-2 bg-[#E2E8F0]'
-              }`}
+              style={[
+                styles.dot,
+                index === currentSlide ? styles.dotActive : styles.dotInactive
+              ]}
             />
           ))}
         </View>
       </View>
 
-      <View className="p-6 space-y-3">
+      <View style={styles.footer}>
         <Button fullWidth onPress={handleNext}>
-          {currentSlide < slides.length - 1 ? 'Continuar' : 'Começar'}
-          <ChevronRight className="w-5 h-5 inline ml-2" />
+          <View style={styles.buttonContent}>
+            <Text style={styles.buttonText}>
+              {currentSlide < slides.length - 1 ? 'Continuar' : 'Começar'}
+            </Text>
+            <ChevronRight size={20} color="#FFFFFF" style={styles.buttonIcon} />
+          </View>
         </Button>
 
         {currentSlide < slides.length - 1 && (
@@ -85,3 +89,72 @@ export default function Onboarding() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: AntigravityTheme.colors.background,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  iconContainer: {
+    width: 96,
+    height: 96,
+    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+  title: {
+    ...AntigravityTheme.typography.2xl,
+    fontWeight: AntigravityTheme.typography.fontWeight.bold,
+    color: AntigravityTheme.colors.text,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  description: {
+    ...AntigravityTheme.typography.base,
+    color: AntigravityTheme.colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 300,
+    lineHeight: 24,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 48,
+  },
+  dot: {
+    height: 8,
+    borderRadius: 4,
+  },
+  dotActive: {
+    width: 32,
+    backgroundColor: AntigravityTheme.colors.primary,
+  },
+  dotInactive: {
+    width: 8,
+    backgroundColor: AntigravityTheme.colors.border,
+  },
+  footer: {
+    padding: 24,
+    gap: 12,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
+  },
+  buttonIcon: {
+    marginLeft: 8,
+  },
+});

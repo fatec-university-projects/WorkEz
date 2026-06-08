@@ -11,7 +11,7 @@ export default function ServiceCompleted() {
     <View className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6">
       <View className="w-full max-w-md">
         <View className="text-center mb-8">
-          <View className="w-20 h-20 bg-[#26FFF5]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <View className="w-20 h-20 bg-[#26FFF5]/10 rounded-full flex-row items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-10 h-10 text-[#26FFF5]" />
           </View>
           <Text className="text-3xl font-bold text-[#0F172A] mb-2">
@@ -23,7 +23,7 @@ export default function ServiceCompleted() {
         </View>
 
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0] mb-6">
-          <View className="flex items-center gap-3 mb-4">
+          <View className="flex-row items-center gap-3 mb-4">
             <Image
               source="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop"
               alt="Carlos Silva"
@@ -36,11 +36,11 @@ export default function ServiceCompleted() {
           </View>
 
           <View className="space-y-3 pt-4 border-t border-[#E2E8F0]">
-            <View className="flex justify-between text-sm">
+            <View className="flex-row justify-between text-sm">
               <Text className="text-[#64748B]">Valor pago</Text>
               <Text className="font-semibold text-[#0F172A]">R$ 150,00</Text>
             </View>
-            <View className="flex justify-between text-sm">
+            <View className="flex-row justify-between text-sm">
               <Text className="text-[#64748B]">Duração</Text>
               <Text className="font-medium text-[#0F172A]">1h 15min</Text>
             </View>
@@ -48,7 +48,7 @@ export default function ServiceCompleted() {
         </View>
 
         <View className="bg-[#FEF3C7] border border-[#FDE047] rounded-xl p-4 mb-6">
-          <View className="flex items-start gap-3">
+          <View className="flex-row items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-[#854D0E] flex-shrink-0 mt-0.5" />
             <View>
               <Badge variant="active-guarantee" size="sm" />

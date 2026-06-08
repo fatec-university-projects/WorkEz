@@ -1,135 +1,364 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { DollarSign, Star, Briefcase, TrendingUp } from 'lucide-react-native';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { AntigravityTheme } from '../../constants/theme';
 
 export default function ProviderHome() {
   const router = useRouter();
   const [isOnline, setIsOnline] = useState(true);
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-gradient-to-br from-[#26FFF5] to-[#2563EB] px-6 pt-12 pb-8 rounded-b-3xl">
-        <Text className="text-2xl font-bold text-white mb-6">
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.headerBackground}>
+        <Text style={styles.greetingText}>
           Olá, Carlos! 👋
         </Text>
 
-        <View className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-          <View className="flex items-center justify-between mb-3">
-            <Text className="text-white/90 text-sm">Você está</Text>
+        <View style={styles.statusCard}>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Você está</Text>
             <TouchableOpacity
+              activeOpacity={0.8}
               onPress={() => setIsOnline(!isOnline)}
-              className={`relative w-16 h-8 rounded-full transition-colors ${
-                isOnline ? 'bg-white' : 'bg-white/30'
-              }`}
+              style={[
+                styles.toggleContainer,
+                isOnline ? styles.toggleContainerActive : styles.toggleContainerInactive
+              ]}
             >
               <View
-                className={`absolute top-1 w-6 h-6 rounded-full transition-all ${
-                  isOnline
-                    ? 'right-1 bg-[#26FFF5]'
-                    : 'left-1 bg-white'
-                }`}
+                style={[
+                  styles.toggleThumb,
+                  isOnline ? styles.toggleThumbActive : styles.toggleThumbInactive
+                ]}
               />
             </TouchableOpacity>
           </View>
-          <Text className={`text-2xl font-bold ${isOnline ? 'text-white' : 'text-white/70'}`}>
+          <Text style={[styles.statusText, !isOnline && styles.statusTextOffline]}>
             {isOnline ? 'Online' : 'Offline'}
           </Text>
-          <Text className="text-white/80 text-sm mt-1">
+          <Text style={styles.statusDescription}>
             {isOnline ? 'Pronto para receber chamados' : 'Você não receberá chamados'}
           </Text>
         </View>
       </View>
 
-      <View className="px-6 mt-6 grid grid-cols-2 gap-3">
-        <View className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-center gap-2 mb-2">
-            <View className="w-8 h-8 bg-[#26FFF5]/10 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-4 h-4 text-[#26FFF5]" />
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <View style={styles.statIconRow}>
+            <View style={[styles.statIconWrapper, { backgroundColor: 'rgba(38, 255, 245, 0.1)' }]}>
+              <DollarSign size={16} color={AntigravityTheme.colors.primary} />
             </View>
           </View>
-          <Text className="text-2xl font-bold text-[#0F172A]">R$ 3.450</Text>
-          <Text className="text-sm text-[#64748B]">Ganhos do mês</Text>
+          <Text style={styles.statValue}>R$ 3.450</Text>
+          <Text style={styles.statLabel}>Ganhos do mês</Text>
         </View>
 
-        <View className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-center gap-2 mb-2">
-            <View className="w-8 h-8 bg-[#2563EB]/10 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-4 h-4 text-[#2563EB]" />
+        <View style={styles.statCard}>
+          <View style={styles.statIconRow}>
+            <View style={[styles.statIconWrapper, { backgroundColor: 'rgba(37, 99, 235, 0.1)' }]}>
+              <DollarSign size={16} color="#2563EB" />
             </View>
           </View>
-          <Text className="text-2xl font-bold text-[#0F172A]">R$ 850</Text>
-          <Text className="text-sm text-[#64748B]">Saldo disponível</Text>
+          <Text style={styles.statValue}>R$ 850</Text>
+          <Text style={styles.statLabel}>Saldo disponível</Text>
         </View>
 
-        <View className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-center gap-2 mb-2">
-            <View className="w-8 h-8 bg-[#FBBF24]/10 rounded-lg flex items-center justify-center">
-              <Star className="w-4 h-4 text-[#FBBF24]" />
+        <View style={styles.statCard}>
+          <View style={styles.statIconRow}>
+            <View style={[styles.statIconWrapper, { backgroundColor: 'rgba(251, 191, 36, 0.1)' }]}>
+              <Star size={16} color={AntigravityTheme.colors.warning} />
             </View>
           </View>
-          <Text className="text-2xl font-bold text-[#0F172A]">4.9</Text>
-          <Text className="text-sm text-[#64748B]">Nota média</Text>
+          <Text style={styles.statValue}>4.9</Text>
+          <Text style={styles.statLabel}>Nota média</Text>
         </View>
 
-        <View className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-center gap-2 mb-2">
-            <View className="w-8 h-8 bg-[#26FFF5]/10 rounded-lg flex items-center justify-center">
-              <Briefcase className="w-4 h-4 text-[#26FFF5]" />
+        <View style={styles.statCard}>
+          <View style={styles.statIconRow}>
+            <View style={[styles.statIconWrapper, { backgroundColor: 'rgba(38, 255, 245, 0.1)' }]}>
+              <Briefcase size={16} color={AntigravityTheme.colors.primary} />
             </View>
           </View>
-          <Text className="text-2xl font-bold text-[#0F172A]">248</Text>
-          <Text className="text-sm text-[#64748B]">Serviços concluídos</Text>
+          <Text style={styles.statValue}>248</Text>
+          <Text style={styles.statLabel}>Serviços concluídos</Text>
         </View>
       </View>
 
-      <View className="px-6 mt-6">
-        <Text className="text-lg font-semibold text-[#0F172A] mb-4">
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionTitle}>
           Resumo da semana
         </Text>
 
-        <View className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-center gap-3 mb-4">
-            <View className="w-10 h-10 bg-[#26FFF5]/10 rounded-xl flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-[#26FFF5]" />
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryHeaderRow}>
+            <View style={[styles.summaryIconWrapper, { backgroundColor: 'rgba(38, 255, 245, 0.1)' }]}>
+              <TrendingUp size={20} color={AntigravityTheme.colors.primary} />
             </View>
-            <View>
-              <Text className="font-semibold text-[#0F172A]">Ótimo desempenho!</Text>
-              <Text className="text-sm text-[#64748B]">Você cresceu 15% esta semana</Text>
+            <View style={styles.summaryHeaderText}>
+              <Text style={styles.summaryTitle}>Ótimo desempenho!</Text>
+              <Text style={styles.summarySubtitle}>Você cresceu 15% esta semana</Text>
             </View>
           </View>
 
-          <View className="space-y-2">
-            <View className="flex justify-between text-sm">
-              <Text className="text-[#64748B]">Serviços concluídos</Text>
-              <Text className="font-medium text-[#0F172A]">12</Text>
+          <View style={styles.summaryList}>
+            <View style={styles.summaryListItem}>
+              <Text style={styles.summaryListLabel}>Serviços concluídos</Text>
+              <Text style={styles.summaryListValue}>12</Text>
             </View>
-            <View className="flex justify-between text-sm">
-              <Text className="text-[#64748B]">Taxa de aceitação</Text>
-              <Text className="font-medium text-[#0F172A]">92%</Text>
+            <View style={styles.summaryListItem}>
+              <Text style={styles.summaryListLabel}>Taxa de aceitação</Text>
+              <Text style={styles.summaryListValue}>92%</Text>
             </View>
-            <View className="flex justify-between text-sm">
-              <Text className="text-[#64748B]">Avaliação média</Text>
-              <Text className="font-medium text-[#0F172A]">4.9 <Star className="w-4 h-4 text-[#EAB308] inline" /></Text>
+            <View style={styles.summaryListItem}>
+              <Text style={styles.summaryListLabel}>Avaliação média</Text>
+              <View style={styles.summaryRatingRow}>
+                <Text style={styles.summaryListValue}>4.9</Text>
+                <Star size={16} color={AntigravityTheme.colors.warning} fill={AntigravityTheme.colors.warning} />
+              </View>
             </View>
           </View>
         </View>
       </View>
 
-      <View className="px-6 mt-6 mb-8">
-        <View className="bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] rounded-2xl p-5 text-white">
-          <Text className="font-semibold mb-2">Dica profissional 💡</Text>
-          <Text className="text-sm text-white/90 leading-relaxed">
+      <View style={styles.sectionContainerBottom}>
+        <View style={styles.tipCard}>
+          <Text style={styles.tipTitle}>Dica profissional 💡</Text>
+          <Text style={styles.tipDescription}>
             Profissionais que mantêm fotos atualizadas no portfólio recebem 40% mais chamados.
           </Text>
-          <TouchableOpacity
+          <Pressable
             onPress={() => router.push('/provider/portfolio')}
-            className="mt-3 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+            style={styles.tipButton}
           >
-            Atualizar portfólio
-          </TouchableOpacity>
+            <Text style={styles.tipButtonText}>Atualizar portfólio</Text>
+          </Pressable>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: AntigravityTheme.spacing.xl,
+  },
+  headerBackground: {
+    backgroundColor: '#2563EB', // For full effect you'd use expo-linear-gradient but standard RN doesn't support css gradients.
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 32,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  greetingText: {
+    ...AntigravityTheme.typography.xl,
+    fontWeight: AntigravityTheme.typography.fontWeight.bold,
+    color: '#FFFFFF',
+    marginBottom: 24,
+  },
+  statusCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  statusLabel: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    ...AntigravityTheme.typography.sm,
+  },
+  toggleContainer: {
+    width: 64,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    padding: 4,
+  },
+  toggleContainerActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  toggleContainerInactive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  toggleThumbActive: {
+    backgroundColor: AntigravityTheme.colors.primary,
+    alignSelf: 'flex-end',
+  },
+  toggleThumbInactive: {
+    backgroundColor: '#FFFFFF',
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  statusTextOffline: {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  statusDescription: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    ...AntigravityTheme.typography.sm,
+    marginTop: 4,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 24,
+    marginTop: 24,
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  statCard: {
+    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: AntigravityTheme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    width: '48%',
+  },
+  statIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statValue: {
+    ...AntigravityTheme.typography.xl,
+    fontWeight: AntigravityTheme.typography.fontWeight.bold,
+    color: AntigravityTheme.colors.text,
+  },
+  statLabel: {
+    ...AntigravityTheme.typography.sm,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+  sectionContainer: {
+    paddingHorizontal: 24,
+    marginTop: 24,
+  },
+  sectionTitle: {
+    ...AntigravityTheme.typography.lg,
+    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
+    color: AntigravityTheme.colors.text,
+    marginBottom: 16,
+  },
+  summaryCard: {
+    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: AntigravityTheme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  summaryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  summaryIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryHeaderText: {
+    flex: 1,
+  },
+  summaryTitle: {
+    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
+    color: AntigravityTheme.colors.text,
+  },
+  summarySubtitle: {
+    ...AntigravityTheme.typography.sm,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+  summaryList: {
+    gap: 8,
+  },
+  summaryListItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryListLabel: {
+    ...AntigravityTheme.typography.sm,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+  summaryListValue: {
+    ...AntigravityTheme.typography.sm,
+    fontWeight: AntigravityTheme.typography.fontWeight.medium,
+    color: AntigravityTheme.colors.text,
+  },
+  summaryRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sectionContainerBottom: {
+    paddingHorizontal: 24,
+    marginTop: 24,
+    marginBottom: 32,
+  },
+  tipCard: {
+    backgroundColor: '#2563EB',
+    borderRadius: 16,
+    padding: 20,
+  },
+  tipTitle: {
+    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  tipDescription: {
+    ...AntigravityTheme.typography.sm,
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 20,
+  },
+  tipButton: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  tipButtonText: {
+    ...AntigravityTheme.typography.sm,
+    fontWeight: AntigravityTheme.typography.fontWeight.medium,
+    color: '#FFFFFF',
+  },
+});

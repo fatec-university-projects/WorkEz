@@ -9,7 +9,7 @@ export default function NewCall() {
   return (
     <View className="min-h-screen bg-[#F8FAFC] flex flex-col">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center justify-between">
+        <View className="flex-row items-center justify-between">
           <Text className="text-xl font-semibold text-[#0F172A]">
             Novo chamado
           </Text>
@@ -24,14 +24,14 @@ export default function NewCall() {
 
       <View className="flex-1 p-6 space-y-6">
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex items-center gap-3 mb-4">
-            <View className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+          <View className="flex-row items-center gap-3 mb-4">
+            <View className="w-12 h-12 bg-blue-50 rounded-xl flex-row items-center justify-center">
               <Wrench className="w-5 h-5 text-[#3B82F6]" />
             </View>
             <View className="flex-1">
               <Text className="text-lg font-semibold text-[#0F172A]">Encanador</Text>
-              <View className="flex items-center gap-3 text-sm text-[#64748B] mt-1">
-                <View className="flex items-center gap-1">
+              <View className="flex-row items-center gap-3 text-sm text-[#64748B] mt-1">
+                <View className="flex-row items-center gap-1">
                   <MapPin className="w-4 h-4" />
                   2.3 km
                 </View>
@@ -42,7 +42,7 @@ export default function NewCall() {
           </View>
 
           <View className="space-y-4 pt-4 border-t border-[#E2E8F0]">
-            <View className="flex items-start gap-3">
+            <View className="flex-row items-start gap-3">
               <FileText className="w-5 h-5 text-[#64748B] flex-shrink-0 mt-0.5" />
               <View className="flex-1">
                 <Text className="text-sm text-[#64748B] mb-1">Descrição</Text>
@@ -52,7 +52,7 @@ export default function NewCall() {
               </View>
             </View>
 
-            <View className="flex items-start gap-3">
+            <View className="flex-row items-start gap-3">
               <MapPin className="w-5 h-5 text-[#64748B] flex-shrink-0 mt-0.5" />
               <View className="flex-1">
                 <Text className="text-sm text-[#64748B] mb-1">Endereço</Text>
@@ -60,11 +60,11 @@ export default function NewCall() {
               </View>
             </View>
 
-            <View className="flex items-start gap-3">
+            <View className="flex-row items-start gap-3">
               <ImageIcon className="w-5 h-5 text-[#64748B] flex-shrink-0 mt-0.5" />
               <View className="flex-1">
                 <Text className="text-sm text-[#64748B] mb-2">Fotos do problema</Text>
-                <View className="flex gap-2">
+                <View className="flex-row gap-2">
                   <View className="w-20 h-20 bg-[#E2E8F0] rounded-lg"></View>
                   <View className="w-20 h-20 bg-[#E2E8F0] rounded-lg"></View>
                 </View>
@@ -75,7 +75,7 @@ export default function NewCall() {
 
         <View className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]">
           <Text className="font-semibold text-[#0F172A] mb-3">Cliente</Text>
-          <View className="flex items-center gap-3">
+          <View className="flex-row items-center gap-3">
             <Image
               source="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
               alt="João Silva"

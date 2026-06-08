@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ServiceCard } from '../../components/ServiceCard';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { AntigravityTheme } from '../../constants/theme';
 
 export default function MyServices() {
   const router = useRouter();
@@ -44,55 +45,121 @@ export default function MyServices() {
   };
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <Text className="text-2xl font-bold text-[#0F172A]">Meus serviços</Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Meus serviços</Text>
       </View>
 
-      <View className="bg-white border-b border-[#E2E8F0] px-6">
-        <View className="flex gap-6">
+      <View style={styles.tabsContainer}>
+        <View style={styles.tabsRow}>
           {[
             { key: 'in-progress', label: 'Em andamento' },
             { key: 'completed', label: 'Concluídos' },
             { key: 'cancelled', label: 'Cancelados' },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              onPress={() => setActiveTab(tab.key as typeof activeTab)}
-              className={`pb-3 pt-2 relative ${
-                activeTab === tab.key
-                  ? 'text-[#2563EB] font-semibold'
-                  : 'text-[#64748B]'
-              }`}
-            >
-              {tab.label}
-              {activeTab === tab.key && (
-                <View className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2563EB]"></View>
-              )}
-            </TouchableOpacity>
-          ))}
+          ].map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key as typeof activeTab)}
+                style={styles.tabButton}
+              >
+                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                  {tab.label}
+                </Text>
+                {isActive && <View style={styles.activeIndicator} />}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
-      <View className="p-6 space-y-3">
-        {services[activeTab].map((service) => (
-          <ServiceCard
-            key={service.id}
-            category={service.category}
-            description={service.description}
-            status={activeTab}
-            date={service.date}
-            professional={service.professional}
-            onPress={() => router.push(`/client/tracking/${service.id}`)}
-          />
-        ))}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.servicesList}>
+          {services[activeTab].map((service) => (
+            <ServiceCard
+              key={service.id}
+              category={service.category}
+              description={service.description}
+              status={activeTab as any}
+              date={service.date}
+              professional={service.professional}
+              onClick={() => router.push(`/client/tracking/${service.id}`)}
+            />
+          ))}
 
-        {services[activeTab].length === 0 && (
-          <View className="text-center py-12">
-            <Text className="text-[#64748B]">Nenhum serviço encontrado</Text>
-          </View>
-        )}
-      </View>
+          {services[activeTab].length === 0 && (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Nenhum serviço encontrado</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  header: {
+    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: AntigravityTheme.colors.border,
+  },
+  headerTitle: {
+    ...AntigravityTheme.typography.xl,
+    fontWeight: AntigravityTheme.typography.fontWeight.bold,
+    color: AntigravityTheme.colors.text,
+  },
+  tabsContainer: {
+    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    borderBottomWidth: 1,
+    borderBottomColor: AntigravityTheme.colors.border,
+    paddingHorizontal: 24,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 24,
+  },
+  tabButton: {
+    paddingBottom: 12,
+    paddingTop: 8,
+    position: 'relative',
+  },
+  tabText: {
+    ...AntigravityTheme.typography.base,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+  tabTextActive: {
+    color: '#2563EB',
+    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#2563EB',
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  servicesList: {
+    padding: 24,
+    gap: 12,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyText: {
+    ...AntigravityTheme.typography.base,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+});

@@ -18,7 +18,7 @@ export default function CancelCall() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -42,11 +42,7 @@ export default function CancelCall() {
               <TouchableOpacity
                 key={r}
                 onPress={() => setReason(r)}
-                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                  reason === r
-                    ? 'border-[#2563EB] bg-[#2563EB]/5'
-                    : 'border-[#E2E8F0]'
-                }`}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${ reason === r ? 'border-[#2563EB] bg-[#2563EB]/5' : 'border-[#E2E8F0]' }`}
               >
                 {r}
               </TouchableOpacity>
@@ -57,9 +53,7 @@ export default function CancelCall() {
             <textarea
               placeholder="Conte-nos o motivo..."
               rows={3}
-              className="w-full mt-4 px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl
-                focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10
-                transition-all resize-none"
+              className="w-full mt-4 px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all resize-none"
             />
           )}
         </View>

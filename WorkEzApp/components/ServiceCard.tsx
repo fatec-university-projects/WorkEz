@@ -1,5 +1,6 @@
 import { Clock, MapPin } from 'lucide-react-native';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { AntigravityTheme } from '../constants/theme';
 
 interface ServiceCardProps {
   category: string;
@@ -19,9 +20,9 @@ export function ServiceCard({
   onClick
 }: ServiceCardProps) {
   const statusConfig = {
-    'in-progress': { color: 'text-[#2563EB]', bg: 'bg-[#2563EB]/10', label: 'Em andamento' },
-    'completed': { color: 'text-[#26FFF5]', bg: 'bg-[#26FFF5]/10', label: 'Concluído' },
-    'cancelled': { color: 'text-[#94A3B8]', bg: 'bg-[#94A3B8]/10', label: 'Cancelado' },
+    'in-progress': { color: '#2563EB', bg: 'rgba(37, 99, 235, 0.1)', label: 'Em andamento' },
+    'completed': { color: AntigravityTheme.colors.primary, bg: 'rgba(38, 255, 245, 0.1)', label: 'Concluído' },
+    'cancelled': { color: AntigravityTheme.colors.textSecondary, bg: 'rgba(148, 163, 184, 0.1)', label: 'Cancelado' },
   };
 
   const config = statusConfig[status];
@@ -29,30 +30,91 @@ export function ServiceCard({
   return (
     <TouchableOpacity
       onPress={onClick}
-      className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0] hover:shadow-md transition-all cursor-pointer"
+      activeOpacity={0.8}
+      style={styles.cardContainer}
     >
-      <View className="flex items-start justify-between mb-3">
-        <View>
-          <Text className="font-semibold text-[#0F172A]">{category}</Text>
-          <Text className="text-sm text-[#94A3B8] mt-1 line-clamp-2">{description}</Text>
+      <View style={styles.headerRow}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.categoryTitle}>{category}</Text>
+          <Text style={styles.descriptionText} numberOfLines={2}>{description}</Text>
         </View>
-        <Text className={`${config.bg} ${config.color} text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ml-2`}>
-          {config.label}
-        </Text>
+        <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
+          <Text style={[styles.statusText, { color: config.color }]}>
+            {config.label}
+          </Text>
+        </View>
       </View>
 
-      <View className="flex items-center gap-4 text-sm text-[#94A3B8]">
-        <View className="flex items-center gap-1.5">
-          <Clock className="w-4 h-4" />
-          {date}
+      <View style={styles.footerRow}>
+        <View style={styles.footerItem}>
+          <Clock size={16} color={AntigravityTheme.colors.textSecondary} />
+          <Text style={styles.footerText}>{date}</Text>
         </View>
         {professional && (
-          <View className="flex items-center gap-1.5">
-            <MapPin className="w-4 h-4" />
-            {professional}
+          <View style={styles.footerItem}>
+            <MapPin size={16} color={AntigravityTheme.colors.textSecondary} />
+            <Text style={styles.footerText}>{professional}</Text>
           </View>
         )}
       </View>
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  cardContainer: {
+    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    borderRadius: AntigravityTheme.borderRadius.xl,
+    padding: AntigravityTheme.spacing.md,
+    borderWidth: 1,
+    borderColor: AntigravityTheme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  titleContainer: {
+    flex: 1,
+  },
+  categoryTitle: {
+    ...AntigravityTheme.typography.base,
+    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
+    color: AntigravityTheme.colors.text,
+  },
+  descriptionText: {
+    ...AntigravityTheme.typography.sm,
+    color: AntigravityTheme.colors.textSecondary,
+    marginTop: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: AntigravityTheme.borderRadius.full,
+    marginLeft: AntigravityTheme.spacing.sm,
+  },
+  statusText: {
+    ...AntigravityTheme.typography.xs,
+    fontWeight: AntigravityTheme.typography.fontWeight.medium,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: AntigravityTheme.spacing.md,
+  },
+  footerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  footerText: {
+    ...AntigravityTheme.typography.sm,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+});

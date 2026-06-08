@@ -53,7 +53,7 @@ export default function SelectCategory() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -76,7 +76,7 @@ export default function SelectCategory() {
             className={`w-full ${category.color} border-2 rounded-2xl p-4 hover:shadow-md transition-all text-left`}
           >
             <View className="flex flex-row items-center gap-4">
-              <View className="w-12 h-12 rounded-xl flex items-center justify-center">
+              <View className="w-12 h-12 rounded-xl flex-row items-center justify-center">
                 <Icon className={`w-8 h-8 ${category.iconColor}`} />
               </View>
               <View className="flex-1">

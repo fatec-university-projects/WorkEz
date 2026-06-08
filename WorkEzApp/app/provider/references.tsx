@@ -70,7 +70,7 @@ export default function References() {
 
           <TouchableOpacity
             onPress={addReference}
-            className="w-full py-3 border-2 border-dashed border-[#E2E8F0] rounded-xl text-[#2563EB] hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 border-2 border-dashed border-[#E2E8F0] rounded-xl text-[#2563EB] hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-all flex-row items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
             Adicionar outra referência

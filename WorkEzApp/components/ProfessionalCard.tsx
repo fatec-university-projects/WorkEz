@@ -1,5 +1,6 @@
 import { Star, MapPin, Heart, Check } from 'lucide-react-native';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { AntigravityTheme } from '../constants/theme';
 
 interface ProfessionalCardProps {
   name: string;
@@ -11,7 +12,7 @@ interface ProfessionalCardProps {
   verified?: boolean;
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
-  onClick?: () => void;
+  onPress?: () => void;
 }
 
 export function ProfessionalCard({
@@ -24,37 +25,37 @@ export function ProfessionalCard({
   verified = false,
   isFavorite = false,
   onToggleFavorite,
-  onClick,
+  onPress,
 }: ProfessionalCardProps) {
   return (
-    <View
-      onPress={onClick}
-      className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0] hover:shadow-md transition-all cursor-pointer"
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={styles.cardContainer}
     >
-      <View className="flex items-start gap-4">
-        <View className="relative">
+      <View style={styles.contentRow}>
+        <View style={styles.photoContainer}>
           <Image
-            source={photo}
-            alt={name}
-            className="w-16 h-16 rounded-full object-cover"
+            source={{ uri: photo }} // Assuming photo is a URL, changed from photo directly, though it depends if it's require()
+            style={styles.photo}
           />
           {verified && (
-            <View className="absolute -bottom-1 -right-1 bg-[#26FFF5] rounded-full p-1 border-2 border-white">
-              <Check className="w-3 h-3 text-[#0F172A]" />
+            <View style={styles.badgeContainer}>
+              <Check size={12} color={AntigravityTheme.colors.text} />
             </View>
           )}
         </View>
 
-        <View className="flex-1 min-w-0">
-          <View className="flex items-start justify-between">
-            <View className="flex-1">
-              <Text className="font-semibold text-[#0F172A]">{name}</Text>
-              <View className="flex items-center gap-2 mt-1">
-                <View className="flex items-center gap-1 text-sm">
-                  <Star className="w-4 h-4 fill-[#FBBF24] text-[#FBBF24]" />
-                  <Text className="font-medium text-[#0F172A]">{rating.toFixed(1)}</Text>
+        <View style={styles.infoContainer}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.nameText} numberOfLines={1}>{name}</Text>
+              <View style={styles.ratingRow}>
+                <View style={styles.ratingWrapper}>
+                  <Star size={16} color={AntigravityTheme.colors.warning} fill={AntigravityTheme.colors.warning} />
+                  <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
                 </View>
-                <Text className="text-sm text-[#94A3B8]">
+                <Text style={styles.servicesText}>
                   {servicesCompleted} serviços
                 </Text>
               </View>
@@ -62,40 +63,139 @@ export function ProfessionalCard({
 
             {onToggleFavorite && (
               <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onToggleFavorite();
-                }}
-                className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
+                onPress={onToggleFavorite}
+                style={styles.favoriteButton}
               >
                 <Heart
-                  className={`w-5 h-5 ${
-                    isFavorite ? 'fill-red-500 text-red-500' : 'text-[#94A3B8]'
-                  }`}
+                  size={20}
+                  color={isFavorite ? AntigravityTheme.colors.danger : AntigravityTheme.colors.textSecondary}
+                  fill={isFavorite ? AntigravityTheme.colors.danger : 'transparent'}
                 />
               </TouchableOpacity>
             )}
           </View>
 
           {distance && (
-            <View className="flex items-center gap-1.5 text-sm text-[#94A3B8] mt-2">
-              <MapPin className="w-4 h-4" />
-              {distance}
+            <View style={styles.distanceRow}>
+              <MapPin size={16} color={AntigravityTheme.colors.textSecondary} />
+              <Text style={styles.distanceText}>{distance}</Text>
             </View>
           )}
 
-          <View className="flex flex-wrap gap-2 mt-3">
+          <View style={styles.specialtiesContainer}>
             {specialties.slice(0, 2).map((specialty, index) => (
-              <Text
-                key={index}
-                className="text-xs px-2.5 py-1 bg-[#F1F5F9] text-[#94A3B8] rounded-full"
-              >
-                {specialty}
-              </Text>
+              <View key={index} style={styles.specialtyBadge}>
+                <Text style={styles.specialtyText}>
+                  {specialty}
+                </Text>
+              </View>
             ))}
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  cardContainer: {
+    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    borderRadius: AntigravityTheme.borderRadius.xl,
+    padding: AntigravityTheme.spacing.md,
+    borderWidth: 1,
+    borderColor: AntigravityTheme.colors.border,
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: AntigravityTheme.spacing.md,
+  },
+  photoContainer: {
+    position: 'relative',
+  },
+  photo: {
+    width: 64,
+    height: 64,
+    borderRadius: AntigravityTheme.borderRadius.full,
+    resizeMode: 'cover',
+  },
+  badgeContainer: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: AntigravityTheme.colors.primary,
+    borderRadius: AntigravityTheme.borderRadius.full,
+    padding: 4,
+    borderWidth: 2,
+    borderColor: AntigravityTheme.colors.backgroundCard,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoContainer: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  nameText: {
+    ...AntigravityTheme.typography.base,
+    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
+    color: AntigravityTheme.colors.text,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: AntigravityTheme.spacing.sm,
+    marginTop: 4,
+  },
+  ratingWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ratingText: {
+    ...AntigravityTheme.typography.sm,
+    fontWeight: AntigravityTheme.typography.fontWeight.medium,
+    color: AntigravityTheme.colors.text,
+  },
+  servicesText: {
+    ...AntigravityTheme.typography.sm,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+  favoriteButton: {
+    padding: AntigravityTheme.spacing.sm,
+    borderRadius: AntigravityTheme.borderRadius.md,
+  },
+  distanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: AntigravityTheme.spacing.sm,
+  },
+  distanceText: {
+    ...AntigravityTheme.typography.sm,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+  specialtiesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: AntigravityTheme.spacing.sm,
+    marginTop: 12,
+  },
+  specialtyBadge: {
+    backgroundColor: AntigravityTheme.colors.backgroundAlt,
+    borderRadius: AntigravityTheme.borderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  specialtyText: {
+    ...AntigravityTheme.typography.xs,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+});

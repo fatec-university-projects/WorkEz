@@ -17,7 +17,7 @@ export default function ServiceTracking() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -38,10 +38,10 @@ export default function ServiceTracking() {
 
           <View className="space-y-4">
             {steps.map((step, index) => (
-              <View key={index} className="flex items-start gap-3">
+              <View key={index} className="flex-row items-start gap-3">
                 <View className="flex flex-col items-center">
                   {step.completed ? (
-                    <View className="w-6 h-6 bg-[#26FFF5] rounded-full flex items-center justify-center">
+                    <View className="w-6 h-6 bg-[#26FFF5] rounded-full flex-row items-center justify-center">
                       <CheckCircle className="w-4 h-4 text-white" />
                     </View>
                   ) : (
@@ -49,17 +49,13 @@ export default function ServiceTracking() {
                   )}
                   {index < steps.length - 1 && (
                     <View
-                      className={`w-0.5 h-8 ${
-                        step.completed ? 'bg-[#26FFF5]' : 'bg-[#E2E8F0]'
-                      }`}
+                      className={`w-0.5 h-8 ${ step.completed ? 'bg-[#26FFF5]' : 'bg-[#E2E8F0]' }`}
                     />
                   )}
                 </View>
                 <View className="flex-1 pt-0.5">
                   <Text
-                    className={`font-medium ${
-                      step.completed ? 'text-[#0F172A]' : 'text-[#64748B]'
-                    }`}
+                    className={`font-medium ${ step.completed ? 'text-[#0F172A]' : 'text-[#64748B]' }`}
                   >
                     {step.label}
                   </Text>
@@ -76,7 +72,7 @@ export default function ServiceTracking() {
 
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
           <Text className="font-semibold text-[#0F172A] mb-4">Profissional</Text>
-          <View className="flex items-center gap-3">
+          <View className="flex-row items-center gap-3">
             <Image
               source="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop"
               alt="Carlos Silva"
@@ -101,15 +97,15 @@ export default function ServiceTracking() {
             Detalhes do serviço
           </Text>
           <View className="space-y-3 text-sm">
-            <View className="flex justify-between">
+            <View className="flex-row justify-between">
               <Text className="text-[#64748B]">Categoria</Text>
               <Text className="font-medium text-[#0F172A]">Encanador</Text>
             </View>
-            <View className="flex justify-between">
+            <View className="flex-row justify-between">
               <Text className="text-[#64748B]">Endereço</Text>
               <Text className="font-medium text-[#0F172A]">Rua das Flores, 123</Text>
             </View>
-            <View className="flex justify-between">
+            <View className="flex-row justify-between">
               <Text className="text-[#64748B]">Horário de início</Text>
               <Text className="font-medium text-[#0F172A]">14:30</Text>
             </View>

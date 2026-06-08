@@ -17,7 +17,7 @@ export default function RegistrationAnalysis() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] px-6 pt-12 pb-8 rounded-b-3xl text-white text-center">
-        <View className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+        <View className="w-16 h-16 bg-white/20 rounded-full flex-row items-center justify-center mx-auto mb-4">
           <Clock className="w-8 h-8" />
         </View>
         <Text className="text-2xl font-bold mb-2">Cadastro em análise</Text>
@@ -34,14 +34,14 @@ export default function RegistrationAnalysis() {
 
           <View className="space-y-4">
             {steps.map((step, index) => (
-              <View key={index} className="flex items-start gap-3">
+              <View key={index} className="flex-row items-start gap-3">
                 <View className="flex flex-col items-center">
                   {step.completed ? (
-                    <View className="w-6 h-6 bg-[#26FFF5] rounded-full flex items-center justify-center">
+                    <View className="w-6 h-6 bg-[#26FFF5] rounded-full flex-row items-center justify-center">
                       <CheckCircle className="w-4 h-4 text-white" />
                     </View>
                   ) : index === 2 ? (
-                    <View className="w-6 h-6 bg-[#2563EB] rounded-full flex items-center justify-center">
+                    <View className="w-6 h-6 bg-[#2563EB] rounded-full flex-row items-center justify-center">
                       <Clock className="w-4 h-4 text-white" />
                     </View>
                   ) : (
@@ -49,17 +49,13 @@ export default function RegistrationAnalysis() {
                   )}
                   {index < steps.length - 1 && (
                     <View
-                      className={`w-0.5 h-8 ${
-                        step.completed ? 'bg-[#26FFF5]' : 'bg-[#E2E8F0]'
-                      }`}
+                      className={`w-0.5 h-8 ${ step.completed ? 'bg-[#26FFF5]' : 'bg-[#E2E8F0]' }`}
                     />
                   )}
                 </View>
                 <View className="flex-1 pt-0.5">
                   <Text
-                    className={`font-medium ${
-                      step.completed ? 'text-[#0F172A]' : index === 2 ? 'text-[#2563EB]' : 'text-[#64748B]'
-                    }`}
+                    className={`font-medium ${ step.completed ? 'text-[#0F172A]' : index === 2 ? 'text-[#2563EB]' : 'text-[#64748B]' }`}
                   >
                     {step.label}
                   </Text>
@@ -86,15 +82,15 @@ export default function RegistrationAnalysis() {
             Enquanto isso...
           </Text>
           <ul className="space-y-2 text-sm text-[#64748B]">
-            <li className="flex items-start gap-2">
+            <li className="flex-row items-start gap-2">
               <Text className="text-[#26FFF5]">✓</Text>
               <Text>Baixe o app e configure suas notificações</Text>
             </li>
-            <li className="flex items-start gap-2">
+            <li className="flex-row items-start gap-2">
               <Text className="text-[#26FFF5]">✓</Text>
               <Text>Prepare fotos dos seus melhores trabalhos</Text>
             </li>
-            <li className="flex items-start gap-2">
+            <li className="flex-row items-start gap-2">
               <Text className="text-[#26FFF5]">✓</Text>
               <Text>Revise suas ferramentas e equipamentos</Text>
             </li>

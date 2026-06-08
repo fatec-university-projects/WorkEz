@@ -45,7 +45,7 @@ export default function ColorPalette() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -73,11 +73,9 @@ export default function ColorPalette() {
               key={color.hex}
               className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]"
             >
-              <View className="flex items-center gap-4">
+              <View className="flex-row items-center gap-4">
                 <View
-                  className={`w-20 h-20 ${color.bg} rounded-xl shadow-sm ${
-                    color.border ? 'border-2 border-[#E2E8F0]' : ''
-                  }`}
+                  className={`w-20 h-20 ${color.bg} rounded-xl shadow-sm ${ color.border ? 'border-2 border-[#E2E8F0]' : '' }`}
                 />
                 <View className="flex-1">
                   <Text className="font-semibold text-[#0F172A]">{color.name}</Text>
@@ -96,7 +94,7 @@ export default function ColorPalette() {
           <View className="space-y-4">
             <View>
               <Text className="text-sm text-[#94A3B8] mb-2">Badges</Text>
-              <View className="flex flex-wrap gap-2">
+              <View className="flex-row flex-wrap gap-2">
                 <Badge variant="verified" />
                 <Badge variant="secure-payment" />
                 <Badge variant="active-guarantee" />
@@ -105,7 +103,7 @@ export default function ColorPalette() {
 
             <View>
               <Text className="text-sm text-[#94A3B8] mb-2">Botões</Text>
-              <View className="flex flex-wrap gap-2">
+              <View className="flex-row flex-wrap gap-2">
                 <Button>Primary</Button>
                 <Button variant="secondary">Secondary</Button>
                 <Button variant="ghost">Ghost</Button>
@@ -115,15 +113,15 @@ export default function ColorPalette() {
             <View>
               <Text className="text-sm text-[#94A3B8] mb-2">Status</Text>
               <View className="space-y-2">
-                <View className="flex items-center gap-2">
+                <View className="flex-row items-center gap-2">
                   <View className="w-3 h-3 bg-[#26FFF5] rounded-full"></View>
                   <Text className="text-sm text-[#26FFF5] font-medium">Online / Verificado</Text>
                 </View>
-                <View className="flex items-center gap-2">
+                <View className="flex-row items-center gap-2">
                   <View className="w-3 h-3 bg-[#2563EB] rounded-full"></View>
                   <Text className="text-sm text-[#2563EB] font-medium">Em andamento</Text>
                 </View>
-                <View className="flex items-center gap-2">
+                <View className="flex-row items-center gap-2">
                   <View className="w-3 h-3 bg-[#FBBF24] rounded-full"></View>
                   <Text className="text-sm text-[#FBBF24] font-medium">Aguardando</Text>
                 </View>
@@ -147,8 +145,8 @@ export default function ColorPalette() {
 
         {/* Success Message */}
         <View className="bg-[#26FFF5]/10 border border-[#26FFF5]/30 rounded-xl p-4">
-          <View className="flex items-start gap-3">
-            <View className="w-6 h-6 bg-[#26FFF5] rounded-full flex items-center justify-center flex-shrink-0">
+          <View className="flex-row items-start gap-3">
+            <View className="w-6 h-6 bg-[#26FFF5] rounded-full flex-row items-center justify-center flex-shrink-0">
               <Check className="w-4 h-4 text-white" />
             </View>
             <View>

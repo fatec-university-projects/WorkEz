@@ -28,7 +28,7 @@ export default function Rating() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -59,7 +59,7 @@ export default function Rating() {
             Como foi sua experiência?
           </Text>
 
-          <View className="flex justify-center gap-2 mb-6">
+          <View className="flex-row justify-center gap-2 mb-6">
             {[1, 2, 3, 4, 5].map((star) => (
               <TouchableOpacity
                 key={star}
@@ -67,11 +67,7 @@ export default function Rating() {
                 className="transform transition-all hover:scale-110"
               >
                 <Star
-                  className={`w-12 h-12 ${
-                    star <= rating
-                      ? 'fill-[#FBBF24] text-[#FBBF24]'
-                      : 'text-[#E2E8F0]'
-                  }`}
+                  className={`w-12 h-12 ${ star <= rating ? 'fill-[#FBBF24] text-[#FBBF24]' : 'text-[#E2E8F0]' }`}
                 />
               </TouchableOpacity>
             ))}
@@ -86,10 +82,7 @@ export default function Rating() {
               onChangeText={setComment}
               placeholder="Conte como foi sua experiência..."
               rows={4}
-              className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl
-                text-[#0F172A] placeholder:text-[#94A3B8]
-                focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10
-                transition-all resize-none"
+              className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all resize-none"
             />
           </View>
 
@@ -97,16 +90,12 @@ export default function Rating() {
             <Text className="block text-sm font-medium text-[#0F172A] mb-3">
               Tags rápidas
             </Text>
-            <View className="flex flex-wrap gap-2">
+            <View className="flex-row flex-wrap gap-2">
               {tags.map((tag) => (
                 <TouchableOpacity
                   key={tag}
                   onPress={() => toggleTag(tag)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    selectedTags.includes(tag)
-                      ? 'bg-[#2563EB] text-white'
-                      : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
-                  }`}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${ selectedTags.includes(tag) ? 'bg-[#2563EB] text-white' : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]' }`}
                 >
                   {tag}
                 </TouchableOpacity>

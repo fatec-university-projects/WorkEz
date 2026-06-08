@@ -59,7 +59,7 @@ function InputOTPSlot({
     >
       {char}
       {hasFakeCaret && (
-        <View className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <View className="pointer-events-none absolute inset-0 flex-row items-center justify-center">
           <View className="animate-caret-blink bg-foreground h-4 w-px duration-1000" />
         </View>
       )}

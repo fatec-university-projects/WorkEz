@@ -1,5 +1,6 @@
 import { Star } from 'lucide-react-native';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
+import { AntigravityTheme } from '../constants/theme';
 
 interface RatingCardProps {
   clientName: string;
@@ -19,44 +20,40 @@ export function RatingCard({
   tags = [],
 }: RatingCardProps) {
   return (
-    <View className="bg-white rounded-2xl p-4 shadow-sm border border-[#E2E8F0]">
-      <View className="flex items-start gap-3">
+    <View style={styles.cardContainer}>
+      <View style={styles.contentRow}>
         <Image
-          source={clientPhoto}
-          alt={clientName}
-          className="w-12 h-12 rounded-full object-cover"
+          source={{ uri: clientPhoto }}
+          style={styles.avatar}
         />
 
-        <View className="flex-1">
-          <View className="flex items-center justify-between mb-2">
-            <Text className="font-medium text-[#0F172A]">{clientName}</Text>
-            <Text className="text-xs text-[#94A3B8]">{date}</Text>
+        <View style={styles.infoContainer}>
+          <View style={styles.headerRow}>
+            <Text style={styles.clientName}>{clientName}</Text>
+            <Text style={styles.dateText}>{date}</Text>
           </View>
 
-          <View className="flex items-center gap-1 mb-3">
+          <View style={styles.ratingRow}>
             {[1, 2, 3, 4, 5].map((star) => (
               <Star
                 key={star}
-                className={`w-4 h-4 ${
-                  star <= rating
-                    ? 'fill-[#FBBF24] text-[#FBBF24]'
-                    : 'text-[#E2E8F0]'
-                }`}
+                size={16}
+                color={star <= rating ? AntigravityTheme.colors.warning : AntigravityTheme.colors.border}
+                fill={star <= rating ? AntigravityTheme.colors.warning : 'transparent'}
               />
             ))}
           </View>
 
-          <Text className="text-sm text-[#94A3B8] mb-3">{comment}</Text>
+          <Text style={styles.commentText}>{comment}</Text>
 
           {tags.length > 0 && (
-            <View className="flex flex-wrap gap-2">
+            <View style={styles.tagsContainer}>
               {tags.map((tag, index) => (
-                <Text
-                  key={index}
-                  className="text-xs px-2.5 py-1 bg-[#26FFF5]/10 text-[#26FFF5] rounded-full"
-                >
-                  {tag}
-                </Text>
+                <View key={index} style={styles.tagBadge}>
+                  <Text style={styles.tagText}>
+                    {tag}
+                  </Text>
+                </View>
               ))}
             </View>
           )}
@@ -65,3 +62,73 @@ export function RatingCard({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  cardContainer: {
+    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    borderRadius: AntigravityTheme.borderRadius.xl,
+    padding: AntigravityTheme.spacing.md,
+    borderWidth: 1,
+    borderColor: AntigravityTheme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: AntigravityTheme.borderRadius.full,
+    resizeMode: 'cover',
+  },
+  infoContainer: {
+    flex: 1,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  clientName: {
+    ...AntigravityTheme.typography.base,
+    fontWeight: AntigravityTheme.typography.fontWeight.medium,
+    color: AntigravityTheme.colors.text,
+  },
+  dateText: {
+    ...AntigravityTheme.typography.xs,
+    color: AntigravityTheme.colors.textSecondary,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 12,
+  },
+  commentText: {
+    ...AntigravityTheme.typography.sm,
+    color: AntigravityTheme.colors.textSecondary,
+    marginBottom: 12,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tagBadge: {
+    backgroundColor: 'rgba(38, 255, 245, 0.1)', // Primary with opacity
+    borderRadius: AntigravityTheme.borderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  tagText: {
+    ...AntigravityTheme.typography.xs,
+    color: AntigravityTheme.colors.primary,
+  },
+});

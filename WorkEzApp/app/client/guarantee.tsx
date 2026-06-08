@@ -31,7 +31,7 @@ export default function PlatformGuarantee() {
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
       <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <TouchableOpacity
             onPress={() => router.back()}
             className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
@@ -60,8 +60,8 @@ export default function PlatformGuarantee() {
               key={index}
               className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]"
             >
-              <View className="flex items-start gap-4">
-                <View className="w-12 h-12 bg-[#2563EB]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <View className="flex-row items-start gap-4">
+                <View className="w-12 h-12 bg-[#2563EB]/10 rounded-xl flex-row items-center justify-center flex-shrink-0">
                   <Icon className="w-6 h-6 text-[#2563EB]" />
                 </View>
                 <View className="flex-1">

@@ -12,7 +12,7 @@ export function Logo({ size = 'md' }: LogoProps) {
   };
 
   return (
-    <View className={`${sizes[size]} flex items-center justify-center`}>
+    <View className={`${sizes[size]} flex-row items-center justify-center`}>
     </View>
   );
 }
