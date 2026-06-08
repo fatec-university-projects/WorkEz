@@ -43,7 +43,7 @@ public class AuthController(
             .AsNoTracking()
             .Include(u => u.Password)
             .Include(u => u.Claims)
-            .Where(u => u.Email == normalizedEmail && u.IsActive)
+            .Where(u => u.Email == normalizedEmail && u.AccountStatus == Enums.AccountStatus.Active)
             .FirstOrDefaultAsync();
 
         // 2. Validate credentials — use constant-time comparison via BCrypt.Verify
@@ -105,7 +105,7 @@ public class AuthController(
                 .ThenInclude(u => u.Claims)
             .FirstOrDefaultAsync(r => r.Token == dto.RefreshToken && !r.IsRevoked);
 
-        if (stored is null || stored.ExpiresAt < DateTime.UtcNow || !stored.User.IsActive)
+        if (stored is null || stored.ExpiresAt < DateTime.UtcNow || stored.User.AccountStatus != Enums.AccountStatus.Active)
             return Unauthorized(new { message = "Refresh token inválido ou expirado." });
 
         // Revoke consumed token (rotation)
@@ -181,7 +181,7 @@ public class AuthController(
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
     {
         var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
-        var user = await context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail && u.IsActive);
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail && u.AccountStatus == Enums.AccountStatus.Active);
         
         if (user == null)
             return NotFound(new { message = "Usuário não encontrado." });
@@ -215,7 +215,7 @@ public class AuthController(
 
         var user = await context.Users
             .Include(u => u.Password)
-            .FirstOrDefaultAsync(u => u.Email == normalizedEmail && u.IsActive);
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail && u.AccountStatus == Enums.AccountStatus.Active);
 
         if (user == null || user.Password == null)
             return BadRequest(new { message = "Usuário não encontrado ou inconsistente." });
@@ -260,7 +260,13 @@ public class AuthController(
             return Conflict(new { message = "Já existe uma conta com esse e-mail." });
 
         // Create user aggregate
-        var user = new User(dto.Name, normalizedEmail, role);
+        var user = new User
+        {
+            Name          = dto.Name,
+            Email         = normalizedEmail,
+            Role          = role,
+            AccountStatus = Enums.AccountStatus.Active
+        };
 
         var passwordRecord = new UserPassword
         {
@@ -282,7 +288,7 @@ public class AuthController(
         Email     = user.Email,
         Role      = user.Role.ToString(),
         CreatedAt = user.CreatedAt,
-        IsActive  = user.IsActive
+        AccountStatus = user.AccountStatus.ToString()
     };
 
     // ─── Token Generators para Password Reset ─────────────────────────────────

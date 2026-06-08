@@ -20,4 +20,18 @@ public class UsersController(IUserService userService) : ControllerBase
         
         return user is not null ? Ok(user) : NotFound();
     }
+
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAllUsers()
+    {
+        throw notimplementedException;
+    }
+
+    [HttpPatch("{id}/status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateUserStatus(Guid id, bool status)
+    {
+        throw notimplementedException;
+    }
 }

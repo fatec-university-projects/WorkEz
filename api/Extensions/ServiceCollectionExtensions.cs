@@ -11,7 +11,7 @@ internal static class ServiceCollectionExtensions
     {
         services.AddSwaggerGen(o =>
         {
-            o.SwaggerDoc("v1", new OpenApiInfo { Title = "Adega Royal API", Version = "v1" });
+            o.SwaggerDoc("v1", new OpenApiInfo { Title = "WorkEz API", Version = "v1" });
 
             o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
