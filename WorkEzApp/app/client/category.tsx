@@ -1,97 +1,164 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Wrench, Brush, Zap, Paintbrush, Hammer, Settings } from 'lucide-react-native';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { WorkEzTheme } from '../../constants/theme';
+import { useFetch } from '../../hooks/useFetch';
+
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+const CATEGORY_UI_MAP: Record<string, any> = {
+  'Encanador': { icon: Wrench, bgColor: '#EFF6FF', borderColor: '#BFDBFE', iconColor: '#3B82F6' },
+  'Eletricista': { icon: Zap, bgColor: '#FEFCE8', borderColor: '#FEF08A', iconColor: '#EAB308' },
+  'Diarista': { icon: Brush, bgColor: '#FAF5FF', borderColor: '#E9D5FF', iconColor: '#A855F7' },
+  'Pintor': { icon: Paintbrush, bgColor: '#F0FDF4', borderColor: '#BBF7D0', iconColor: '#22C55E' },
+  'Montador': { icon: Hammer, bgColor: '#FFF7ED', borderColor: '#FED7AA', iconColor: '#F97316' },
+  'Técnico geral': { icon: Settings, bgColor: '#FEF2F2', borderColor: '#FECACA', iconColor: '#EF4444' },
+};
 
 export default function SelectCategory() {
   const router = useRouter();
 
-  const categories = [
-    {
-      name: 'Encanador',
-      icon: Wrench,
-      description: 'Vazamentos, entupimentos, instalações',
-      color: 'bg-blue-50 border-blue-200',
-      iconColor: 'text-blue-500',
-    },
-    {
-      name: 'Eletricista',
-      icon: Zap,
-      description: 'Instalações, reparos, disjuntores',
-      color: 'bg-yellow-50 border-yellow-200',
-      iconColor: 'text-yellow-500',
-    },
-    {
-      name: 'Diarista',
-      icon: Brush,
-      description: 'Limpeza geral, organização',
-      color: 'bg-purple-50 border-purple-200',
-      iconColor: 'text-purple-500',
-    },
-    {
-      name: 'Pintor',
-      icon: Paintbrush,
-      description: 'Pintura interna, externa, textura',
-      color: 'bg-green-50 border-green-200',
-      iconColor: 'text-green-500',
-    },
-    {
-      name: 'Montador',
-      icon: Hammer,
-      description: 'Montagem de móveis e equipamentos',
-      color: 'bg-orange-50 border-orange-200',
-      iconColor: 'text-orange-500',
-    },
-    {
-      name: 'Técnico geral',
-      icon: Settings,
-      description: 'Reparos diversos e manutenção',
-      color: 'bg-red-50 border-red-200',
-      iconColor: 'text-red-500',
-    },
-  ];
+  const { data: categories, loading, error } = useFetch<Category[]>('/api/Categories');
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3">
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
+            style={styles.backButton}
+            activeOpacity={0.8}
           >
-            <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
+            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
           </TouchableOpacity>
-          <Text className="text-xl font-semibold text-[#0F172A]">
+          <Text style={styles.headerTitle}>
             Selecione o serviço
           </Text>
         </View>
       </View>
 
-      <View className="p-6 space-y-3">
-        {categories.map((category) => {
-          const Icon = category.icon;
-          return (
-          <TouchableOpacity
-            key={category.name}
-            onPress={() => router.push('/client/describe')}
-            className={`w-full ${category.color} border-2 rounded-2xl p-4 hover:shadow-md transition-all text-left`}
-          >
-            <View className="flex flex-row items-center gap-4">
-              <View className="w-12 h-12 rounded-xl flex-row items-center justify-center">
-                <Icon className={`w-8 h-8 ${category.iconColor}`} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-lg font-semibold text-[#0F172A]">
-                  {category.name}
-                </Text>
-                <Text className="text-sm text-[#64748B] mt-0.5">
-                  {category.description}
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-          );
-        })}
-      </View>
+      <ScrollView contentContainerStyle={styles.content}>
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+            <Text style={styles.loadingText}>Carregando categorias...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.centerContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : (
+          categories?.map((category) => {
+            const uiConfig = CATEGORY_UI_MAP[category.name] || { icon: Settings, bgColor: '#F1F5F9', borderColor: '#E2E8F0', iconColor: '#64748B' };
+            const Icon = uiConfig.icon;
+            return (
+              <TouchableOpacity
+                key={category.id}
+                onPress={() => router.push('/client/describe')}
+                style={[
+                  styles.categoryCard,
+                  { backgroundColor: uiConfig.bgColor, borderColor: uiConfig.borderColor }
+                ]}
+                activeOpacity={0.8}
+              >
+                <View style={styles.cardRow}>
+                  <View style={styles.iconWrapper}>
+                    <Icon size={32} color={uiConfig.iconColor} />
+                  </View>
+                  <View style={styles.textWrapper}>
+                    <Text style={styles.categoryName}>
+                      {category.name}
+                    </Text>
+                    <Text style={styles.categoryDesc}>
+                      {category.description || 'Descrição indisponível'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+  },
+  header: {
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    paddingHorizontal: WorkEzTheme.spacing.lg,
+    paddingVertical: WorkEzTheme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: WorkEzTheme.colors.border,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backButton: {
+    padding: WorkEzTheme.spacing.sm,
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    borderRadius: WorkEzTheme.borderRadius.lg,
+  },
+  headerTitle: {
+    ...WorkEzTheme.typography.xl,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: WorkEzTheme.colors.text,
+  },
+  content: {
+    padding: WorkEzTheme.spacing.lg,
+    gap: 12,
+  },
+  categoryCard: {
+    width: '100%',
+    borderWidth: 2,
+    borderRadius: WorkEzTheme.borderRadius['2xl'] ?? 16,
+    padding: WorkEzTheme.spacing.md,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: WorkEzTheme.borderRadius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textWrapper: {
+    flex: 1,
+  },
+  categoryName: {
+    ...WorkEzTheme.typography.lg,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: WorkEzTheme.colors.text,
+  },
+  categoryDesc: {
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
+    marginTop: 2,
+  },
+  centerContainer: {
+    padding: 48,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: WorkEzTheme.colors.textSecondary,
+  },
+  errorText: {
+    color: WorkEzTheme.colors.danger,
+    textAlign: 'center',
+  },
+});

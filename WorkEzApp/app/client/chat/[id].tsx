@@ -1,101 +1,300 @@
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useRef, useEffect } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Send, AlertCircle } from 'lucide-react-native';
-import { View, Text, TouchableOpacity, Image, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { WorkEzTheme } from '../../../constants/theme';
+import { useFetch } from '../../../hooks/useFetch';
+import { useAuth } from '../../../contexts/AuthContext';
+
+interface Message {
+  id: string;
+  sender: 'professional' | 'client';
+  text: string;
+  time: string;
+}
+
+interface ConversationData {
+  id: string;
+  professionalName: string;
+  professionalPhoto: string;
+  status: 'Online' | 'Offline';
+  messages: Message[];
+}
 
 export default function ClientChat() {
   const router = useRouter();
-  const [message, setMessage] = useState('');
+  const { id } = useLocalSearchParams();
+  const { user } = useAuth();
+  const [messageText, setMessageText] = useState('');
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  const messages = [
-    {
-      id: 1,
-      sender: 'professional',
-      text: 'Olá! Já estou a caminho. Chego em aproximadamente 15 minutos.',
-      time: '14:23',
-    },
-    {
-      id: 2,
-      sender: 'client',
-      text: 'Ótimo! Obrigado pela confirmação.',
-      time: '14:24',
-    },
-    {
-      id: 3,
-      sender: 'professional',
-      text: 'Você tem alguma ferramenta específica em casa que possa ser útil?',
-      time: '14:25',
-    },
-  ];
+  const { data: conversation, loading, error } = useFetch<ConversationData>(
+    id ? `/api/Conversations/${id}` : null
+  );
+
+  useEffect(() => {
+    // Scroll to bottom on messages load
+    if (conversation?.messages) {
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  }, [conversation?.messages]);
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC] flex flex-col">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3">
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
+            style={styles.backButton}
+            activeOpacity={0.8}
           >
-            <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
+            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
           </TouchableOpacity>
           <Image
-            source="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop"
-            alt="Carlos Silva"
-            className="w-10 h-10 rounded-full object-cover"
+            source={{ uri: conversation?.professionalPhoto || "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop" }}
+            style={styles.avatar}
           />
-          <View className="flex-1">
-            <Text className="font-semibold text-[#0F172A]">Carlos Silva</Text>
-            <Text className="text-sm text-[#26FFF5]">Online</Text>
+          <View style={styles.headerInfo}>
+            <Text style={styles.professionalName}>{conversation?.professionalName || 'Profissional'}</Text>
+            <Text style={styles.statusText}>{conversation?.status || 'Online'}</Text>
           </View>
         </View>
       </View>
 
-      <View className="bg-[#EFF6FF] border-y border-[#BFDBFE] px-4 py-3">
-        <View className="flex-row items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-[#2563EB] flex-shrink-0 mt-0.5" />
-          <Text className="text-xs text-[#1d4ed8]">
-            <Text>Para sua segurança:</Text> Mantenha o pagamento e a comunicação dentro do app.
+      <View style={styles.alertBanner}>
+        <View style={styles.alertRow}>
+          <AlertCircle size={16} color="#2563EB" style={styles.alertIcon} />
+          <Text style={styles.alertText}>
+            <Text style={{ fontWeight: '600' }}>Para sua segurança:</Text> Mantenha o pagamento e a comunicação dentro do app.
           </Text>
         </View>
       </View>
 
-      <View className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.map((msg) => (
-          <View
-            key={msg.id}
-            className={`flex-row ${msg.sender === 'client' ? 'justify-end' : 'justify-start'}`}
-          >
-            <View
-              className={`max-w-[75%] rounded-2xl px-4 py-3 ${ msg.sender === 'client' ? 'bg-[#2563EB] text-white' : 'bg-white border border-[#E2E8F0] text-[#0F172A]' }`}
-            >
-              <Text className="text-sm">{msg.text}</Text>
-              <Text
-                className={`text-xs mt-1 ${ msg.sender === 'client' ? 'text-white/70' : 'text-[#64748B]' }`}
-              >
-                {msg.time}
-              </Text>
-            </View>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.messagesList}
+        contentContainerStyle={styles.messagesContent}
+      >
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+            <Text style={styles.loadingText}>Carregando mensagens...</Text>
           </View>
-        ))}
-      </View>
+        ) : error ? (
+          <View style={styles.centerContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : (
+          conversation?.messages?.map((msg) => {
+            const isClient = msg.sender === 'client';
+            return (
+              <View
+                key={msg.id}
+                style={[
+                  styles.messageRow,
+                  isClient ? styles.messageRowRight : styles.messageRowLeft
+                ]}
+              >
+                <View
+                  style={[
+                    styles.messageBubble,
+                    isClient ? styles.messageBubbleClient : styles.messageBubblePro
+                  ]}
+                >
+                  <Text style={[
+                    styles.messageText,
+                    isClient ? styles.messageTextClient : styles.messageTextPro
+                  ]}>
+                    {msg.text}
+                  </Text>
+                  <Text style={[
+                    styles.messageTime,
+                    isClient ? styles.messageTimeClient : styles.messageTimePro
+                  ]}>
+                    {msg.time}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
 
-      <View className="bg-white p-4 border-t border-[#E2E8F0]">
-        <View className="flex-row items-center gap-2">
+      <View style={styles.footer}>
+        <View style={styles.inputRow}>
           <TextInput
-            type="text"
-            value={message}
-            onChangeText={setMessage}
+            value={messageText}
+            onChangeText={setMessageText}
             placeholder="Digite sua mensagem..."
-            className="flex-1 px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+            style={styles.input}
+            placeholderTextColor="#94A3B8"
           />
           <TouchableOpacity
-            className="w-12 h-12 bg-[#2563EB] text-white rounded-xl flex-row items-center justify-center hover:bg-[#1d4ed8] transition-colors disabled:opacity-50"
-            disabled={!message.trim()}
+            style={[styles.sendButton, !messageText.trim() && styles.sendButtonDisabled]}
+            disabled={!messageText.trim()}
           >
-            <Send className="w-5 h-5" />
+            <Send size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+  },
+  header: {
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    paddingHorizontal: WorkEzTheme.spacing.lg,
+    paddingVertical: WorkEzTheme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: WorkEzTheme.colors.border,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backButton: {
+    padding: WorkEzTheme.spacing.sm,
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    borderRadius: WorkEzTheme.borderRadius.lg,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    resizeMode: 'cover',
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  professionalName: {
+    ...WorkEzTheme.typography.base,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: WorkEzTheme.colors.text,
+  },
+  statusText: {
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.primary,
+  },
+  alertBanner: {
+    backgroundColor: '#EFF6FF',
+    borderBottomWidth: 1,
+    borderTopWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  alertRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  alertIcon: {
+    marginTop: 2,
+  },
+  alertText: {
+    flex: 1,
+    ...WorkEzTheme.typography.xs,
+    color: '#1D4ED8',
+    lineHeight: 18,
+  },
+  messagesList: {
+    flex: 1,
+  },
+  messagesContent: {
+    padding: 24,
+    gap: 16,
+  },
+  centerContainer: {
+    padding: 48,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: WorkEzTheme.colors.textSecondary,
+  },
+  errorText: {
+    color: WorkEzTheme.colors.danger,
+    textAlign: 'center',
+  },
+  messageRow: {
+    flexDirection: 'row',
+  },
+  messageRowLeft: {
+    justifyContent: 'flex-start',
+  },
+  messageRowRight: {
+    justifyContent: 'flex-end',
+  },
+  messageBubble: {
+    maxWidth: '75%',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  messageBubbleClient: {
+    backgroundColor: '#2563EB',
+  },
+  messageBubblePro: {
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    borderWidth: 1,
+    borderColor: WorkEzTheme.colors.border,
+  },
+  messageText: {
+    ...WorkEzTheme.typography.sm,
+  },
+  messageTextClient: {
+    color: '#FFFFFF',
+  },
+  messageTextPro: {
+    color: WorkEzTheme.colors.text,
+  },
+  messageTime: {
+    ...WorkEzTheme.typography.xs,
+    marginTop: 4,
+  },
+  messageTimeClient: {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  messageTimePro: {
+    color: WorkEzTheme.colors.textSecondary,
+  },
+  footer: {
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: WorkEzTheme.colors.border,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    borderWidth: 1,
+    borderColor: WorkEzTheme.colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    ...WorkEzTheme.typography.base,
+    color: WorkEzTheme.colors.text,
+  },
+  sendButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
+  },
+});

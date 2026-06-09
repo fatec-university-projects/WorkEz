@@ -1,6 +1,6 @@
 import { Star } from 'lucide-react-native';
 import { View, Text, Image, StyleSheet } from 'react-native';
-import { AntigravityTheme } from '../constants/theme';
+import { WorkEzTheme } from '../constants/theme';
 
 interface RatingCardProps {
   clientName: string;
@@ -38,8 +38,8 @@ export function RatingCard({
               <Star
                 key={star}
                 size={16}
-                color={star <= rating ? AntigravityTheme.colors.warning : AntigravityTheme.colors.border}
-                fill={star <= rating ? AntigravityTheme.colors.warning : 'transparent'}
+                color={star <= rating ? WorkEzTheme.colors.warning : WorkEzTheme.colors.border}
+                fill={star <= rating ? WorkEzTheme.colors.warning : 'transparent'}
               />
             ))}
           </View>
@@ -65,11 +65,11 @@ export function RatingCard({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: AntigravityTheme.colors.backgroundCard,
-    borderRadius: AntigravityTheme.borderRadius.xl,
-    padding: AntigravityTheme.spacing.md,
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    borderRadius: WorkEzTheme.borderRadius.xl,
+    padding: WorkEzTheme.spacing.md,
     borderWidth: 1,
-    borderColor: AntigravityTheme.colors.border,
+    borderColor: WorkEzTheme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: AntigravityTheme.borderRadius.full,
+    borderRadius: WorkEzTheme.borderRadius.full,
     resizeMode: 'cover',
   },
   infoContainer: {
@@ -97,13 +97,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   clientName: {
-    ...AntigravityTheme.typography.base,
-    fontWeight: AntigravityTheme.typography.fontWeight.medium,
-    color: AntigravityTheme.colors.text,
+    ...WorkEzTheme.typography.base,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
+    color: WorkEzTheme.colors.text,
   },
   dateText: {
-    ...AntigravityTheme.typography.xs,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.xs,
+    color: WorkEzTheme.colors.textSecondary,
   },
   ratingRow: {
     flexDirection: 'row',
@@ -112,8 +112,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   commentText: {
-    ...AntigravityTheme.typography.sm,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
     marginBottom: 12,
   },
   tagsContainer: {
@@ -123,12 +123,12 @@ const styles = StyleSheet.create({
   },
   tagBadge: {
     backgroundColor: 'rgba(38, 255, 245, 0.1)', // Primary with opacity
-    borderRadius: AntigravityTheme.borderRadius.full,
+    borderRadius: WorkEzTheme.borderRadius.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   tagText: {
-    ...AntigravityTheme.typography.xs,
-    color: AntigravityTheme.colors.primary,
+    ...WorkEzTheme.typography.xs,
+    color: WorkEzTheme.colors.primary,
   },
 });

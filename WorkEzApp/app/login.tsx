@@ -4,7 +4,7 @@ import { ArrowLeft, Mail, Lock } from 'lucide-react-native';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { AntigravityTheme } from '../constants/theme';
+import { WorkEzTheme } from '../constants/theme';
 
 
 export default function Login() {
@@ -17,7 +17,7 @@ export default function Login() {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
@@ -27,7 +27,7 @@ export default function Login() {
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <ArrowLeft size={24} color={AntigravityTheme.colors.text} />
+            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
           </TouchableOpacity>
 
           <Text style={styles.title}>
@@ -40,7 +40,7 @@ export default function Login() {
 
         <View style={styles.formContainer}>
           <View style={styles.inputWrapper}>
-            <Mail size={20} color={AntigravityTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Mail size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
             <Input
               type="email"
               placeholder="Seu e-mail"
@@ -51,7 +51,7 @@ export default function Login() {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Lock size={20} color={AntigravityTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Lock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
             <Input
               type="password"
               placeholder="Sua senha"
@@ -92,7 +92,7 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: AntigravityTheme.colors.background,
+    backgroundColor: WorkEzTheme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -109,14 +109,14 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   title: {
-    ...AntigravityTheme.typography.xl,
-    fontWeight: AntigravityTheme.typography.fontWeight.bold,
-    color: AntigravityTheme.colors.text,
+    ...WorkEzTheme.typography.xl,
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
+    color: WorkEzTheme.colors.text,
     marginBottom: 8,
   },
   subtitle: {
-    ...AntigravityTheme.typography.base,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.base,
+    color: WorkEzTheme.colors.textSecondary,
   },
   formContainer: {
     gap: 16,
@@ -135,8 +135,8 @@ const styles = StyleSheet.create({
     paddingLeft: 48,
   },
   forgotPasswordText: {
-    ...AntigravityTheme.typography.sm,
-    fontWeight: AntigravityTheme.typography.fontWeight.medium,
+    ...WorkEzTheme.typography.sm,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
     color: '#2563EB',
   },
   footerContainer: {
@@ -149,12 +149,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   signupText: {
-    ...AntigravityTheme.typography.sm,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
   },
   signupLinkText: {
-    ...AntigravityTheme.typography.sm,
-    fontWeight: AntigravityTheme.typography.fontWeight.medium,
+    ...WorkEzTheme.typography.sm,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
     color: '#2563EB',
   },
 });

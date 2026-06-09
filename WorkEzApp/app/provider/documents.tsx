@@ -1,73 +1,233 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Upload, FileText, Home, CreditCard, Shield } from 'lucide-react-native';
+import { ArrowLeft, Upload, FileText, Home, CreditCard, Shield, CheckCircle } from 'lucide-react-native';
 import { Button } from '../../components/Button';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { WorkEzTheme } from '../../constants/theme';
+import { useAuth } from '../../contexts/AuthContext';
+import { useFetch } from '../../hooks/useFetch';
+
+interface DocumentStatus {
+  id: string;
+  type: 'rg' | 'cpf' | 'address' | 'bank' | 'criminal';
+  label: string;
+  required: boolean;
+  status: 'pending' | 'uploaded' | 'verified' | 'rejected';
+}
 
 export default function DocumentVerification() {
   const router = useRouter();
+  const { user } = useAuth();
 
-  const documents = [
-    { icon: FileText, label: 'RG ou CNH', required: true },
-    { icon: FileText, label: 'CPF', required: true },
-    { icon: Home, label: 'Comprovante de residência', required: true },
-    { icon: CreditCard, label: 'Dados bancários', required: true },
-    { icon: Shield, label: 'Antecedentes criminais', required: false },
+  const { data: userDocs, loading, error } = useFetch<DocumentStatus[]>(
+    user ? `/api/Providers/${user.id}/documents` : null
+  );
+
+  const getIconForDoc = (type: string) => {
+    switch (type) {
+      case 'rg': return FileText;
+      case 'cpf': return FileText;
+      case 'address': return Home;
+      case 'bank': return CreditCard;
+      case 'criminal': return Shield;
+      default: return FileText;
+    }
+  };
+
+  const defaultDocuments: DocumentStatus[] = [
+    { id: '1', type: 'rg', label: 'RG ou CNH', required: true, status: 'pending' },
+    { id: '2', type: 'cpf', label: 'CPF', required: true, status: 'pending' },
+    { id: '3', type: 'address', label: 'Comprovante de residência', required: true, status: 'pending' },
+    { id: '4', type: 'bank', label: 'Dados bancários', required: true, status: 'pending' },
+    { id: '5', type: 'criminal', label: 'Antecedentes criminais', required: false, status: 'pending' },
   ];
 
+  const documents = userDocs || defaultDocuments;
+
   return (
-    <View className="min-h-screen bg-white">
-      <View className="p-6">
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
         <TouchableOpacity
           onPress={() => router.back()}
-          className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
+          style={styles.backButton}
+          activeOpacity={0.8}
         >
-          <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
+          <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
         </TouchableOpacity>
 
-        <Text className="text-3xl font-bold text-[#0F172A] mt-8 mb-2">
+        <Text style={styles.title}>
           Verificação de documentos
         </Text>
-        <Text className="text-[#64748B]">
+        <Text style={styles.subtitle}>
           Envie seus documentos para validação
         </Text>
 
-        <View className="mt-8 space-y-4">
-          {documents.map((doc, index) => {
-            const Icon = doc.icon;
-            return (
-              <View
-                key={index}
-                className="bg-[#F8FAFC] rounded-xl p-4 border-2 border-dashed border-[#E2E8F0] hover:border-[#2563EB] transition-all cursor-pointer"
-              >
-                <View className="flex-row items-center gap-4">
-                  <View className="w-12 h-12 bg-white rounded-lg flex-row items-center justify-center">
-                    <Icon className="w-6 h-6 text-[#64748B]" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="font-medium text-[#0F172A]">{doc.label}</Text>
-                    <Text className="text-sm text-[#64748B]">
-                      {doc.required ? 'Obrigatório' : 'Opcional'}
-                    </Text>
-                  </View>
-                  <Upload className="w-5 h-5 text-[#2563EB]" />
-                </View>
-              </View>
-            );
-          })}
-        </View>
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+            <Text style={styles.loadingText}>Verificando documentos...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.centerContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : (
+          <View style={styles.docsList}>
+            {documents.map((doc, index) => {
+              const Icon = getIconForDoc(doc.type);
+              const isVerified = doc.status === 'verified';
+              const isUploaded = doc.status === 'uploaded';
 
-        <View className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-4 mt-6">
-          <Text className="text-sm text-[#1d4ed8] leading-relaxed">
-            <Text>Por que verificamos?</Text> A verificação de documentos garante a segurança de todos os usuários e aumenta sua credibilidade.
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.docCard,
+                    isVerified && styles.docCardVerified,
+                    isUploaded && styles.docCardUploaded
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.docRow}>
+                    <View style={styles.iconWrapper}>
+                      <Icon size={24} color={WorkEzTheme.colors.textSecondary} />
+                    </View>
+                    <View style={styles.docInfo}>
+                      <Text style={styles.docLabel}>{doc.label}</Text>
+                      <Text style={styles.docReq}>
+                        {doc.required ? 'Obrigatório' : 'Opcional'}
+                        {isVerified && ' • Verificado'}
+                        {isUploaded && ' • Em análise'}
+                      </Text>
+                    </View>
+                    {isVerified ? (
+                      <CheckCircle size={20} color={WorkEzTheme.colors.success} />
+                    ) : (
+                      <Upload size={20} color={WorkEzTheme.colors.primary} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        <View style={styles.infoBanner}>
+          <Text style={styles.infoText}>
+            <Text style={{ fontWeight: '600' }}>Por que verificamos?</Text> A verificação de documentos garante a segurança de todos os usuários e aumenta sua credibilidade.
           </Text>
         </View>
 
-        <View className="mt-8">
+        <View style={styles.footer}>
           <Button fullWidth onPress={() => router.push('/provider/references')}>
             Continuar
           </Button>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  content: {
+    padding: WorkEzTheme.spacing.lg,
+    flexGrow: 1,
+  },
+  backButton: {
+    padding: WorkEzTheme.spacing.sm,
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    borderRadius: WorkEzTheme.borderRadius.lg,
+    alignSelf: 'flex-start',
+  },
+  title: {
+    ...WorkEzTheme.typography['3xl'],
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
+    color: WorkEzTheme.colors.text,
+    marginTop: 32,
+    marginBottom: 8,
+  },
+  subtitle: {
+    ...WorkEzTheme.typography.base,
+    color: WorkEzTheme.colors.textSecondary,
+  },
+  centerContainer: {
+    padding: 48,
+    alignItems: 'center',
+    marginTop: 32,
+  },
+  loadingText: {
+    marginTop: 16,
+    color: WorkEzTheme.colors.textSecondary,
+  },
+  errorText: {
+    color: WorkEzTheme.colors.danger,
+    textAlign: 'center',
+  },
+  docsList: {
+    marginTop: 32,
+    gap: 16,
+  },
+  docCard: {
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    borderRadius: WorkEzTheme.borderRadius.xl,
+    padding: WorkEzTheme.spacing.md,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: WorkEzTheme.colors.border,
+  },
+  docCardVerified: {
+    borderColor: WorkEzTheme.colors.success,
+    borderStyle: 'solid',
+    backgroundColor: '#F0FDF4',
+  },
+  docCardUploaded: {
+    borderColor: WorkEzTheme.colors.primary,
+    borderStyle: 'solid',
+    backgroundColor: '#EFF6FF',
+  },
+  docRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconWrapper: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: WorkEzTheme.borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  docInfo: {
+    flex: 1,
+  },
+  docLabel: {
+    ...WorkEzTheme.typography.base,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
+    color: WorkEzTheme.colors.text,
+  },
+  docReq: {
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
+  },
+  infoBanner: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: WorkEzTheme.borderRadius.xl,
+    padding: WorkEzTheme.spacing.md,
+    marginTop: 24,
+  },
+  infoText: {
+    ...WorkEzTheme.typography.sm,
+    color: '#1D4ED8',
+    lineHeight: 20,
+  },
+  footer: {
+    marginTop: 32,
+    marginBottom: 24,
+  },
+});

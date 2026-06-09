@@ -1,6 +1,6 @@
 import { Star, MapPin, Heart, Check } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { AntigravityTheme } from '../constants/theme';
+import { WorkEzTheme } from '../constants/theme';
 
 interface ProfessionalCardProps {
   name: string;
@@ -39,11 +39,11 @@ export function ProfessionalCard({
             source={{ uri: photo }} // Assuming photo is a URL, changed from photo directly, though it depends if it's require()
             style={styles.photo}
           />
-          {verified && (
+          {verified ? (
             <View style={styles.badgeContainer}>
-              <Check size={12} color={AntigravityTheme.colors.text} />
+              <Check size={12} color={WorkEzTheme.colors.text} />
             </View>
-          )}
+          ) : null}
         </View>
 
         <View style={styles.infoContainer}>
@@ -52,7 +52,7 @@ export function ProfessionalCard({
               <Text style={styles.nameText} numberOfLines={1}>{name}</Text>
               <View style={styles.ratingRow}>
                 <View style={styles.ratingWrapper}>
-                  <Star size={16} color={AntigravityTheme.colors.warning} fill={AntigravityTheme.colors.warning} />
+                  <Star size={16} color={WorkEzTheme.colors.warning} fill={WorkEzTheme.colors.warning} />
                   <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
                 </View>
                 <Text style={styles.servicesText}>
@@ -61,26 +61,26 @@ export function ProfessionalCard({
               </View>
             </View>
 
-            {onToggleFavorite && (
+            {onToggleFavorite ? (
               <TouchableOpacity
                 onPress={onToggleFavorite}
                 style={styles.favoriteButton}
               >
                 <Heart
                   size={20}
-                  color={isFavorite ? AntigravityTheme.colors.danger : AntigravityTheme.colors.textSecondary}
-                  fill={isFavorite ? AntigravityTheme.colors.danger : 'transparent'}
+                  color={isFavorite ? WorkEzTheme.colors.danger : WorkEzTheme.colors.textSecondary}
+                  fill={isFavorite ? WorkEzTheme.colors.danger : 'transparent'}
                 />
               </TouchableOpacity>
-            )}
+            ) : null}
           </View>
 
-          {distance && (
+          {distance ? (
             <View style={styles.distanceRow}>
-              <MapPin size={16} color={AntigravityTheme.colors.textSecondary} />
+              <MapPin size={16} color={WorkEzTheme.colors.textSecondary} />
               <Text style={styles.distanceText}>{distance}</Text>
             </View>
-          )}
+          ) : null}
 
           <View style={styles.specialtiesContainer}>
             {specialties.slice(0, 2).map((specialty, index) => (
@@ -99,16 +99,16 @@ export function ProfessionalCard({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: AntigravityTheme.colors.backgroundCard,
-    borderRadius: AntigravityTheme.borderRadius.xl,
-    padding: AntigravityTheme.spacing.md,
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    borderRadius: WorkEzTheme.borderRadius.xl,
+    padding: WorkEzTheme.spacing.md,
     borderWidth: 1,
-    borderColor: AntigravityTheme.colors.border,
+    borderColor: WorkEzTheme.colors.border,
   },
   contentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: AntigravityTheme.spacing.md,
+    gap: WorkEzTheme.spacing.md,
   },
   photoContainer: {
     position: 'relative',
@@ -116,18 +116,18 @@ const styles = StyleSheet.create({
   photo: {
     width: 64,
     height: 64,
-    borderRadius: AntigravityTheme.borderRadius.full,
+    borderRadius: WorkEzTheme.borderRadius.full,
     resizeMode: 'cover',
   },
   badgeContainer: {
     position: 'absolute',
     bottom: -4,
     right: -4,
-    backgroundColor: AntigravityTheme.colors.primary,
-    borderRadius: AntigravityTheme.borderRadius.full,
+    backgroundColor: WorkEzTheme.colors.primary,
+    borderRadius: WorkEzTheme.borderRadius.full,
     padding: 4,
     borderWidth: 2,
-    borderColor: AntigravityTheme.colors.backgroundCard,
+    borderColor: WorkEzTheme.colors.backgroundCard,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -144,14 +144,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   nameText: {
-    ...AntigravityTheme.typography.base,
-    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
-    color: AntigravityTheme.colors.text,
+    ...WorkEzTheme.typography.base,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: WorkEzTheme.colors.text,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: AntigravityTheme.spacing.sm,
+    gap: WorkEzTheme.spacing.sm,
     marginTop: 4,
   },
   ratingWrapper: {
@@ -160,42 +160,42 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   ratingText: {
-    ...AntigravityTheme.typography.sm,
-    fontWeight: AntigravityTheme.typography.fontWeight.medium,
-    color: AntigravityTheme.colors.text,
+    ...WorkEzTheme.typography.sm,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
+    color: WorkEzTheme.colors.text,
   },
   servicesText: {
-    ...AntigravityTheme.typography.sm,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
   },
   favoriteButton: {
-    padding: AntigravityTheme.spacing.sm,
-    borderRadius: AntigravityTheme.borderRadius.md,
+    padding: WorkEzTheme.spacing.sm,
+    borderRadius: WorkEzTheme.borderRadius.md,
   },
   distanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: AntigravityTheme.spacing.sm,
+    marginTop: WorkEzTheme.spacing.sm,
   },
   distanceText: {
-    ...AntigravityTheme.typography.sm,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
   },
   specialtiesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: AntigravityTheme.spacing.sm,
+    gap: WorkEzTheme.spacing.sm,
     marginTop: 12,
   },
   specialtyBadge: {
-    backgroundColor: AntigravityTheme.colors.backgroundAlt,
-    borderRadius: AntigravityTheme.borderRadius.full,
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    borderRadius: WorkEzTheme.borderRadius.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   specialtyText: {
-    ...AntigravityTheme.typography.xs,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.xs,
+    color: WorkEzTheme.colors.textSecondary,
   },
 });

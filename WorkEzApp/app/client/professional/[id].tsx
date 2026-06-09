@@ -1,141 +1,385 @@
-import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Star, Award, ShieldCheck, Image as ImageIcon } from 'lucide-react-native';
 import { Badge } from '../../../components/Badge';
 import { RatingCard } from '../../../components/RatingCard';
 import { Button } from '../../../components/Button';
-import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { WorkEzTheme } from '../../../constants/theme';
+import { useFetch } from '../../../hooks/useFetch';
+
+interface Review {
+  clientName: string;
+  clientPhoto: string;
+  rating: number;
+  comment: string;
+  date: string;
+  tags: string[];
+}
+
+interface ProfessionalData {
+  id: string;
+  name: string;
+  photo: string;
+  verified: boolean;
+  rating: number;
+  servicesCompleted: number;
+  specialties: string[];
+  description: string;
+  portfolio: string[];
+  reviewsCount: number;
+  reviews: Review[];
+}
 
 export default function ProfessionalProfile() {
   const router = useRouter();
+  const { id } = useLocalSearchParams();
 
-  const portfolio = [
-    'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=400&h=300&fit=crop',
-  ];
+  const { data: professional, loading, error, refetch } = useFetch<ProfessionalData>(id ? `/api/ServiceProviders/${id}` : null);
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+        <Text style={styles.loadingText}>Carregando perfil...</Text>
+      </View>
+    );
+  }
+
+  if (error || !professional) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>{error || 'Profissional não encontrado.'}</Text>
+        <Button onPress={() => router.back()} style={styles.backButton}>
+          Voltar
+        </Button>
+      </View>
+    );
+  }
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3">
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
+            style={styles.iconButton}
+            activeOpacity={0.8}
           >
-            <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
+            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
           </TouchableOpacity>
-          <Text className="text-xl font-semibold text-[#0F172A]">
+          <Text style={styles.headerTitle}>
             Perfil do profissional
           </Text>
         </View>
       </View>
 
-      <View className="p-6 space-y-6">
-        <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex-row items-start gap-4 mb-4">
-            <View className="w-20 h-20 rounded-full overflow-hidden">
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.card}>
+          <View style={styles.profileRow}>
+            <View style={styles.photoWrapper}>
               <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop' }}
-                className="w-20 h-20"
+                source={{ uri: professional.photo }}
+                style={styles.photo}
               />
             </View>
-            <View className="flex-1">
-              <Text className="text-2xl font-bold text-[#0F172A] mb-1">
-                Carlos Silva
+            <View style={styles.profileInfo}>
+              <Text style={styles.nameText}>
+                {professional.name}
               </Text>
-              <Badge variant="verified" size="md" />
-              <View className="flex-row items-center gap-3 mt-3">
-                <View className="flex-row items-center gap-1">
-                  <Star className="w-5 h-5 fill-[#FBBF24] text-[#FBBF24]" />
-                  <Text className="text-lg font-semibold text-[#0F172A]">4.9</Text>
+              {professional.verified ? (
+                <Badge variant="verified" size="md" />
+              ) : null}
+              <View style={styles.statsRow}>
+                <View style={styles.ratingRow}>
+                  <Star size={20} color={WorkEzTheme.colors.warning} fill={WorkEzTheme.colors.warning} />
+                  <Text style={styles.ratingText}>{professional.rating.toFixed(1)}</Text>
                 </View>
-                <Text className="text-[#64748B]">248 serviços</Text>
+                <Text style={styles.servicesText}>{professional.servicesCompleted} serviços</Text>
               </View>
             </View>
           </View>
 
-          <View className="flex-row flex-wrap gap-2 mb-4">
-            <Text className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full">
-              Encanamento
-            </Text>
-            <Text className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full">
-              Instalações
-            </Text>
-            <Text className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full">
-              Manutenção
-            </Text>
+          <View style={styles.specialtiesRow}>
+            {professional.specialties.map((specialty, index) => (
+              <View key={index} style={styles.specialtyBadge}>
+                <Text style={styles.specialtyText}>
+                  {specialty}
+                </Text>
+              </View>
+            ))}
           </View>
 
-          <Text className="text-[#64748B] leading-relaxed">
-            Profissional com 8 anos de experiência em instalações hidráulicas residenciais e comerciais. Especialista em reparos, manutenção preventiva e instalações completas.
+          <Text style={styles.descriptionText}>
+            {professional.description}
           </Text>
         </View>
 
-        <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex-row items-center gap-2 mb-4">
-            <ImageIcon className="w-5 h-5 text-[#0F172A]" />
-            <Text className="font-semibold text-[#0F172A]">Portfólio</Text>
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <ImageIcon size={20} color={WorkEzTheme.colors.text} />
+            <Text style={styles.cardTitle}>Portfólio</Text>
           </View>
-          <View className="flex-row flex-wrap gap-2">
-            {portfolio.map((img, index) => (
-              <View key={index} className="rounded-lg overflow-hidden" style={{ width: '31%', height: 96 }}>
+          <View style={styles.portfolioGrid}>
+            {professional.portfolio.map((img, index) => (
+              <View key={index} style={styles.portfolioImageWrapper}>
                 <Image
                   source={{ uri: img }}
-                  className="w-full h-full"
+                  style={styles.portfolioImage}
                 />
               </View>
             ))}
           </View>
         </View>
 
-        <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <View className="flex-row items-center justify-between mb-4">
-            <View className="flex-row items-center gap-2">
-              <Award className="w-5 h-5 text-[#0F172A]" />
-              <Text className="font-semibold text-[#0F172A]">Avaliações</Text>
+        <View style={styles.card}>
+          <View style={styles.cardHeaderBetween}>
+            <View style={styles.cardHeader}>
+              <Award size={20} color={WorkEzTheme.colors.text} />
+              <Text style={styles.cardTitle}>Avaliações</Text>
             </View>
-            <Text className="text-sm text-[#64748B]">156 avaliações</Text>
+            <Text style={styles.reviewsCountText}>{professional.reviewsCount} avaliações</Text>
           </View>
 
-          <View className="space-y-3">
-            <RatingCard
-              clientName="Maria Santos"
-              clientPhoto="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop"
-              rating={5}
-              comment="Excelente profissional! Resolveu o problema rapidamente e deixou tudo limpo."
-              date="2 dias atrás"
-              tags={['Pontual', 'Educado', 'Serviço bem feito']}
-            />
-
-            <RatingCard
-              clientName="João Pedro"
-              clientPhoto="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
-              rating={5}
-              comment="Muito competente e prestativo. Recomendo!"
-              date="1 semana atrás"
-              tags={['Resolveria novamente']}
-            />
+          <View style={styles.reviewsList}>
+            {professional.reviews.map((review, index) => (
+              <RatingCard
+                key={index}
+                clientName={review.clientName}
+                clientPhoto={review.clientPhoto}
+                rating={review.rating}
+                comment={review.comment}
+                date={review.date}
+                tags={review.tags}
+              />
+            ))}
           </View>
         </View>
 
-        <View className="bg-[#FEF3C7] border border-[#FDE047] rounded-xl p-4">
-          <View className="flex-row items-start gap-3">
-            <ShieldCheck className="w-5 h-5 text-[#854D0E] flex-shrink-0 mt-0.5" />
-            <View>
-              <Text className="font-medium text-[#854D0E] mb-1">
+        <View style={styles.guaranteeCard}>
+          <View style={styles.guaranteeRow}>
+            <ShieldCheck size={20} color="#854D0E" style={styles.guaranteeIcon} />
+            <View style={styles.guaranteeTextContent}>
+              <Text style={styles.guaranteeTitle}>
                 Garantia da plataforma
               </Text>
-              <Text className="text-sm text-[#92400E]">
+              <Text style={styles.guaranteeDescription}>
                 Este serviço está protegido pela garantia WorkEz. Você pode solicitar mediação em caso de problemas.
               </Text>
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
 
-      <View className="bg-white p-6 border-t border-[#E2E8F0]">
-        <Button fullWidth onPress={() => router.push('/client/tracking/1')}>Acompanhar serviço</Button>
+      <View style={styles.footer}>
+        <Button fullWidth onPress={() => router.push(`/client/tracking/${professional.id}`)}>Acompanhar serviço</Button>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    padding: WorkEzTheme.spacing.lg,
+  },
+  loadingText: {
+    marginTop: WorkEzTheme.spacing.md,
+    ...WorkEzTheme.typography.base,
+    color: WorkEzTheme.colors.textSecondary,
+  },
+  errorText: {
+    ...WorkEzTheme.typography.lg,
+    color: WorkEzTheme.colors.danger,
+    textAlign: 'center',
+    marginBottom: WorkEzTheme.spacing.lg,
+  },
+  backButton: {
+    marginTop: WorkEzTheme.spacing.md,
+  },
+  header: {
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    paddingHorizontal: WorkEzTheme.spacing.lg,
+    paddingVertical: WorkEzTheme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: WorkEzTheme.colors.border,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: WorkEzTheme.spacing.sm,
+  },
+  iconButton: {
+    padding: WorkEzTheme.spacing.sm,
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    borderRadius: WorkEzTheme.borderRadius.lg,
+  },
+  headerTitle: {
+    ...WorkEzTheme.typography.xl,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: WorkEzTheme.colors.text,
+  },
+  scrollContent: {
+    padding: WorkEzTheme.spacing.lg,
+    gap: WorkEzTheme.spacing.lg,
+  },
+  card: {
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    borderRadius: WorkEzTheme.borderRadius.xl,
+    padding: WorkEzTheme.spacing.lg,
+    borderWidth: 1,
+    borderColor: WorkEzTheme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: WorkEzTheme.spacing.md,
+    marginBottom: WorkEzTheme.spacing.md,
+  },
+  photoWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: WorkEzTheme.borderRadius.full,
+    overflow: 'hidden',
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  nameText: {
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
+    color: WorkEzTheme.colors.text,
+    marginBottom: 4,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: WorkEzTheme.spacing.sm,
+    marginTop: WorkEzTheme.spacing.sm,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ratingText: {
+    ...WorkEzTheme.typography.lg,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: WorkEzTheme.colors.text,
+  },
+  servicesText: {
+    ...WorkEzTheme.typography.base,
+    color: WorkEzTheme.colors.textSecondary,
+  },
+  specialtiesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: WorkEzTheme.spacing.sm,
+    marginBottom: WorkEzTheme.spacing.md,
+  },
+  specialtyBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: WorkEzTheme.spacing.md,
+    paddingVertical: 6,
+    borderRadius: WorkEzTheme.borderRadius.full,
+  },
+  specialtyText: {
+    ...WorkEzTheme.typography.sm,
+    color: '#1D4ED8',
+  },
+  descriptionText: {
+    ...WorkEzTheme.typography.base,
+    color: WorkEzTheme.colors.textSecondary,
+    lineHeight: 24,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: WorkEzTheme.spacing.sm,
+    marginBottom: WorkEzTheme.spacing.md,
+  },
+  cardHeaderBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: WorkEzTheme.spacing.md,
+  },
+  cardTitle: {
+    ...WorkEzTheme.typography.base,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: WorkEzTheme.colors.text,
+  },
+  portfolioGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  portfolioImageWrapper: {
+    width: '31%',
+    height: 96,
+    borderRadius: WorkEzTheme.borderRadius.lg,
+    overflow: 'hidden',
+  },
+  portfolioImage: {
+    width: '100%',
+    height: '100%',
+  },
+  reviewsCountText: {
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
+  },
+  reviewsList: {
+    gap: WorkEzTheme.spacing.md,
+  },
+  guaranteeCard: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE047',
+    borderRadius: WorkEzTheme.borderRadius.xl,
+    padding: WorkEzTheme.spacing.md,
+  },
+  guaranteeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: WorkEzTheme.spacing.sm,
+  },
+  guaranteeIcon: {
+    marginTop: 2,
+  },
+  guaranteeTextContent: {
+    flex: 1,
+  },
+  guaranteeTitle: {
+    ...WorkEzTheme.typography.base,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
+    color: '#854D0E',
+    marginBottom: 4,
+  },
+  guaranteeDescription: {
+    ...WorkEzTheme.typography.sm,
+    color: '#92400E',
+  },
+  footer: {
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    padding: WorkEzTheme.spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: WorkEzTheme.colors.border,
+  },
+});

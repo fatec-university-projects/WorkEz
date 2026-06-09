@@ -1,62 +1,133 @@
-import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ProfessionalCard } from '../../components/ProfessionalCard';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { WorkEzTheme } from '../../constants/theme';
+import { useFetch } from '../../hooks/useFetch';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface FavoriteProfessional {
+  id: string;
+  name: string;
+  photo: string;
+  rating: number;
+  servicesCompleted: number;
+  specialties: string[];
+  verified: boolean;
+}
 
 export default function Favorites() {
   const router = useRouter();
-  const [favorites, setFavorites] = useState([
-    {
-      id: 1,
-      name: 'Carlos Silva',
-      photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop',
-      rating: 4.9,
-      servicesCompleted: 248,
-      specialties: ['Encanamento', 'Instalações'],
-      verified: true,
-    },
-    {
-      id: 2,
-      name: 'João Alves',
-      photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop',
-      rating: 4.8,
-      servicesCompleted: 195,
-      specialties: ['Elétrica', 'Iluminação'],
-      verified: true,
-    },
-  ]);
+  const { user } = useAuth();
 
-  const toggleFavorite = (id: number) => {
-    setFavorites(favorites.filter(fav => fav.id !== id));
+  const { data: favorites, loading, error, refetch } = useFetch<FavoriteProfessional[]>(
+    user ? `/api/Customers/${user.id}/favorites` : null
+  );
+
+  const toggleFavorite = async (id: string) => {
+    // Aqui no futuro chamaremos um endpoint como DELETE /api/Customers/{userId}/favorites/{id}
+    // E depois refetch()
+    await refetch();
   };
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <Text className="text-2xl font-bold text-[#0F172A]">Favoritos</Text>
-        <Text className="text-sm text-[#64748B] mt-1">
-          Seus profissionais salvos
-        </Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Favoritos</Text>
+        <Text style={styles.headerSubtitle}>Seus profissionais salvos</Text>
       </View>
 
-      <View className="p-6 space-y-3">
-        {favorites.map((professional) => (
-          <ProfessionalCard
-            key={professional.id}
-            {...professional}
-            isFavorite={true}
-            onToggleFavorite={() => toggleFavorite(professional.id)}
-            onPress={() => router.push(`/client/professional/${professional.id}`)}
-          />
-        ))}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+            <Text style={styles.loadingText}>Carregando favoritos...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.centerContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : (
+          <View style={styles.list}>
+            {favorites?.map((professional) => (
+              <ProfessionalCard
+                key={professional.id}
+                name={professional.name}
+                photo={professional.photo}
+                rating={professional.rating}
+                servicesCompleted={professional.servicesCompleted}
+                specialties={professional.specialties}
+                verified={professional.verified}
+                isFavorite={true}
+                onToggleFavorite={() => toggleFavorite(professional.id)}
+                onPress={() => router.push(`/client/professional/${professional.id}`)}
+              />
+            ))}
 
-        {favorites.length === 0 && (
-          <View className="py-12 items-center">
-            <Text className="text-lg text-[#0F172A] mb-2">Nenhum favorito ainda</Text>
-            <Text className="text-[#64748B] text-center">Salve profissionais que você gostou para chamá-los novamente</Text>
+            {(!favorites || favorites.length === 0) && (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyTitle}>Nenhum favorito ainda</Text>
+                <Text style={styles.emptyText}>Salve profissionais que você gostou para chamá-los novamente</Text>
+              </View>
+            )}
           </View>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+  },
+  header: {
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    paddingHorizontal: WorkEzTheme.spacing.lg,
+    paddingVertical: WorkEzTheme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: WorkEzTheme.colors.border,
+  },
+  headerTitle: {
+    ...WorkEzTheme.typography['2xl'],
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
+    color: WorkEzTheme.colors.text,
+  },
+  headerSubtitle: {
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
+    marginTop: 4,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  list: {
+    padding: WorkEzTheme.spacing.lg,
+    gap: 12,
+  },
+  centerContainer: {
+    padding: 48,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: WorkEzTheme.colors.textSecondary,
+  },
+  errorText: {
+    color: WorkEzTheme.colors.danger,
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    paddingVertical: 48,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    ...WorkEzTheme.typography.lg,
+    color: WorkEzTheme.colors.text,
+    marginBottom: 8,
+  },
+  emptyText: {
+    color: WorkEzTheme.colors.textSecondary,
+    textAlign: 'center',
+  },
+});

@@ -1,6 +1,6 @@
 import { Check, Shield, ShieldCheck } from 'lucide-react-native';
 import { View, Text, StyleSheet } from 'react-native';
-import { AntigravityTheme } from '../constants/theme';
+import { WorkEzTheme } from '../constants/theme';
 
 interface BadgeProps {
   variant: 'verified' | 'secure-payment' | 'active-guarantee';
@@ -13,11 +13,11 @@ export function Badge({ variant, size = 'md' }: BadgeProps) {
   const getIcon = () => {
     switch (variant) {
       case 'verified':
-        return <Check size={14} color={AntigravityTheme.colors.primary} />;
+        return <Check size={14} color={WorkEzTheme.colors.primary} />;
       case 'secure-payment':
         return <Shield size={14} color="#2563EB" />;
       case 'active-guarantee':
-        return <ShieldCheck size={14} color={AntigravityTheme.colors.primary} />;
+        return <ShieldCheck size={14} color={WorkEzTheme.colors.primary} />;
     }
   };
 
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    borderRadius: AntigravityTheme.borderRadius.full,
+    borderRadius: WorkEzTheme.borderRadius.full,
   },
   sizeSm: {
     paddingHorizontal: 10,
@@ -77,11 +77,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(37, 99, 235, 0.1)',
   },
   badgeText: {
-    ...AntigravityTheme.typography.xs,
-    fontWeight: AntigravityTheme.typography.fontWeight.medium,
+    ...WorkEzTheme.typography.xs,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
   },
   textCyan: {
-    color: AntigravityTheme.colors.primary,
+    color: WorkEzTheme.colors.primary,
   },
   textBlue: {
     color: '#2563EB',

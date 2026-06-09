@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { ShieldCheck, Zap, CreditCard, ChevronRight } from 'lucide-react-native';
 import { Button } from '../components/Button';
 import { View, Text, StyleSheet } from 'react-native';
-import { AntigravityTheme } from '../constants/theme';
+import { WorkEzTheme } from '../constants/theme';
 
 const slides = [
   {
@@ -31,7 +31,7 @@ export default function Onboarding() {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
-      router.push('/profile-choice');
+      router.push('/profile-choice' as any);
     }
   };
 
@@ -42,7 +42,7 @@ export default function Onboarding() {
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Icon size={48} color={AntigravityTheme.colors.primary} />
+          <Icon size={48} color={WorkEzTheme.colors.primary} />
         </View>
 
         <Text style={styles.title}>
@@ -80,7 +80,7 @@ export default function Onboarding() {
           <Button
             variant="ghost"
             fullWidth
-            onPress={() => router.push('/profile-choice')}
+            onPress={() => router.push('/profile-choice' as any)}
           >
             Pular
           </Button>
@@ -93,7 +93,7 @@ export default function Onboarding() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: AntigravityTheme.colors.background,
+    backgroundColor: WorkEzTheme.colors.background,
   },
   content: {
     flex: 1,
@@ -111,15 +111,15 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   title: {
-    ...AntigravityTheme.typography.2xl,
-    fontWeight: AntigravityTheme.typography.fontWeight.bold,
-    color: AntigravityTheme.colors.text,
+    ...WorkEzTheme.typography['2xl'],
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
+    color: WorkEzTheme.colors.text,
     textAlign: 'center',
     marginBottom: 16,
   },
   description: {
-    ...AntigravityTheme.typography.base,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.base,
+    color: WorkEzTheme.colors.textSecondary,
     textAlign: 'center',
     maxWidth: 300,
     lineHeight: 24,
@@ -135,11 +135,11 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     width: 32,
-    backgroundColor: AntigravityTheme.colors.primary,
+    backgroundColor: WorkEzTheme.colors.primary,
   },
   dotInactive: {
     width: 8,
-    backgroundColor: AntigravityTheme.colors.border,
+    backgroundColor: WorkEzTheme.colors.border,
   },
   footer: {
     padding: 24,
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#FFFFFF',
-    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
   },
   buttonIcon: {
     marginLeft: 8,

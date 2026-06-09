@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-export const AntigravityTheme = {
+export const WorkEzTheme = {
   colors: {
     primary: '#26FFF5', // Accent cyan
     background: '#FFFFFF',
@@ -33,6 +33,8 @@ export const AntigravityTheme = {
     base: { fontSize: 16, lineHeight: 24 },
     lg: { fontSize: 18, lineHeight: 28 },
     xl: { fontSize: 20, lineHeight: 28 },
+    '2xl': { fontSize: 24, lineHeight: 32 },
+    '3xl': { fontSize: 30, lineHeight: 36 },
     fontWeight: {
       normal: '400' as const,
       medium: '500' as const,
@@ -47,11 +49,11 @@ const tintColorDark = '#26FFF5';
 
 export const Colors = {
   light: {
-    text: AntigravityTheme.colors.text,
-    background: AntigravityTheme.colors.background,
+    text: WorkEzTheme.colors.text,
+    background: WorkEzTheme.colors.background,
     tint: tintColorLight,
-    icon: AntigravityTheme.colors.textSecondary,
-    tabIconDefault: AntigravityTheme.colors.textSecondary,
+    icon: WorkEzTheme.colors.textSecondary,
+    tabIconDefault: WorkEzTheme.colors.textSecondary,
     tabIconSelected: tintColorLight,
   },
   dark: {

@@ -1,26 +1,37 @@
 import { useRouter } from 'expo-router';
 import { Search, Zap, Shield, ShieldCheck, Star, Wrench, Brush, Paintbrush, Hammer, Settings } from 'lucide-react-native';
 import { Button } from '../../components/Button';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
-import { AntigravityTheme } from '../../constants/theme';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { WorkEzTheme } from '../../constants/theme';
+import { useFetch } from '../../hooks/useFetch';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+const CATEGORY_UI_MAP: Record<string, any> = {
+  'Encanador': { icon: Wrench, bgColor: '#eff6ff', iconColor: '#3b82f6' },
+  'Eletricista': { icon: Zap, bgColor: '#fefce8', iconColor: '#eab308' },
+  'Diarista': { icon: Brush, bgColor: '#faf5ff', iconColor: '#a855f7' },
+  'Pintor': { icon: Paintbrush, bgColor: '#f0fdf4', iconColor: '#22c55e' },
+  'Montador': { icon: Hammer, bgColor: '#fff7ed', iconColor: '#f97316' },
+  'Técnico': { icon: Settings, bgColor: '#fef2f2', iconColor: '#ef4444' },
+};
 
 export default function ClientHome() {
   const router = useRouter();
+  const { user } = useAuth();
 
-  const categories = [
-    { name: 'Encanador', icon: Wrench, bgColor: '#eff6ff', iconColor: '#3b82f6' },
-    { name: 'Eletricista', icon: Zap, bgColor: '#fefce8', iconColor: '#eab308' },
-    { name: 'Diarista', icon: Brush, bgColor: '#faf5ff', iconColor: '#a855f7' },
-    { name: 'Pintor', icon: Paintbrush, bgColor: '#f0fdf4', iconColor: '#22c55e' },
-    { name: 'Montador', icon: Hammer, bgColor: '#fff7ed', iconColor: '#f97316' },
-    { name: 'Técnico', icon: Settings, bgColor: '#fef2f2', iconColor: '#ef4444' },
-  ];
+  const { data: categories, loading, error } = useFetch<Category[]>('/api/Categories');
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.headerBackground}>
         <Text style={styles.greetingText}>
-          Olá, João! 👋
+          Olá, {user?.name.split(' ')[0] || 'Visitante'}! 👋
         </Text>
         <Text style={styles.subtitleText}>
           Qual serviço você precisa hoje?
@@ -51,23 +62,34 @@ export default function ClientHome() {
           Categorias de serviço
         </Text>
 
-        <View style={styles.categoriesGrid}>
-          {categories.map((category) => {
-            const Icon = category.icon;
-            return (
-              <TouchableOpacity
-                key={category.name}
-                onPress={() => router.push('/client/category')}
-                style={[styles.categoryCard, { backgroundColor: category.bgColor }]}
-              >
-                <Icon size={32} color={category.iconColor} style={styles.categoryIcon} />
-                <Text style={styles.categoryText}>
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {loading ? (
+          <View style={{ padding: 24, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+          </View>
+        ) : error ? (
+          <View style={{ padding: 24, alignItems: 'center' }}>
+            <Text style={{ color: WorkEzTheme.colors.danger }}>{error}</Text>
+          </View>
+        ) : (
+          <View style={styles.categoriesGrid}>
+            {categories?.map((category) => {
+              const uiConfig = CATEGORY_UI_MAP[category.name] || { icon: Settings, bgColor: '#f1f5f9', iconColor: '#64748b' };
+              const Icon = uiConfig.icon;
+              return (
+                <TouchableOpacity
+                  key={category.id}
+                  onPress={() => router.push('/client/category')}
+                  style={[styles.categoryCard, { backgroundColor: uiConfig.bgColor }]}
+                >
+                  <Icon size={32} color={uiConfig.iconColor} style={styles.categoryIcon} />
+                  <Text style={styles.categoryText}>
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       <View style={styles.sectionContainerBottom}>
@@ -79,7 +101,7 @@ export default function ClientHome() {
           <View style={styles.benefitCard}>
             <View style={styles.benefitContentRow}>
               <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(38, 255, 245, 0.1)' }]}>
-                <ShieldCheck size={20} color={AntigravityTheme.colors.primary} />
+                <ShieldCheck size={20} color={WorkEzTheme.colors.primary} />
               </View>
               <View style={styles.benefitTextContainer}>
                 <Text style={styles.benefitTitle}>
@@ -111,7 +133,7 @@ export default function ClientHome() {
           <View style={styles.benefitCard}>
             <View style={styles.benefitContentRow}>
               <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(251, 191, 36, 0.1)' }]}>
-                <Star size={20} color={AntigravityTheme.colors.warning} />
+                <Star size={20} color={WorkEzTheme.colors.warning} />
               </View>
               <View style={styles.benefitTextContainer}>
                 <Text style={styles.benefitTitle}>
@@ -136,7 +158,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: AntigravityTheme.spacing.xl,
+    paddingBottom: WorkEzTheme.spacing.xl,
   },
   headerBackground: {
     backgroundColor: '#2563EB', // gradient simplified or use expo-linear-gradient if needed
@@ -199,7 +221,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: AntigravityTheme.colors.text,
+    color: WorkEzTheme.colors.text,
     marginBottom: 16,
   },
   categoriesGrid: {
@@ -222,18 +244,18 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 12,
     fontWeight: '500',
-    color: AntigravityTheme.colors.text,
+    color: WorkEzTheme.colors.text,
     textAlign: 'center',
   },
   benefitsContainer: {
     gap: 12,
   },
   benefitCard: {
-    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: AntigravityTheme.colors.border,
+    borderColor: WorkEzTheme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -257,7 +279,7 @@ const styles = StyleSheet.create({
   },
   benefitTitle: {
     fontWeight: '500',
-    color: AntigravityTheme.colors.text,
+    color: WorkEzTheme.colors.text,
     marginBottom: 4,
   },
   benefitDescription: {

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Loader2, ShieldCheck, Star, Clock } from 'lucide-react-native';
 import { View, Text } from 'react-native';
+import { navigate } from 'expo-router/build/global-state/routing';
 
 export default function SearchingProfessional() {
   const router = useRouter();
@@ -33,7 +34,7 @@ export default function SearchingProfessional() {
           <View className="h-32 bg-[#E2E8F0] rounded-xl mb-4 flex-row items-center justify-center">
             <View className="text-center">
               <View className="w-12 h-12 bg-[#2563EB] rounded-full mx-auto mb-2 animate-pulse"></View>
-              <View className="text-xs text-[#64748B]">Sua localização</View>
+              <Text className="text-xs text-[#64748B]">Sua localização</Text>
             </View>
           </View>
         </View>

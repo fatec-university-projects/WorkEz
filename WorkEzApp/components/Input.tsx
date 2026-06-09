@@ -1,27 +1,33 @@
-import { InputHTMLAttributes, forwardRef } from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { forwardRef } from 'react';
+import { View, Text, TextInput, TextInputProps, StyleSheet } from 'react-native';
+import { WorkEzTheme } from '../constants/theme';
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
 }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, className = '', ...props }, ref) => {
+export const Input = forwardRef<TextInput, InputProps>(
+  ({ label, error, style, ...props }, ref) => {
     return (
-      <View className="w-full">
+      <View style={styles.container}>
         {label && (
-          <Text className="block text-sm font-medium text-[#0F172A] mb-2">
+          <Text style={styles.label}>
             {label}
           </Text>
         )}
         <TextInput
           ref={ref}
-          className={`w-full px-4 py-3.5 bg-white border-2 border-[#E2E8F0] rounded-xl text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10 transition-all duration-200 ${error ? 'border-red-500' : ''} ${className}`}
+          style={[
+            styles.input,
+            error ? styles.inputError : null,
+            style
+          ]}
+          placeholderTextColor={WorkEzTheme.colors.textSecondary}
           {...props}
         />
         {error && (
-          <Text className="mt-2 text-sm text-red-500">{error}</Text>
+          <Text style={styles.errorText}>{error}</Text>
         )}
       </View>
     );
@@ -29,3 +35,34 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 );
 
 Input.displayName = 'Input';
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+  },
+  label: {
+    ...WorkEzTheme.typography.sm,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
+    color: WorkEzTheme.colors.text,
+    marginBottom: 8,
+  },
+  input: {
+    width: '100%',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: WorkEzTheme.colors.border,
+    borderRadius: WorkEzTheme.borderRadius.xl,
+    color: WorkEzTheme.colors.text,
+    ...WorkEzTheme.typography.base,
+  },
+  inputError: {
+    borderColor: WorkEzTheme.colors.danger,
+  },
+  errorText: {
+    marginTop: 8,
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.danger,
+  },
+});

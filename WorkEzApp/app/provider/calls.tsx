@@ -1,10 +1,26 @@
 import { useRouter } from 'expo-router';
 import { ServiceCard } from '../../components/ServiceCard';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { AntigravityTheme } from '../../constants/theme';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { WorkEzTheme } from '../../constants/theme';
+import { useAuth } from '../../contexts/AuthContext';
+import { useFetch } from '../../hooks/useFetch';
+
+interface Call {
+  id: string;
+  category: string;
+  description: string;
+  status: 'pending' | 'in-progress' | 'completed' | 'cancelled';
+  date: string;
+  clientName: string;
+}
 
 export default function ProviderCalls() {
   const router = useRouter();
+  const { user } = useAuth();
+
+  const { data: calls, loading, error } = useFetch<Call[]>(
+    user ? `/api/Providers/${user.id}/calls` : null
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
@@ -12,14 +28,36 @@ export default function ProviderCalls() {
         <Text style={styles.headerTitle}>Chamados</Text>
       </View>
       <View style={styles.content}>
-        <ServiceCard
-          category="Encanador"
-          description="Torneira da cozinha vazando"
-          status="in-progress"
-          date="Hoje, 14:30"
-          professional="João Silva"
-          onClick={() => router.push('/provider/new-call/1')}
-        />
+        {loading ? (
+          <View style={{ padding: 48, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+            <Text style={{ marginTop: 16, color: WorkEzTheme.colors.textSecondary }}>Buscando chamados...</Text>
+          </View>
+        ) : error ? (
+          <View style={{ padding: 48, alignItems: 'center' }}>
+            <Text style={{ color: WorkEzTheme.colors.danger }}>{error}</Text>
+          </View>
+        ) : (
+          <>
+            {calls?.map((call) => (
+              <ServiceCard
+                key={call.id}
+                category={call.category}
+                description={call.description}
+                status={call.status as any}
+                date={call.date}
+                professional={call.clientName}
+                onClick={() => router.push(`/provider/new-call/${call.id}`)}
+              />
+            ))}
+
+            {(!calls || calls.length === 0) && (
+              <View style={{ padding: 48, alignItems: 'center' }}>
+                <Text style={{ color: WorkEzTheme.colors.textSecondary }}>Nenhum chamado no momento.</Text>
+              </View>
+            )}
+          </>
+        )}
       </View>
     </ScrollView>
   );
@@ -34,16 +72,16 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
-    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: AntigravityTheme.colors.border,
+    borderBottomColor: WorkEzTheme.colors.border,
   },
   headerTitle: {
-    ...AntigravityTheme.typography.xl,
-    fontWeight: AntigravityTheme.typography.fontWeight.bold,
-    color: AntigravityTheme.colors.text,
+    ...WorkEzTheme.typography.xl,
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
+    color: WorkEzTheme.colors.text,
   },
   content: {
     padding: 24,

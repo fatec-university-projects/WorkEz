@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { DollarSign, Star, Briefcase, TrendingUp } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { AntigravityTheme } from '../../constants/theme';
+import { WorkEzTheme } from '../../constants/theme';
 
 export default function ProviderHome() {
   const router = useRouter();
@@ -47,7 +47,7 @@ export default function ProviderHome() {
         <View style={styles.statCard}>
           <View style={styles.statIconRow}>
             <View style={[styles.statIconWrapper, { backgroundColor: 'rgba(38, 255, 245, 0.1)' }]}>
-              <DollarSign size={16} color={AntigravityTheme.colors.primary} />
+              <DollarSign size={16} color={WorkEzTheme.colors.primary} />
             </View>
           </View>
           <Text style={styles.statValue}>R$ 3.450</Text>
@@ -67,7 +67,7 @@ export default function ProviderHome() {
         <View style={styles.statCard}>
           <View style={styles.statIconRow}>
             <View style={[styles.statIconWrapper, { backgroundColor: 'rgba(251, 191, 36, 0.1)' }]}>
-              <Star size={16} color={AntigravityTheme.colors.warning} />
+              <Star size={16} color={WorkEzTheme.colors.warning} />
             </View>
           </View>
           <Text style={styles.statValue}>4.9</Text>
@@ -77,7 +77,7 @@ export default function ProviderHome() {
         <View style={styles.statCard}>
           <View style={styles.statIconRow}>
             <View style={[styles.statIconWrapper, { backgroundColor: 'rgba(38, 255, 245, 0.1)' }]}>
-              <Briefcase size={16} color={AntigravityTheme.colors.primary} />
+              <Briefcase size={16} color={WorkEzTheme.colors.primary} />
             </View>
           </View>
           <Text style={styles.statValue}>248</Text>
@@ -93,7 +93,7 @@ export default function ProviderHome() {
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeaderRow}>
             <View style={[styles.summaryIconWrapper, { backgroundColor: 'rgba(38, 255, 245, 0.1)' }]}>
-              <TrendingUp size={20} color={AntigravityTheme.colors.primary} />
+              <TrendingUp size={20} color={WorkEzTheme.colors.primary} />
             </View>
             <View style={styles.summaryHeaderText}>
               <Text style={styles.summaryTitle}>Ótimo desempenho!</Text>
@@ -114,7 +114,7 @@ export default function ProviderHome() {
               <Text style={styles.summaryListLabel}>Avaliação média</Text>
               <View style={styles.summaryRatingRow}>
                 <Text style={styles.summaryListValue}>4.9</Text>
-                <Star size={16} color={AntigravityTheme.colors.warning} fill={AntigravityTheme.colors.warning} />
+                <Star size={16} color={WorkEzTheme.colors.warning} fill={WorkEzTheme.colors.warning} />
               </View>
             </View>
           </View>
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: AntigravityTheme.spacing.xl,
+    paddingBottom: WorkEzTheme.spacing.xl,
   },
   headerBackground: {
     backgroundColor: '#2563EB', // For full effect you'd use expo-linear-gradient but standard RN doesn't support css gradients.
@@ -157,8 +157,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   greetingText: {
-    ...AntigravityTheme.typography.xl,
-    fontWeight: AntigravityTheme.typography.fontWeight.bold,
+    ...WorkEzTheme.typography.xl,
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
     color: '#FFFFFF',
     marginBottom: 24,
   },
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     color: 'rgba(255, 255, 255, 0.9)',
-    ...AntigravityTheme.typography.sm,
+    ...WorkEzTheme.typography.sm,
   },
   toggleContainer: {
     width: 64,
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   toggleThumbActive: {
-    backgroundColor: AntigravityTheme.colors.primary,
+    backgroundColor: WorkEzTheme.colors.primary,
     alignSelf: 'flex-end',
   },
   toggleThumbInactive: {
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   },
   statusDescription: {
     color: 'rgba(255, 255, 255, 0.8)',
-    ...AntigravityTheme.typography.sm,
+    ...WorkEzTheme.typography.sm,
     marginTop: 4,
   },
   statsContainer: {
@@ -227,11 +227,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statCard: {
-    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: AntigravityTheme.colors.border,
+    borderColor: WorkEzTheme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -252,30 +252,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statValue: {
-    ...AntigravityTheme.typography.xl,
-    fontWeight: AntigravityTheme.typography.fontWeight.bold,
-    color: AntigravityTheme.colors.text,
+    ...WorkEzTheme.typography.xl,
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
+    color: WorkEzTheme.colors.text,
   },
   statLabel: {
-    ...AntigravityTheme.typography.sm,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
   },
   sectionContainer: {
     paddingHorizontal: 24,
     marginTop: 24,
   },
   sectionTitle: {
-    ...AntigravityTheme.typography.lg,
-    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
-    color: AntigravityTheme.colors.text,
+    ...WorkEzTheme.typography.lg,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: WorkEzTheme.colors.text,
     marginBottom: 16,
   },
   summaryCard: {
-    backgroundColor: AntigravityTheme.colors.backgroundCard,
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: AntigravityTheme.colors.border,
+    borderColor: WorkEzTheme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -299,12 +299,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryTitle: {
-    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
-    color: AntigravityTheme.colors.text,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: WorkEzTheme.colors.text,
   },
   summarySubtitle: {
-    ...AntigravityTheme.typography.sm,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
   },
   summaryList: {
     gap: 8,
@@ -315,13 +315,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryListLabel: {
-    ...AntigravityTheme.typography.sm,
-    color: AntigravityTheme.colors.textSecondary,
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
   },
   summaryListValue: {
-    ...AntigravityTheme.typography.sm,
-    fontWeight: AntigravityTheme.typography.fontWeight.medium,
-    color: AntigravityTheme.colors.text,
+    ...WorkEzTheme.typography.sm,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
+    color: WorkEzTheme.colors.text,
   },
   summaryRatingRow: {
     flexDirection: 'row',
@@ -339,12 +339,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   tipTitle: {
-    fontWeight: AntigravityTheme.typography.fontWeight.semibold,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
     color: '#FFFFFF',
     marginBottom: 8,
   },
   tipDescription: {
-    ...AntigravityTheme.typography.sm,
+    ...WorkEzTheme.typography.sm,
     color: 'rgba(255, 255, 255, 0.9)',
     lineHeight: 20,
   },
@@ -357,8 +357,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   tipButtonText: {
-    ...AntigravityTheme.typography.sm,
-    fontWeight: AntigravityTheme.typography.fontWeight.medium,
+    ...WorkEzTheme.typography.sm,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
     color: '#FFFFFF',
   },
 });
