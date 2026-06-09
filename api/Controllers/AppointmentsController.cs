@@ -35,7 +35,7 @@ public class AppointmentsController(AppDbContext context) : ControllerBase
     }
 
     [HttpPatch("{id}/patch")]
-    public async Task<IActionResult> UpdateAppointmentCancel(Guid id)
+    public async Task<IActionResult> UpdateAppointmentPatch(Guid id)
     {
         throw notimplementedException;
     }

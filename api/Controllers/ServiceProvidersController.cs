@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Api.Data;
+using WorkEz.Api.Entities;
 
 namespace WorkEz.Api.Controllers;
 
@@ -16,7 +17,7 @@ public class ServiceProvidersController(AppDbContext context) : ControllerBase
     {
         throw notimplementedException;
     }
-    
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetServiceProviderById(Guid id)
     {
