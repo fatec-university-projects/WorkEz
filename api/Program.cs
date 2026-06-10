@@ -44,6 +44,22 @@ builder.Services.AddSingleton<ITokenService, TokenService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IPaymentService, AbacatePayService>();
 
+// Domain services
+builder.Services.AddScoped<IAddressService, AddressService>();
+builder.Services.AddScoped<IAdministratorService, AdministratorService>();
+builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IConversationService, ConversationService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IProposalService, ProposalService>();
+builder.Services.AddScoped<IProviderCategoryService, ProviderCategoryService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IServiceAreaService, ServiceAreaService>();
+builder.Services.AddScoped<IServiceProviderService, ServiceProviderService>();
+builder.Services.AddScoped<IServiceService, ServiceService>();
+
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var secretKey  = jwtSection["SecretKey"]
@@ -65,7 +81,8 @@ builder.Services
             ValidateIssuerSigningKey = true,
             IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
             NameClaimType            = "name",
-            RoleClaimType            = "role"
+            // Must match the claim type used when emitting the token in TokenService
+            RoleClaimType            = System.Security.Claims.ClaimTypes.Role
         };
     });
 
