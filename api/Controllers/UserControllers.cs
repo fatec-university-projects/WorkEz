@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WorkEz.Api.Data;
 using WorkEz.Api.Services;
 using System.Security.Claims;
 
@@ -8,7 +9,7 @@ namespace WorkEz.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class UsersController(IUserService userService) : ControllerBase
+public class UsersController(IUserService userService, AppDbContext context) : ControllerBase
 {
     [HttpGet("me")]
     public async Task<IActionResult> GetMyProfile()
@@ -25,13 +26,18 @@ public class UsersController(IUserService userService) : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAllUsers()
     {
-        throw notimplementedException;
+        var list = await userService.GetAllAsync();
+        return Ok(list);
     }
 
     [HttpPatch("{id}/status")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateUserStatus(Guid id, bool status)
     {
-        throw notimplementedException;
+        var user = await context.Users.FindAsync(id);
+        if (user is null) return NotFound();
+        user.AccountStatus = status ? Enums.AccountStatus.Active : Enums.AccountStatus.Inactive;
+        await context.SaveChangesAsync();
+        return NoContent();
     }
 }

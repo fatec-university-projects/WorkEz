@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Api.Data;
+using Microsoft.EntityFrameworkCore;
+using WorkEz.Api.Entities;
+using WorkEz.Api.Services;
 
 namespace WorkEz.Api.Controllers;
 
@@ -8,29 +11,37 @@ namespace WorkEz.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class ReviewsController(AppDbContext context) : ControllerBase
+public class ReviewsController(AppDbContext context, IReviewService reviewService) : ControllerBase
 {
     [HttpGet("by-user/{userId}")]
     public async Task<IActionResult> GetReportsByUser(Guid userId)
     {
-        throw notimplementedException;
+        var list = await context.Reviews.AsNoTracking().Where(r => r.ReviewerUserId == userId || r.ReviewedUserId == userId).ToListAsync();
+        return Ok(list);
     }
 
     [HttpGet("by-appointment/{appointmentId}")]
     public async Task<IActionResult> GetReportsByAppointment(Guid appointmentId)
     {
-        throw notimplementedException;
+        var list = await context.Reviews.AsNoTracking().Where(r => r.AppointmentId == appointmentId).ToListAsync();
+        return Ok(list);
     }
 
     [HttpPost("by-customer/{customerId}")]
-    public async Task<IActionResult> CreateReview(Guid customerId, Review review)
+    public async Task<IActionResult> CreateReview(Guid customerId, [FromBody] Review review)
     {
-        throw notimplementedException;
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        review.ReviewerUserId = customerId;
+        await reviewService.CreateAsync(review);
+        return CreatedAtAction(nameof(GetReportsByAppointment), new { appointmentId = review.AppointmentId }, review);
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteReview(Guid id)
     {
-        throw notimplementedException;
+        var existing = await reviewService.GetByIdAsync(id);
+        if (existing is null) return NotFound();
+        await reviewService.DeleteAsync(id);
+        return NoContent();
     }
 }

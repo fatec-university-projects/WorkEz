@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WorkEz.Api.Data;
+using WorkEz.Api.Entities;
+using WorkEz.Api.Services;
 
 namespace WorkEz.Api.Controllers;
 
@@ -8,23 +11,32 @@ namespace WorkEz.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class AdministratorsController(AppDbContext context) : ControllerBase
+public class AdministratorsController(AppDbContext context, IAdministratorService adminService) : ControllerBase
 {
     [HttpGet("{id}")]
     public async Task<IActionResult> GetAdministratorById(Guid id)
     {
-        throw notimplementedException;
+        var admin = await adminService.GetByIdAsync(id);
+        return admin is null ? NotFound() : Ok(admin);
     }
 
     [HttpGet("by-user/{userId}")]
     public async Task<IActionResult> GetAdministratorByUser(Guid userId)
     {
-        throw notimplementedException;
+        var admin = await context.Administrators.AsNoTracking().FirstOrDefaultAsync(a => a.UserId == userId);
+        return admin is null ? NotFound() : Ok(admin);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateAdministrator(Guid id, Administrator administrator)
+    public async Task<IActionResult> UpdateAdministrator(Guid id, [FromBody] Administrator administrator)
     {
-        throw notimplementedException;
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (id != administrator.Id) return BadRequest(new { message = "Id mismatch." });
+
+        var existing = await adminService.GetByIdAsync(id);
+        if (existing is null) return NotFound();
+
+        await adminService.UpdateAsync(administrator);
+        return NoContent();
     }
 }
