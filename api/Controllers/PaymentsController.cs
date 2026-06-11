@@ -15,7 +15,7 @@ namespace WorkEz.Api.Controllers;
    public class PaymentsController(AppDbContext context, IPaymentService paymentGateway) : ControllerBase
 {
 
-    [AllowAnonymous]
+    [Authorize]
     [HttpGet("by-appointment/{appointmentId}")]
     public async Task<IActionResult> GetPaymentsByAppointment(Guid appointmentId)
     {
@@ -23,7 +23,7 @@ namespace WorkEz.Api.Controllers;
            return Ok(list);
     }
     
-    [AllowAnonymous]
+    [Authorize]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetPaymentById(Guid id)
     {
@@ -31,7 +31,7 @@ namespace WorkEz.Api.Controllers;
            return p is null ? NotFound() : Ok(p);
     }
 
-    [AllowAnonymous]
+    [Authorize(Roles = "Customer")]
     [HttpPost("{appointmentId}")]
     public async Task<IActionResult> CreatePayment(Guid appointmentId, Payment payment)
     {

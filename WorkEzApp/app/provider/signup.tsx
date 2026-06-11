@@ -38,7 +38,7 @@ export default function ProviderSignUp() {
             <Input
               placeholder="Nome completo"
               value={formData.name}
-              onChangeText={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChangeText={(value) => setFormData({ ...formData, name: value })}
               className="pl-12"
             />
           </View>
@@ -48,7 +48,7 @@ export default function ProviderSignUp() {
             <Input
               placeholder="CPF"
               value={formData.cpf}
-              onChangeText={(e) => setFormData({ ...formData, cpf: e.target.value })}
+              onChangeText={(value) => setFormData({ ...formData, cpf: value })}
               className="pl-12"
             />
           </View>
@@ -56,10 +56,9 @@ export default function ProviderSignUp() {
           <View className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748B]" />
             <Input
-              type="email"
               placeholder="E-mail"
               value={formData.email}
-              onChangeText={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChangeText={(value) => setFormData({ ...formData, email: value })}
               className="pl-12"
             />
           </View>
@@ -67,10 +66,9 @@ export default function ProviderSignUp() {
           <View className="relative">
             <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748B]" />
             <Input
-              type="tel"
               placeholder="Telefone"
               value={formData.phone}
-              onChangeText={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChangeText={(value) => setFormData({ ...formData, phone: value })}
               className="pl-12"
             />
           </View>
@@ -78,10 +76,10 @@ export default function ProviderSignUp() {
           <View className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748B]" />
             <Input
-              type="password"
               placeholder="Criar senha"
+              secureTextEntry
               value={formData.password}
-              onChangeText={(e) => setFormData({ ...formData, password: e.target.value })}
+              onChangeText={(value) => setFormData({ ...formData, password: value })}
               className="pl-12"
             />
           </View>

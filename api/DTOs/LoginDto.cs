@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace WorkEz.Api.DTOs;
 
-/// <summary>Payload for authenticating a user via Keycloak (returns JWT).</summary>
+/// <summary>Payload for authenticating a user via email and password (returns JWT).</summary>
 public class LoginRequestDto
 {
     [Required]

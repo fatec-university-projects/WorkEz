@@ -21,7 +21,7 @@ public class AppointmentsController(AppDbContext context, IAppointmentService ap
         return Ok(list);
     }
 
-    [AllowAnonymous]
+    [Authorize]
     [HttpGet("by-customer/{customerId}")]
     public async Task<IActionResult> GetAppointmentsByCustomer(Guid customerId)
     {
@@ -29,7 +29,7 @@ public class AppointmentsController(AppDbContext context, IAppointmentService ap
         return Ok(list);
     }
 
-    [AllowAnonymous]
+    [Authorize]
     [HttpGet("by-provider/{providerId}")]
     public async Task<IActionResult> GetAppointmentsByProvider(Guid providerId)
     {
@@ -45,7 +45,7 @@ public class AppointmentsController(AppDbContext context, IAppointmentService ap
         return appointment is null ? NotFound() : Ok(appointment);
     }
 
-    [AllowAnonymous]
+    [Authorize]
     [HttpPatch("{id}/patch")]
     public async Task<IActionResult> UpdateAppointmentPatch(Guid id)
     {
@@ -55,7 +55,7 @@ public class AppointmentsController(AppDbContext context, IAppointmentService ap
         return NoContent();
     }
 
-    [AllowAnonymous]
+    [Authorize]
     [HttpPatch("{id}/cancel")]
     public async Task<IActionResult> UpdateAppointmentCancel(Guid id)
     {
@@ -65,7 +65,7 @@ public class AppointmentsController(AppDbContext context, IAppointmentService ap
         return NoContent();
     }
 
-    [AllowAnonymous]
+    [Authorize]
     [HttpPatch("{id}/complete")]
     public async Task<IActionResult> UpdateAppointmentComplete(Guid id)
     {

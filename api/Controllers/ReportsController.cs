@@ -30,7 +30,7 @@ public class ReportsController(AppDbContext context, IReportService reportServic
         return r is null ? NotFound() : Ok(r);
     }
 
-    [AllowAnonymous]
+    [Authorize]
     [HttpPost("{appointmentId}")]
     public async Task<IActionResult> CreateReport(Guid appointmentId, [FromBody] Report report)
     {

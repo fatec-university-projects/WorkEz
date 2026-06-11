@@ -29,7 +29,7 @@ public class CategoriesController(AppDbContext context, ICategoryService categor
         return entity is null ? NotFound() : Ok(entity);
     }
 
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<IActionResult> CreateCategory([FromBody] Category category)
     {
@@ -38,7 +38,7 @@ public class CategoriesController(AppDbContext context, ICategoryService categor
         return CreatedAtAction(nameof(GetCategoryById), new { id = category.Id }, category);
     }
 
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateCategory(Guid id, [FromBody] Category category)
     {

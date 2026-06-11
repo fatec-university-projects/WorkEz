@@ -5,6 +5,7 @@ using WorkEz.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -153,11 +154,21 @@ public class AuthController(
         => await RegisterUserWithRole(dto, Enums.UserRole.Customer);
 
     /// <summary>
+    /// Registers a new service provider. Public — no authentication required.
+    /// </summary>
+    [HttpPost("register/provider")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(UserDto), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(409)]
+    public async Task<ActionResult<UserDto>> RegisterProvider([FromBody] RegisterUserDto dto)
+        => await RegisterUserWithRole(dto, Enums.UserRole.ServiceProvider);
+
+    /// <summary>
     /// Registers a new admin. Requires an existing Admin JWT.
     /// </summary>
     [HttpPost("register/admin")]
-   // [Authorize(Policy = "AdminOnly")]
-   [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(typeof(UserDto), 201)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
@@ -167,6 +178,58 @@ public class AuthController(
         => await RegisterUserWithRole(dto, Enums.UserRole.Admin);
 
 
+
+    // ─── Me ───────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the profile of the currently authenticated user, resolved from the JWT.
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(UserDto), 200)]
+    [ProducesResponseType(401)]
+    public async Task<ActionResult<UserDto>> Me()
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                     ?? User.FindFirstValue("sub");
+
+        if (!Guid.TryParse(userIdStr, out var userId))
+            return Unauthorized(new { message = "Token inválido." });
+
+        var user = await context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        return user is null ? NotFound() : Ok(MapToDto(user));
+    }
+
+    // ─── Logout ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Revokes the provided refresh token, effectively ending the session.
+    /// The access token remains valid until its natural expiry (15 min).
+    /// </summary>
+    [HttpPost("logout")]
+    [Authorize]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var stored = await context.RefreshTokens
+            .FirstOrDefaultAsync(r => r.Token == dto.RefreshToken && !r.IsRevoked);
+
+        if (stored is not null)
+        {
+            stored.IsRevoked = true;
+            await context.SaveChangesAsync();
+        }
+
+        // Always return 204 — never reveal whether the token existed
+        return NoContent();
+    }
 
     // ─── Password Reset ───────────────────────────────────────────────────────
 

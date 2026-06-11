@@ -88,11 +88,9 @@ builder.Services
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy =>
-        policy.RequireClaim("role", "Admin"));
-
-    options.AddPolicy("CustomerOnly", policy =>
-        policy.RequireClaim("role", "Customer"));
+    options.AddPolicy("AdminOnly",           policy => policy.RequireRole("Admin"));
+    options.AddPolicy("CustomerOnly",         policy => policy.RequireRole("Customer"));
+    options.AddPolicy("ServiceProviderOnly",  policy => policy.RequireRole("ServiceProvider"));
 });
 
 WebApplication app = builder.Build();

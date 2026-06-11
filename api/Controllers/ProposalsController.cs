@@ -38,7 +38,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return p is null ? NotFound() : Ok(p);
     }
 
-    [AllowAnonymous]
+    [Authorize(Roles = "ServiceProvider")]
     [HttpPost("by-service/{serviceId}")]
     public async Task<IActionResult> CreateProposal(Guid serviceId, [FromBody] Proposal proposal)
     {
@@ -48,7 +48,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return CreatedAtAction(nameof(GetProposalById), new { id = proposal.Id }, proposal);
     }
 
-    [AllowAnonymous]
+    [Authorize]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateProposal(Guid id, [FromBody] Proposal proposal)
     {
@@ -60,7 +60,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return NoContent();
     }
 
-    [AllowAnonymous]
+    [Authorize(Roles = "Customer")]
     [HttpPatch("{id}/accept")]
     public async Task<IActionResult> UpdateProposalAccept(Guid id)
     {
@@ -70,7 +70,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return NoContent();
     }
 
-    [AllowAnonymous]
+    [Authorize(Roles = "Customer")]
     [HttpPatch("{id}/reject")]
     public async Task<IActionResult> UpdateProposalReject(Guid id)
     {
@@ -80,7 +80,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return NoContent();
     }
 
-    [AllowAnonymous]
+    [Authorize]
     [HttpPatch("{id}/cancel")]
     public async Task<IActionResult> UpdateProposalCancel(Guid id)
     {
