@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Api.Data;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ namespace WorkEz.Api.Controllers;
 [Route("api/[controller]")]
 public class NotificationsController(AppDbContext context, INotificationService notificationService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("by-user/{userId}")]
     public async Task<IActionResult> GetNotificationsByUser(Guid userId)
     {
@@ -19,6 +21,7 @@ public class NotificationsController(AppDbContext context, INotificationService 
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpPatch("mark-read/{id}")]
     public async Task<IActionResult> MarkNotificationAsRead(Guid id)
     {
@@ -30,6 +33,7 @@ public class NotificationsController(AppDbContext context, INotificationService 
         return NoContent();
     }
 
+    [AllowAnonymous]
     [HttpPatch("mark-all-read/{userId}")]
     public async Task<IActionResult> MarkAllNotificationsAsReadByUser(Guid userId)
     {

@@ -22,6 +22,7 @@ public class ReportsController(AppDbContext context, IReportService reportServic
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("{Id}")]
     public async Task<IActionResult> GetReportById(Guid id)
     {
@@ -29,6 +30,7 @@ public class ReportsController(AppDbContext context, IReportService reportServic
         return r is null ? NotFound() : Ok(r);
     }
 
+    [AllowAnonymous]
     [HttpPost("{appointmentId}")]
     public async Task<IActionResult> CreateReport(Guid appointmentId, [FromBody] Report report)
     {

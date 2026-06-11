@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Api.Data;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ namespace WorkEz.Api.Controllers;
 [Route("api/[controller]")]
 public class ReviewsController(AppDbContext context, IReviewService reviewService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("by-user/{userId}")]
     public async Task<IActionResult> GetReportsByUser(Guid userId)
     {
@@ -20,6 +22,7 @@ public class ReviewsController(AppDbContext context, IReviewService reviewServic
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("by-appointment/{appointmentId}")]
     public async Task<IActionResult> GetReportsByAppointment(Guid appointmentId)
     {
@@ -27,6 +30,7 @@ public class ReviewsController(AppDbContext context, IReviewService reviewServic
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpPost("by-customer/{customerId}")]
     public async Task<IActionResult> CreateReview(Guid customerId, [FromBody] Review review)
     {
@@ -36,6 +40,7 @@ public class ReviewsController(AppDbContext context, IReviewService reviewServic
         return CreatedAtAction(nameof(GetReportsByAppointment), new { appointmentId = review.AppointmentId }, review);
     }
 
+    [AllowAnonymous]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteReview(Guid id)
     {

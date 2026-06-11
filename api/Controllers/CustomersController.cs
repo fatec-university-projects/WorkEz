@@ -22,6 +22,7 @@ public class CustomersController(AppDbContext context, ICustomerService customer
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetCustomerById(Guid id)
     {
@@ -29,6 +30,7 @@ public class CustomersController(AppDbContext context, ICustomerService customer
         return entity is null ? NotFound() : Ok(entity);
     }
 
+    [AllowAnonymous]
     [HttpGet("by-user/{userId}")]
     public async Task<IActionResult> GetCustomerByUser(Guid userId)
     {
@@ -36,6 +38,7 @@ public class CustomersController(AppDbContext context, ICustomerService customer
         return entity is null ? NotFound() : Ok(entity);
     }
 
+    [AllowAnonymous]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateCustomer(Guid id, [FromBody] Customer customer)
     {
@@ -47,6 +50,7 @@ public class CustomersController(AppDbContext context, ICustomerService customer
         return NoContent();
     }
 
+    [AllowAnonymous]
     [HttpPatch("{id}/status")]
     public async Task<IActionResult> UpdateCustomerStatus(Guid id, bool status)
     {

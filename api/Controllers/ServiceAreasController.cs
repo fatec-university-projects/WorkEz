@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Api.Data;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ namespace WorkEz.Api.Controllers;
 [Route("api/[controller]")]
 public class ServiceAreasController(AppDbContext context, IServiceAreaService serviceAreaService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("by-provider/{providerId}")]
     public async Task<IActionResult> GetServiceAreasByProvider(Guid providerId)
     {
@@ -20,6 +22,7 @@ public class ServiceAreasController(AppDbContext context, IServiceAreaService se
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetServiceAreaById(Guid id)
     {
@@ -27,6 +30,7 @@ public class ServiceAreasController(AppDbContext context, IServiceAreaService se
         return sa is null ? NotFound() : Ok(sa);
     }
 
+    [AllowAnonymous]
     [HttpPost("by-provider/{providerId}")]
     public async Task<IActionResult> CreateServiceArea(Guid providerId, [FromBody] ServiceArea serviceArea)
     {
@@ -36,6 +40,7 @@ public class ServiceAreasController(AppDbContext context, IServiceAreaService se
         return CreatedAtAction(nameof(GetServiceAreaById), new { id = serviceArea.Id }, serviceArea);
     }
 
+    [AllowAnonymous]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateServiceArea(Guid id, [FromBody] ServiceArea serviceArea)
     {
@@ -47,6 +52,7 @@ public class ServiceAreasController(AppDbContext context, IServiceAreaService se
         return NoContent();
     }
 
+    [AllowAnonymous]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteServiceArea(Guid id)
     {

@@ -22,6 +22,7 @@ public class ServicesController(AppDbContext context, IServiceService serviceSer
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("by-customer/{customerId}")]
     public async Task<IActionResult> GetServicesByCustomer(Guid customerId)
     {
@@ -29,6 +30,7 @@ public class ServicesController(AppDbContext context, IServiceService serviceSer
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("by-provider/{providerId}")]
     public async Task<IActionResult> GetServicesByProvider(Guid providerId)
     {
@@ -39,6 +41,7 @@ public class ServicesController(AppDbContext context, IServiceService serviceSer
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("nearby-services/{customerId}")]
     public async Task<IActionResult> GetNearbyServices(Guid customerId)
     {
@@ -47,6 +50,7 @@ public class ServicesController(AppDbContext context, IServiceService serviceSer
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetServiceById(Guid id)
     {
@@ -54,6 +58,7 @@ public class ServicesController(AppDbContext context, IServiceService serviceSer
         return s is null ? NotFound() : Ok(s);
     }
 
+    [AllowAnonymous]
     [HttpPost("by-customer/{customerId}")]
     public async Task<IActionResult> CreateService(Guid customerId, [FromBody] Service service)
     {
@@ -63,6 +68,7 @@ public class ServicesController(AppDbContext context, IServiceService serviceSer
         return CreatedAtAction(nameof(GetServiceById), new { id = service.Id }, service);
     }
 
+    [AllowAnonymous]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateService(Guid id, [FromBody] Service service)
     {
@@ -74,6 +80,7 @@ public class ServicesController(AppDbContext context, IServiceService serviceSer
         return NoContent();
     }
     
+    [AllowAnonymous]
     [HttpPatch("{id}/status")]
     public async Task<IActionResult> UpdateServiceStatus(Guid id, bool status)
     {
@@ -84,6 +91,7 @@ public class ServicesController(AppDbContext context, IServiceService serviceSer
         return NoContent();
     }
 
+    [AllowAnonymous]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteService(Guid id)
     {

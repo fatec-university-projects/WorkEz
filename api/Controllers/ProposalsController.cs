@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Api.Data;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ namespace WorkEz.Api.Controllers;
 [Route("api/[controller]")]
 public class ProposalsController(AppDbContext context, IProposalService proposalService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("by-service/{serviceId}")]
     public async Task<IActionResult> GetProposalsByService(Guid serviceId)
     {
@@ -20,6 +22,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("by-provider/{providerId}")]
     public async Task<IActionResult> GetProposalsByProvider(Guid providerId)
     {
@@ -27,6 +30,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetProposalById(Guid id)
     {
@@ -34,6 +38,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return p is null ? NotFound() : Ok(p);
     }
 
+    [AllowAnonymous]
     [HttpPost("by-service/{serviceId}")]
     public async Task<IActionResult> CreateProposal(Guid serviceId, [FromBody] Proposal proposal)
     {
@@ -43,6 +48,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return CreatedAtAction(nameof(GetProposalById), new { id = proposal.Id }, proposal);
     }
 
+    [AllowAnonymous]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateProposal(Guid id, [FromBody] Proposal proposal)
     {
@@ -54,6 +60,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return NoContent();
     }
 
+    [AllowAnonymous]
     [HttpPatch("{id}/accept")]
     public async Task<IActionResult> UpdateProposalAccept(Guid id)
     {
@@ -63,6 +70,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return NoContent();
     }
 
+    [AllowAnonymous]
     [HttpPatch("{id}/reject")]
     public async Task<IActionResult> UpdateProposalReject(Guid id)
     {
@@ -72,6 +80,7 @@ public class ProposalsController(AppDbContext context, IProposalService proposal
         return NoContent();
     }
 
+    [AllowAnonymous]
     [HttpPatch("{id}/cancel")]
     public async Task<IActionResult> UpdateProposalCancel(Guid id)
     {

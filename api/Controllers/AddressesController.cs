@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkEz.Api.Data;
@@ -13,6 +14,7 @@ namespace WorkEz.Api.Controllers;
 [Route("api/[controller]")]
 public class AddressesController(AppDbContext context, IAddressService addressService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("by-user/{userId}")]
     public async Task<IActionResult> GetAddressesByUser(Guid userId)
     {
@@ -24,6 +26,7 @@ public class AddressesController(AppDbContext context, IAddressService addressSe
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetAddressById(Guid id)
     {
@@ -31,6 +34,7 @@ public class AddressesController(AppDbContext context, IAddressService addressSe
         return address is null ? NotFound() : Ok(address);
     }
 
+    [AllowAnonymous]
     [HttpPost("by-user/{userId}")]
     public async Task<IActionResult> CreateAddress(Guid userId, [FromBody] Address address)
     {
@@ -43,6 +47,7 @@ public class AddressesController(AppDbContext context, IAddressService addressSe
         return CreatedAtAction(nameof(GetAddressById), new { id = address.Id }, address);
     }
 
+    [AllowAnonymous]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateAddress(Guid id, [FromBody] Address address)
     {
@@ -59,6 +64,7 @@ public class AddressesController(AppDbContext context, IAddressService addressSe
         return NoContent();
     }
 
+    [AllowAnonymous]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteAddress(Guid id)
     {

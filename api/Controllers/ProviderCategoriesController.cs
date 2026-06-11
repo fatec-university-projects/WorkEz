@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Api.Data;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ namespace WorkEz.Api.Controllers;
 [Route("api/[controller]")]
 public class ProviderCategoriesController(AppDbContext context, IProviderCategoryService providerCategoryService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("by-provider/{providerId}")]
     public async Task<IActionResult> GetProviderCategoriesByProvider(Guid providerId)
     {
@@ -20,6 +22,7 @@ public class ProviderCategoriesController(AppDbContext context, IProviderCategor
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpPost("by-provider/{providerId}/categories")]
     public async Task<IActionResult> CreateProviderCategories(Guid providerId, [FromBody] List<Guid> categoryIds)
     {
@@ -34,6 +37,7 @@ public class ProviderCategoriesController(AppDbContext context, IProviderCategor
         return NoContent();
     }
 
+    [AllowAnonymous]
     [HttpDelete("by-provider/{providerId}/category/{categoryId}")]
     public async Task<IActionResult> DeleteProviderCategory(Guid providerId, Guid categoryId)
     {

@@ -23,6 +23,7 @@ public class ServiceProvidersController(AppDbContext context, IServiceProviderSe
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetServiceProviderById(Guid id)
     {
@@ -30,6 +31,7 @@ public class ServiceProvidersController(AppDbContext context, IServiceProviderSe
         return p is null ? NotFound() : Ok(p);
     }
 
+    [AllowAnonymous]
     [HttpGet("by-user/{userId}")]
     public async Task<IActionResult> GetServiceProviderByUser(Guid userId)
     {
@@ -37,6 +39,7 @@ public class ServiceProvidersController(AppDbContext context, IServiceProviderSe
         return p is null ? NotFound() : Ok(p);
     }
 
+    [AllowAnonymous]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateServiceProvider(Guid id, [FromBody] WkServiceProvider serviceProvider)
     {
@@ -48,6 +51,7 @@ public class ServiceProvidersController(AppDbContext context, IServiceProviderSe
         return NoContent();
     }
 
+    [AllowAnonymous]
     [HttpPatch("{id}/status")]
     public async Task<IActionResult> UpdateServiceProviderStatus(Guid id, bool status)
     {

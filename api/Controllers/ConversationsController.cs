@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkEz.Api.Data;
@@ -13,6 +14,7 @@ namespace WorkEz.Api.Controllers;
 [Route("api/[controller]")]
 public class ConversationsController(AppDbContext context, IConversationService conversationService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("by-service/{serviceId}")]
     public async Task<IActionResult> GetConversationsByService(Guid serviceId)
     {
@@ -20,6 +22,7 @@ public class ConversationsController(AppDbContext context, IConversationService 
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetConversationById(Guid id)
     {
@@ -27,6 +30,7 @@ public class ConversationsController(AppDbContext context, IConversationService 
         return conv is null ? NotFound() : Ok(conv);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}/messages")]
     public async Task<IActionResult> GetMessages(Guid id)
     {
@@ -34,6 +38,7 @@ public class ConversationsController(AppDbContext context, IConversationService 
         return Ok(messages);
     }
 
+    [AllowAnonymous]
     [HttpPost("{id}/messages")]
     public async Task<IActionResult> CreateMessage(Guid id, [FromBody] Message message)
     {
@@ -44,6 +49,7 @@ public class ConversationsController(AppDbContext context, IConversationService 
         return CreatedAtAction(nameof(GetMessages), new { id = id }, message);
     }
 
+    [AllowAnonymous]
     [HttpPatch("{id}/read")]
     public async Task<IActionResult> MarkAsRead(Guid id)
     {

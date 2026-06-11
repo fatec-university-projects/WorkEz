@@ -13,6 +13,7 @@ namespace WorkEz.Api.Controllers;
 [Route("api/[controller]")]
 public class CategoriesController(AppDbContext context, ICategoryService categoryService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> GetAllCategories()
     {
@@ -20,6 +21,7 @@ public class CategoriesController(AppDbContext context, ICategoryService categor
         return Ok(list);
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetCategoryById(Guid id)
     {
@@ -27,6 +29,7 @@ public class CategoriesController(AppDbContext context, ICategoryService categor
         return entity is null ? NotFound() : Ok(entity);
     }
 
+    [AllowAnonymous]
     [HttpPost]
     public async Task<IActionResult> CreateCategory([FromBody] Category category)
     {
@@ -35,6 +38,7 @@ public class CategoriesController(AppDbContext context, ICategoryService categor
         return CreatedAtAction(nameof(GetCategoryById), new { id = category.Id }, category);
     }
 
+    [AllowAnonymous]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateCategory(Guid id, [FromBody] Category category)
     {

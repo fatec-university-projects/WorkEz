@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkEz.Api.Data;
@@ -14,6 +15,7 @@ namespace WorkEz.Api.Controllers;
    public class PaymentsController(AppDbContext context, IPaymentService paymentGateway) : ControllerBase
 {
 
+    [AllowAnonymous]
     [HttpGet("by-appointment/{appointmentId}")]
     public async Task<IActionResult> GetPaymentsByAppointment(Guid appointmentId)
     {
@@ -21,6 +23,7 @@ namespace WorkEz.Api.Controllers;
            return Ok(list);
     }
     
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetPaymentById(Guid id)
     {
@@ -28,6 +31,7 @@ namespace WorkEz.Api.Controllers;
            return p is null ? NotFound() : Ok(p);
     }
 
+    [AllowAnonymous]
     [HttpPost("{appointmentId}")]
     public async Task<IActionResult> CreatePayment(Guid appointmentId, Payment payment)
     {
@@ -39,6 +43,7 @@ namespace WorkEz.Api.Controllers;
            return CreatedAtAction(nameof(GetPaymentById), new { id = payment.Id }, payment);
     }
 
+    [AllowAnonymous]
     [HttpPost("webhook")]
     public async Task<IActionResult> HandleWebhook(Payment payment)
     {

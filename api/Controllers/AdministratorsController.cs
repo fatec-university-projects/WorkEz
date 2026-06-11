@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkEz.Api.Data;
@@ -13,6 +14,7 @@ namespace WorkEz.Api.Controllers;
 [Route("api/[controller]")]
 public class AdministratorsController(AppDbContext context, IAdministratorService adminService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetAdministratorById(Guid id)
     {
@@ -20,6 +22,7 @@ public class AdministratorsController(AppDbContext context, IAdministratorServic
         return admin is null ? NotFound() : Ok(admin);
     }
 
+    [AllowAnonymous]
     [HttpGet("by-user/{userId}")]
     public async Task<IActionResult> GetAdministratorByUser(Guid userId)
     {
@@ -27,6 +30,7 @@ public class AdministratorsController(AppDbContext context, IAdministratorServic
         return admin is null ? NotFound() : Ok(admin);
     }
 
+    [AllowAnonymous]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateAdministrator(Guid id, [FromBody] Administrator administrator)
     {
