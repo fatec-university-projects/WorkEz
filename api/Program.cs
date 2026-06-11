@@ -106,7 +106,7 @@ using (var scope = app.Services.CreateScope())
         await connection.OpenAsync();
 
         using var command = connection.CreateCommand();
-        command.CommandText = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'";
+        command.CommandText = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'public' AND TABLE_TYPE = 'BASE TABLE'";
         var result     = await command.ExecuteScalarAsync();
         var tableCount = Convert.ToInt32(result);
 
