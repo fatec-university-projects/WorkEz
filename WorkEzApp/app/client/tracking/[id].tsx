@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: WorkEzTheme.colors.backgroundCard,
-    borderRadius: WorkEzTheme.borderRadius.2xl,
+    borderRadius: WorkEzTheme.borderRadius["2xl"],
     padding: WorkEzTheme.spacing.lg,
     borderWidth: 1,
     borderColor: WorkEzTheme.colors.border,

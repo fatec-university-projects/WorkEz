@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   categoryCard: {
     width: '100%',
     borderWidth: 2,
-    borderRadius: WorkEzTheme.borderRadius['2xl'] ?? 16,
+    borderRadius: WorkEzTheme.borderRadius['2xl'],
     padding: WorkEzTheme.spacing.md,
   },
   cardRow: {
