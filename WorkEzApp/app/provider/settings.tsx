@@ -6,7 +6,7 @@ export default function ProviderSettings() {
   const router = useRouter();
 
   const menuItems = [
-    { icon: User, label: 'Dados pessoais', path: '#' },
+    { icon: User, label: 'Dados pessoais', path: '/provider/edit-profile' },
     { icon: CreditCard, label: 'Dados bancários', path: '#' },
     { icon: FileText, label: 'Documentos', path: '#' },
     { icon: MapPin, label: 'Regiões de atendimento', path: '#' },

@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { Button } from '../../components/Button';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 
 export default function CancelCall() {
   const router = useRouter();
   const [reason, setReason] = useState('');
+  const [otherReason, setOtherReason] = useState('');
 
   const reasons = [
     'Resolvi de outra forma',
@@ -50,10 +51,15 @@ export default function CancelCall() {
           </View>
 
           {reason === 'Outro motivo' && (
-            <textarea
+            <TextInput
+              value={otherReason}
+              onChangeText={setOtherReason}
               placeholder="Conte-nos o motivo..."
-              rows={3}
-              className="w-full mt-4 px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all resize-none"
+              multiline={true}
+              numberOfLines={3}
+              textAlignVertical="top"
+              style={{ minHeight: 80 }}
+              className="w-full mt-4 px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl focus:outline-none focus:border-[#2563EB] transition-all"
             />
           )}
         </View>

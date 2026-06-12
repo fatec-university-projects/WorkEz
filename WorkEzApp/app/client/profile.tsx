@@ -5,6 +5,9 @@ import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
 
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
+
 interface CustomerProfile {
   id: string;
   name: string;
@@ -17,12 +20,20 @@ export default function ClientProfile() {
   const router = useRouter();
   const { user, signOut } = useAuth();
 
-  const { data: profile, loading, error } = useFetch<CustomerProfile>(
-    user ? `/api/Customers/${user.id}` : null
+  const { data: profile, loading, error, refetch } = useFetch<CustomerProfile>(
+    user ? `/api/Customers/by-user/${user.id}` : null
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        refetch();
+      }
+    }, [user, refetch])
   );
 
   const menuItems = [
-    { icon: User, label: 'Dados pessoais', path: '#' },
+    { icon: User, label: 'Dados pessoais', path: '/client/edit-profile' },
     { icon: MapPin, label: 'Meus endereços', path: '#' },
     { icon: CreditCard, label: 'Formas de pagamento', path: '#' },
     { icon: HelpCircle, label: 'Ajuda e suporte', path: '/help' },
@@ -45,19 +56,21 @@ export default function ClientProfile() {
             <View style={{ padding: 24, alignItems: 'center' }}>
               <ActivityIndicator size="small" color={WorkEzTheme.colors.primary} />
             </View>
-          ) : error ? (
-            <View style={{ padding: 24, alignItems: 'center' }}>
-              <Text style={{ color: WorkEzTheme.colors.danger }}>{error}</Text>
-            </View>
           ) : (
             <View style={styles.profileRow}>
-              <Image
-                source={{ uri: profile?.photo || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop" }}
-                style={styles.avatar}
-              />
+              {profile?.photo ? (
+                <Image
+                  source={{ uri: profile.photo }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <User size={32} color={WorkEzTheme.colors.textSecondary} />
+                </View>
+              )}
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{profile?.name || user?.name}</Text>
-                <Text style={styles.profileEmail}>{profile?.email || 'email@exemplo.com'}</Text>
+                <Text style={styles.profileName}>{profile?.name || user?.name || 'Cliente'}</Text>
+                <Text style={styles.profileEmail}>{profile?.email || user?.email || 'email@exemplo.com'}</Text>
               </View>
             </View>
           )}
@@ -139,6 +152,11 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     resizeMode: 'cover',
+  },
+  avatarPlaceholder: {
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileInfo: {
     flex: 1,

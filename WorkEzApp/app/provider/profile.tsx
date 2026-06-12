@@ -1,5 +1,6 @@
-import { useRouter } from 'expo-router';
-import { Star, Award, Image as ImageIcon } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
+import { Star, Award, Image as ImageIcon, User } from 'lucide-react-native';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
@@ -28,9 +29,34 @@ export default function ProviderProfile() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const { data: profile, loading, error } = useFetch<ProviderProfileData>(
-    user ? `/api/ServiceProviders/${user.id}` : null
+  const { data: rawProfile, loading, error, refetch } = useFetch<any>(
+    user ? `/api/ServiceProviders/by-user/${user.id}` : null
   );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        refetch();
+      }
+    }, [user, refetch])
+  );
+
+  const profile: ProviderProfileData | null = rawProfile ? {
+    id: rawProfile.id,
+    name: rawProfile.name || user?.name || 'Profissional',
+    photo: rawProfile.photo || null,
+    rating: rawProfile.averageRating ?? 0,
+    servicesCompleted: rawProfile.completedServicesCount ?? 0,
+    specialties: rawProfile.specialties ?? [],
+    description: rawProfile.professionalDescription ?? 'Descrição do profissional indisponível.',
+    verified: rawProfile.documentVerified ?? false,
+    portfolio: rawProfile.portfolio ?? [],
+    reviewStats: rawProfile.reviewStats ?? {
+      average: rawProfile.averageRating ?? 0,
+      total: rawProfile.completedServicesCount ?? 0,
+      positivePercentage: 100
+    }
+  } : null;
 
   return (
     <View style={styles.container}>
@@ -53,10 +79,16 @@ export default function ProviderProfile() {
             <View style={styles.card}>
               <View style={styles.profileRow}>
                 <View style={styles.avatarWrapper}>
-                  <Image
-                    source={{ uri: profile?.photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop' }}
-                    style={styles.avatar}
-                  />
+                  {profile?.photo ? (
+                    <Image
+                      source={{ uri: profile.photo }}
+                      style={styles.avatar}
+                    />
+                  ) : (
+                    <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                      <User size={36} color={WorkEzTheme.colors.textSecondary} />
+                    </View>
+                  )}
                 </View>
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileName}>
@@ -229,6 +261,13 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     resizeMode: 'cover',
+  },
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileInfo: {
     flex: 1,

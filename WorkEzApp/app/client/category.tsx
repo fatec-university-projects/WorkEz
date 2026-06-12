@@ -58,7 +58,7 @@ export default function SelectCategory() {
             return (
               <TouchableOpacity
                 key={category.id}
-                onPress={() => router.push('/client/describe')}
+                onPress={() => router.push({ pathname: '/client/describe', params: { category: category.name, categoryId: category.id } } as any)}
                 style={[
                   styles.categoryCard,
                   { backgroundColor: uiConfig.bgColor, borderColor: uiConfig.borderColor }

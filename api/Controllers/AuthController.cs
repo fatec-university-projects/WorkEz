@@ -339,6 +339,25 @@ public class AuthController(
 
         context.Users.Add(user);
         context.UserPasswords.Add(passwordRecord);
+
+        if (role == Enums.UserRole.Customer)
+        {
+            var customer = new Customer
+            {
+                UserId = user.Id
+            };
+            context.Customers.Add(customer);
+        }
+        else if (role == Enums.UserRole.ServiceProvider)
+        {
+            var provider = new Entities.ServiceProvider
+            {
+                UserId = user.Id,
+                ProfessionalDescription = "Novo prestador de serviços"
+            };
+            context.Providers.Add(provider);
+        }
+
         await context.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetProfile), new { id = user.Id }, MapToDto(user));

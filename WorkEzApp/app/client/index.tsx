@@ -78,7 +78,7 @@ export default function ClientHome() {
               return (
                 <TouchableOpacity
                   key={category.id}
-                  onPress={() => router.push('/client/category')}
+                  onPress={() => router.push({ pathname: '/client/describe', params: { category: category.name, categoryId: category.id } } as any)}
                   style={[styles.categoryCard, { backgroundColor: uiConfig.bgColor }]}
                 >
                   <Icon size={32} color={uiConfig.iconColor} style={styles.categoryIcon} />

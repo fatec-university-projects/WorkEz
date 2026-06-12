@@ -1,10 +1,10 @@
-import { Star, MapPin, Heart, Check } from 'lucide-react-native';
+import { Star, MapPin, Heart, Check, User } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { WorkEzTheme } from '../constants/theme';
 
 interface ProfessionalCardProps {
   name: string;
-  photo: string;
+  photo?: string;
   rating: number;
   servicesCompleted: number;
   distance?: string;
@@ -35,10 +35,16 @@ export function ProfessionalCard({
     >
       <View style={styles.contentRow}>
         <View style={styles.photoContainer}>
-          <Image
-            source={{ uri: photo }} // Assuming photo is a URL, changed from photo directly, though it depends if it's require()
-            style={styles.photo}
-          />
+          {photo ? (
+            <Image
+              source={{ uri: photo }}
+              style={styles.photo}
+            />
+          ) : (
+            <View style={[styles.photo, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
+              <User size={28} color={WorkEzTheme.colors.textSecondary} />
+            </View>
+          )}
           {verified ? (
             <View style={styles.badgeContainer}>
               <Check size={12} color={WorkEzTheme.colors.text} />

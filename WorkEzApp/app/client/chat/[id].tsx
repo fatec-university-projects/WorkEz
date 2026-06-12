@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Send, AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, Send, AlertCircle, User } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
@@ -50,10 +50,16 @@ export default function ClientChat() {
           >
             <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
           </TouchableOpacity>
-          <Image
-            source={{ uri: conversation?.professionalPhoto || "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop" }}
-            style={styles.avatar}
-          />
+          {conversation?.professionalPhoto ? (
+            <Image
+              source={{ uri: conversation.professionalPhoto }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
+              <User size={20} color={WorkEzTheme.colors.textSecondary} />
+            </View>
+          )}
           <View style={styles.headerInfo}>
             <Text style={styles.professionalName}>{conversation?.professionalName || 'Profissional'}</Text>
             <Text style={styles.statusText}>{conversation?.status || 'Online'}</Text>

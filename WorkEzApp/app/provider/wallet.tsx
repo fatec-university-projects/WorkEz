@@ -1,3 +1,5 @@
+import { useMemo, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { DollarSign, TrendingUp, Calendar, ArrowDownToLine } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
@@ -26,9 +28,79 @@ interface WalletData {
 export default function Wallet() {
   const { user } = useAuth();
 
-  const { data: walletData, loading, error } = useFetch<WalletData>(
-    user ? `/api/Providers/${user.id}/wallet` : null
+  const { data: services, loading, error, refetch } = useFetch<any[]>(
+    user ? `/api/Services/by-provider-user/${user.id}` : null
   );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        refetch();
+      }
+    }, [user, refetch])
+  );
+
+  const walletData = useMemo<WalletData>(() => {
+    if (!services) {
+      return {
+        availableBalance: 0,
+        receivable: 0,
+        thisMonth: 0,
+        commission: {
+          lastService: '-',
+          value: 0
+        },
+        transactions: []
+      };
+    }
+
+    const completed = services.filter(s => s.status === 'completed');
+    const waitingPayment = services.filter(s => s.status === 'waiting-payment');
+
+    const availableBalance = completed.reduce((sum, s) => sum + (s.price || 0), 0);
+
+    // Filter completed and waiting-payment services for the current month
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentYear = now.getFullYear();
+
+    const thisMonthServices = services.filter(s => {
+      if (s.status !== 'completed' && s.status !== 'waiting-payment') return false;
+      if (!s.date) return false;
+      const parts = s.date.split('/');
+      if (parts.length < 3) return false;
+      const m = parseInt(parts[1], 10);
+      const y = parseInt(parts[2], 10);
+      return m === currentMonth && y === currentYear;
+    });
+    const thisMonth = thisMonthServices.reduce((sum, s) => sum + (s.price || 0), 0);
+
+    // A receber: faturamento bruto do mês menos 15% de taxa
+    const receivable = thisMonth * 0.85;
+
+    const lastCompleted = completed[0]; // sorted descending by backend
+    const commission = {
+      lastService: lastCompleted ? lastCompleted.category : '-',
+      value: lastCompleted ? (lastCompleted.price || 0) * 0.15 : 0
+    };
+
+    const transactions: Transaction[] = services
+      .filter(s => s.status === 'completed' || s.status === 'waiting-payment')
+      .map(s => ({
+        date: s.date,
+        service: s.category || 'Serviço',
+        value: s.price || 0,
+        status: s.status === 'completed' ? 'received' : 'pending'
+      }));
+
+    return {
+      availableBalance,
+      receivable,
+      thisMonth,
+      commission,
+      transactions
+    };
+  }, [services]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
@@ -85,7 +157,7 @@ export default function Wallet() {
               </Text>
               <View style={styles.commissionBox}>
                 <View style={styles.commissionRow}>
-                  <Text style={styles.commissionBoxText}>Último serviço (R$ {walletData?.commission?.lastService || '0,00'})</Text>
+                  <Text style={styles.commissionBoxText}>Último serviço ({walletData?.commission?.lastService || 'Nenhum'})</Text>
                   <Text style={styles.commissionBoxValue}>- R$ {walletData?.commission?.value?.toFixed(2).replace('.', ',') || '0,00'}</Text>
                 </View>
               </View>

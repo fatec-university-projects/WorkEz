@@ -26,7 +26,14 @@ public class ProviderCategoriesController(AppDbContext context, IProviderCategor
     [HttpPost("by-provider/{providerId}/categories")]
     public async Task<IActionResult> CreateProviderCategories(Guid providerId, [FromBody] List<Guid> categoryIds)
     {
-        if (categoryIds is null || !categoryIds.Any()) return BadRequest(new { message = "categoryIds required" });
+        if (categoryIds is null) return BadRequest(new { message = "categoryIds required" });
+
+        var existing = await context.ProviderCategories
+            .Where(pc => pc.ProviderId == providerId)
+            .ToListAsync();
+
+        context.ProviderCategories.RemoveRange(existing);
+        await context.SaveChangesAsync();
 
         foreach (var catId in categoryIds)
         {

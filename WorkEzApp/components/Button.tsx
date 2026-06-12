@@ -22,7 +22,7 @@ export function Button({
 
   return (
     <Pressable
-      style={({ pressed }) => [
+      style={({ pressed }) => StyleSheet.flatten([
         styles.baseButton,
         isPrimary && styles.primaryButton,
         isSecondary && styles.secondaryButton,
@@ -31,7 +31,7 @@ export function Button({
         pressed && styles.pressed,
         props.disabled && styles.disabled,
         style,
-      ]}
+      ])}
       {...props}
     >
       {Children.map(children, (child) => {
@@ -39,12 +39,12 @@ export function Button({
         if (typeof child === 'string' || typeof child === 'number') {
           return (
             <Text
-              style={[
+              style={StyleSheet.flatten([
                 styles.baseText,
                 isPrimary && styles.primaryText,
                 isSecondary && styles.secondaryText,
                 isGhost && styles.ghostText,
-              ]}
+              ])}
             >
               {child}
             </Text>

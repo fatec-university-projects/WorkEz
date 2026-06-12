@@ -1,97 +1,151 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, MapPin, FileText, Image as ImageIcon, Wrench } from 'lucide-react-native';
 import { Button } from '../../components/Button';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WorkEzTheme } from '../../constants/theme';
 
 export default function ConfirmCall() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  
+  const {
+    category,
+    categoryId,
+    description,
+    cep,
+    street,
+    number,
+    complement,
+    neighborhood,
+    city,
+    state,
+    images
+  } = useLocalSearchParams<{
+    category: string;
+    categoryId: string;
+    description: string;
+    cep: string;
+    street: string;
+    number: string;
+    complement: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+    images: string;
+  }>();
+
+  const parsedImages: string[] = images ? JSON.parse(images) : [];
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3">
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
+            style={styles.backButton}
+            activeOpacity={0.8}
           >
-            <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
+            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
           </TouchableOpacity>
-          <Text className="text-xl font-semibold text-[#0F172A]">
+          <Text style={styles.headerTitle}>
             Confirmar chamado
           </Text>
         </View>
       </View>
 
-      <View className="p-6 space-y-6">
-        <View className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]">
-          <Text className="text-lg font-semibold text-[#0F172A] mb-4">
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.summaryCard}>
+          <Text style={styles.cardTitle}>
             Resumo do serviço
           </Text>
 
-          <View className="space-y-4">
-            <View>
-              <View className="flex-row items-start gap-3">
-                <View className="w-10 h-10 bg-blue-50 rounded-xl flex-row items-center justify-center flex-shrink-0">
-                  <Wrench className="w-5 h-5 text-[#3B82F6]" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm text-[#64748B]">Categoria</Text>
-                  <Text className="font-medium text-[#0F172A]">Encanador</Text>
-                </View>
+          <View style={styles.rowsWrapper}>
+            {/* Categoria */}
+            <View style={styles.rowItem}>
+              <View style={[styles.iconWrapper, { backgroundColor: '#EFF6FF' }]}>
+                <Wrench size={20} color="#3B82F6" />
+              </View>
+              <View style={styles.textWrapper}>
+                <Text style={styles.rowLabel}>Categoria</Text>
+                <Text style={styles.rowValue}>{category || 'Encanador'}</Text>
               </View>
             </View>
 
-            <View className="flex-row items-start gap-3">
-              <View className="w-10 h-10 bg-[#F1F5F9] rounded-xl flex-row items-center justify-center flex-shrink-0">
-                <FileText className="w-5 h-5 text-[#64748B]" />
+            {/* Descrição */}
+            <View style={styles.rowItem}>
+              <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
+                <FileText size={20} color="#64748B" />
               </View>
-              <View className="flex-1">
-                <Text className="text-sm text-[#64748B]">Descrição</Text>
-                <Text className="font-medium text-[#0F172A]">
-                  Torneira da cozinha está vazando. Preciso de reparo urgente.
+              <View style={styles.textWrapper}>
+                <Text style={styles.rowLabel}>Descrição</Text>
+                <Text style={styles.rowValue}>
+                  {description || 'Sem descrição fornecida.'}
                 </Text>
               </View>
             </View>
 
-            <View className="flex-row items-start gap-3">
-              <View className="w-10 h-10 bg-[#F1F5F9] rounded-xl flex-row items-center justify-center flex-shrink-0">
-                <MapPin className="w-5 h-5 text-[#64748B]" />
+            {/* Endereço */}
+            <View style={styles.rowItem}>
+              <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
+                <MapPin size={20} color="#64748B" />
               </View>
-              <View className="flex-1">
-                <Text className="text-sm text-[#64748B]">Endereço</Text>
-                <Text className="font-medium text-[#0F172A]">
-                  Rua das Flores, 123 - Centro
+              <View style={styles.textWrapper}>
+                <Text style={styles.rowLabel}>Endereço</Text>
+                <Text style={styles.rowValue}>
+                  {street ? `${street}, nº ${number}${complement ? ` - ${complement}` : ''}\n${neighborhood} - ${city}/${state} (CEP: ${cep})` : 'Sem endereço fornecido.'}
                 </Text>
               </View>
             </View>
 
-            <View className="flex-row items-start gap-3">
-              <View className="w-10 h-10 bg-[#F1F5F9] rounded-xl flex-row items-center justify-center flex-shrink-0">
-                <ImageIcon className="w-5 h-5 text-[#64748B]" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm text-[#64748B]">Fotos anexadas</Text>
-                <View className="flex-row gap-2 mt-2">
-                  <View className="w-16 h-16 bg-[#E2E8F0] rounded-lg"></View>
-                  <View className="w-16 h-16 bg-[#E2E8F0] rounded-lg"></View>
+            {/* Imagens */}
+            {parsedImages.length > 0 && (
+              <View style={styles.rowItem}>
+                <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
+                  <ImageIcon size={20} color="#64748B" />
+                </View>
+                <View style={styles.textWrapper}>
+                  <Text style={styles.rowLabel}>Fotos anexadas</Text>
+                  <View style={styles.imagesGrid}>
+                    {parsedImages.map((imgUrl, idx) => (
+                      <View key={idx} style={styles.imageThumbContainer}>
+                        <Image source={{ uri: imgUrl }} style={styles.imageThumb} />
+                      </View>
+                    ))}
+                  </View>
                 </View>
               </View>
-            </View>
+            )}
           </View>
         </View>
 
-        <View className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-4">
-          <Text className="text-sm text-[#1d4ed8] leading-relaxed">
-            <Text>Como funciona:</Text> Ao confirmar, buscaremos profissionais disponíveis próximos a você. O pagamento só será liberado após a conclusão do serviço.
+        <View style={styles.infoBanner}>
+          <Text style={styles.infoText}>
+            💡 <Text style={styles.infoTextBold}>Como funciona:</Text> Ao confirmar, buscaremos profissionais disponíveis próximos a você. O pagamento só será liberado após a conclusão do serviço.
           </Text>
         </View>
-      </View>
+      </ScrollView>
 
-      <View className="fixed bottom-0 left-0 right-0 bg-white p-6 border-t border-[#E2E8F0]">
-        <View className="space-y-3">
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
+        <View style={styles.actionsWrapper}>
           <Button
             fullWidth
-            onPress={() => router.push('/client/searching')}
+            onPress={() => router.push({
+              pathname: '/client/searching',
+              params: {
+                category,
+                categoryId,
+                description,
+                cep,
+                street,
+                number,
+                complement,
+                neighborhood,
+                city,
+                state,
+                images
+              }
+            } as any)}
           >
             Confirmar chamado
           </Button>
@@ -107,3 +161,129 @@ export default function ConfirmCall() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+  },
+  headerTitle: {
+    ...WorkEzTheme.typography.lg,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: '#0F172A',
+  },
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 200,
+    gap: 24,
+  },
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cardTitle: {
+    ...WorkEzTheme.typography.lg,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: '#0F172A',
+    marginBottom: 20,
+  },
+  rowsWrapper: {
+    gap: 20,
+  },
+  rowItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  iconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textWrapper: {
+    flex: 1,
+  },
+  rowLabel: {
+    ...WorkEzTheme.typography.xs,
+    color: '#64748B',
+    marginBottom: 2,
+  },
+  rowValue: {
+    ...WorkEzTheme.typography.base,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
+    color: '#0F172A',
+  },
+  imagesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  imageThumbContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#E2E8F0',
+  },
+  imageThumb: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  infoBanner: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 16,
+    padding: 16,
+  },
+  infoText: {
+    ...WorkEzTheme.typography.sm,
+    color: '#1D4ED8',
+    lineHeight: 20,
+  },
+  infoTextBold: {
+    fontWeight: 'bold',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  actionsWrapper: {
+    gap: 12,
+  },
+});

@@ -10,5 +10,7 @@ public enum ServiceStatus
     Accepted = 2,
     InProgress = 3,
     Completed = 4,
-    Cancelled = 5
+    Cancelled = 5,
+    OnTheWay = 6,
+    WaitingPayment = 7
 }

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
+import { safeStorage as AsyncStorage } from '../services/storage';
+import { STORAGE_KEY_ACCESS } from '../services/api';
 
 interface FetchResult<T> {
   data: T | null;
@@ -8,6 +10,11 @@ interface FetchResult<T> {
   status: number;
   refetch: () => Promise<void>;
 }
+
+// AUDITORIA FIX:
+// - Inclui Bearer Token automaticamente (lido do AsyncStorage)
+// - Trata 401 — exibe erro de sessão expirada
+// - Mantém compatibilidade com endpoints públicos
 
 export function useFetch<T>(endpoint: string | null, options: RequestInit = {}): FetchResult<T> {
   const [data, setData] = useState<T | null>(null);
@@ -24,13 +31,25 @@ export function useFetch<T>(endpoint: string | null, options: RequestInit = {}):
     setLoading(true);
     setError(null);
 
-    const result = await apiRequest<T>(endpoint, options);
-    
+    // Injeta o token salvo
+    const token = await AsyncStorage.getItem(STORAGE_KEY_ACCESS).catch(() => null);
+    const authHeaders: Record<string, string> = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
+
+    const result = await apiRequest<T>(endpoint, {
+      ...options,
+      headers: {
+        ...(options.headers as Record<string, string>),
+        ...authHeaders,
+      },
+    });
+
     setData(result.data);
     setError(result.error);
     setStatus(result.status);
     setLoading(false);
-  }, [endpoint, JSON.stringify(options)]); // Options safely stringified for dependency array
+  }, [endpoint, JSON.stringify(options)]);
 
   useEffect(() => {
     fetchData();

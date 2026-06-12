@@ -35,7 +35,11 @@ public class ReviewsController(AppDbContext context, IReviewService reviewServic
     public async Task<IActionResult> CreateReview(Guid customerId, [FromBody] Review review)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
-        review.ReviewerUserId = customerId;
+        
+        var customer = await context.Customers.FirstOrDefaultAsync(c => c.Id == customerId);
+        if (customer is null) return NotFound(new { message = "Cliente não encontrado." });
+
+        review.ReviewerUserId = customer.UserId;
         await reviewService.CreateAsync(review);
         return CreatedAtAction(nameof(GetReportsByAppointment), new { appointmentId = review.AppointmentId }, review);
     }

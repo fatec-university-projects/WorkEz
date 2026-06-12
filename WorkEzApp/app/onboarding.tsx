@@ -4,6 +4,7 @@ import { ShieldCheck, Zap, CreditCard, ChevronRight } from 'lucide-react-native'
 import { Button } from '../components/Button';
 import { View, Text, StyleSheet } from 'react-native';
 import { WorkEzTheme } from '../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const slides = [
   {
@@ -25,6 +26,7 @@ const slides = [
 
 export default function Onboarding() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const handleNext = () => {
@@ -60,20 +62,16 @@ export default function Onboarding() {
               style={[
                 styles.dot,
                 index === currentSlide ? styles.dotActive : styles.dotInactive
-              ]}
+               ]}
             />
           ))}
         </View>
       </View>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 20 }]}>
         <Button fullWidth onPress={handleNext}>
-          <View style={styles.buttonContent}>
-            <Text style={styles.buttonText}>
-              {currentSlide < slides.length - 1 ? 'Continuar' : 'Começar'}
-            </Text>
-            <ChevronRight size={20} color="#FFFFFF" style={styles.buttonIcon} />
-          </View>
+          {currentSlide < slides.length - 1 ? 'Continuar' : 'Começar'}
+          <ChevronRight size={20} color="#FFFFFF" />
         </Button>
 
         {currentSlide < slides.length - 1 && (

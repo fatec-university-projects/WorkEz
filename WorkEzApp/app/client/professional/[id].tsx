@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Star, Award, ShieldCheck, Image as ImageIcon } from 'lucide-react-native';
+import { ArrowLeft, Star, Award, ShieldCheck, Image as ImageIcon, User } from 'lucide-react-native';
 import { Badge } from '../../../components/Badge';
 import { RatingCard } from '../../../components/RatingCard';
 import { Button } from '../../../components/Button';
@@ -78,10 +78,16 @@ export default function ProfessionalProfile() {
         <View style={styles.card}>
           <View style={styles.profileRow}>
             <View style={styles.photoWrapper}>
-              <Image
-                source={{ uri: professional.photo }}
-                style={styles.photo}
-              />
+              {professional.photo ? (
+                <Image
+                  source={{ uri: professional.photo }}
+                  style={styles.photo}
+                />
+              ) : (
+                <View style={[styles.photo, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
+                  <User size={36} color={WorkEzTheme.colors.textSecondary} />
+                </View>
+              )}
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.nameText}>
