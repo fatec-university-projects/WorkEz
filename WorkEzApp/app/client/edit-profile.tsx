@@ -242,17 +242,17 @@ export default function EditProfile() {
               </View>
             </View>
 
-            <View style={{ marginTop: 24 }}>
+            <View style={styles.saveBtn}>
               <Button
+                variant="secondary"
                 fullWidth
                 onPress={handleSave}
                 disabled={saving || uploading}
               >
                 {saving ? (
-                  <ActivityIndicator color="#FFF" />
+                  <ActivityIndicator color="#2563EB" />
                 ) : (
                   <>
-                    <Save size={20} color="#FFF" style={{ marginRight: 8 }} />
                     <Text style={styles.saveBtnText}>Salvar Alterações</Text>
                   </>
                 )}
@@ -385,8 +385,19 @@ const styles = StyleSheet.create({
     paddingLeft: 48,
   },
   saveBtnText: {
-    color: '#FFFFFF',
+    color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  saveBtn: {
+    marginTop: 16,
+    borderWidth: 1,
+    backgroundColor: '#2563EB',
+    fontWeight: '600',
+    fontSize: 16,
+    display: 'flex',
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 8,
   },
 });
