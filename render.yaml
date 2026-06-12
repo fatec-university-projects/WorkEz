@@ -10,7 +10,7 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ConnectionStrings__DefaultConnection
-        value: "Host=ep-rapid-forest-ams8xemm-pooler.c-5.us-east-1.aws.neon.tech;Database=neondb;Username=neondb_owner;Password=npg_OwuCLEAoh9G5;SslMode=Require;Trust Server Certificate=true;"
+        value: "Host=ep-billowing-night-ac7hfoy7-pooler.sa-east-1.aws.neon.tech;Database=WorkEz;Username=neondb_owner;Password=npg_ftATc3z7BEMG;SslMode=Require;Channel Binding=require;"
       - key: Jwt__Issuer
         value: WorkEz
       - key: Jwt__Audience
@@ -26,4 +26,4 @@ services:
       - key: AbacatePay__BaseUrl
         value: "https://api.abacatepay.com/v1"
       - key: AbacatePay__WebhookSecret
-        value: "wez_whsec_2026_WorkEz!"
+        value: "wez_whsec_2026_WorkEz!"
