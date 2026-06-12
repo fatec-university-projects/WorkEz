@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using WorkEz.Api.Data;
 using WorkEz.Api.Extensions;
 using WorkEz.Api.Services;
+using WorkEz.Api.Middleware;
 using Microsoft.EntityFrameworkCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,8 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGenWithAuthSupport(builder.Configuration);
 
+// Add FluentValidation
+builder.Services.AddFluentValidation();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -20,8 +23,26 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+    var isDevelopment = builder.Environment.IsDevelopment();
+
+    if (isDevelopment)
+    {
+        // Development: Allow all origins
+        options.AddPolicy("AllowAll", policy =>
+            policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+    }
+    else
+    {
+        // Production: Restrict to specific origins
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+            ?? new[] { "https://app.workez.com.br" };
+
+        options.AddPolicy("AllowAll", policy =>
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials());
+    }
 });
 
 
@@ -122,6 +143,12 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+// Global exception handling middleware
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// Rate limiting middleware
+app.UseRateLimiting();
 
 app.UseCors("AllowAll");
 app.UseAuthentication();
