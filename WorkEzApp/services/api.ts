@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://workez-api-m9u2.onrender.com';
+const API_BASE_URL = 'https://workez-api.onrender.com';
 
 export async function apiRequest<T>(
   endpoint: string,
