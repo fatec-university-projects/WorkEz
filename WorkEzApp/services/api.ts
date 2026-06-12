@@ -1,18 +1,4 @@
-import { safeStorage as AsyncStorage } from './storage';
-import { Platform } from 'react-native';
-
-// ─── Configuração Base ────────────────────────────────────────────────────────
-const API_BASE_URL = Platform.select({
-  android: 'http://10.0.2.2:5065',
-  ios: 'http://localhost:5065',
-  default: 'http://localhost:5065',
-}) as string;
-
-// ─── Storage Keys ────────────────────────────────────────────────────────────
-const STORAGE_KEY_ACCESS = '@workez_access_token';
-const STORAGE_KEY_REFRESH = '@workez_refresh_token';
-
-// ─── Request com Bearer Token ────────────────────────────────────────────────
+const API_BASE_URL = 'https://workez-api.onrender.com';
 
 export async function apiRequest<T>(
   endpoint: string,

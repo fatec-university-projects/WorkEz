@@ -44,7 +44,10 @@ builder.Services.AddSingleton<IPasswordHasherService, PasswordHasherService>();
 builder.Services.AddSingleton<ITokenService, TokenService>();
 
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IPaymentService, AbacatePayService>();
+
+// AbacatePay payment gateway – typed HttpClient
+builder.Services.AddHttpClient<IPaymentService, AbacatePayService>();
+
 
 // Domain services
 builder.Services.AddScoped<IAddressService, AddressService>();
@@ -144,15 +147,17 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Health check endpoint
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
+    .WithName("Health")
+    .AllowAnonymous();
 
 app.Run();
