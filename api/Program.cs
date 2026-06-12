@@ -131,7 +131,6 @@ app.MapControllers();
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
     .WithName("Health")
-    .WithOpenApi()
     .AllowAnonymous();
 
 app.Run();
