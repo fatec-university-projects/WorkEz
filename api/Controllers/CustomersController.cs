@@ -34,8 +34,37 @@ public class CustomersController(AppDbContext context, ICustomerService customer
     [HttpGet("by-user/{userId}")]
     public async Task<IActionResult> GetCustomerByUser(Guid userId)
     {
-        var entity = await context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.UserId == userId);
-        return entity is null ? NotFound() : Ok(entity);
+        var entity = await context.Customers
+            .Include(c => c.User)
+            .FirstOrDefaultAsync(c => c.UserId == userId);
+        if (entity is null)
+        {
+            var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user is not null)
+            {
+                entity = new Customer { UserId = userId };
+                context.Customers.Add(entity);
+                await context.SaveChangesAsync();
+                
+                // Re-fetch to populate navigation properties
+                entity = await context.Customers
+                    .Include(c => c.User)
+                    .FirstOrDefaultAsync(c => c.Id == entity.Id);
+            }
+        }
+        if (entity is null) return NotFound();
+
+        return Ok(new
+        {
+            id = entity.Id,
+            userId = entity.UserId,
+            name = entity.User?.Name ?? string.Empty,
+            email = entity.User?.Email ?? string.Empty,
+            phone = entity.User?.Phone,
+            photo = entity.User?.ProfilePicture,
+            birthDate = entity.BirthDate,
+            notes = entity.Notes
+        });
     }
 
     [AllowAnonymous]

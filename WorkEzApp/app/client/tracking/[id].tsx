@@ -1,9 +1,11 @@
+import { useState, useCallback, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, CheckCircle, Circle, MessageCircle, Star } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, Circle, MessageCircle, Star, User } from 'lucide-react-native';
 import { Button } from '../../../components/Button';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
+import { apiRequest } from '../../../services/api';
 
 interface Professional {
   id: string;
@@ -17,32 +19,85 @@ interface ServiceData {
   category: string;
   address: string;
   startTime: string;
-  status: 'accepted' | 'on-the-way' | 'in-progress' | 'waiting-payment' | 'completed';
-  professional: Professional;
+  status: 'open' | 'accepted' | 'on-the-way' | 'in-progress' | 'waiting-payment' | 'completed' | 'cancelled';
+  professional: Professional | null;
 }
 
 export default function ServiceTracking() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const [cancelling, setCancelling] = useState(false);
 
-  const { data: service, loading, error } = useFetch<ServiceData>(
+  const { data: service, loading, error, refetch } = useFetch<ServiceData>(
     id ? `/api/Services/${id}` : null
   );
 
+  useEffect(() => {
+    if (!id) return;
+    const interval = setInterval(() => {
+      refetch();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [id, refetch]);
+
   const getSteps = (status: string | undefined) => {
-    const statuses = ['accepted', 'on-the-way', 'in-progress', 'waiting-payment', 'completed'];
-    const currentIndex = status ? statuses.indexOf(status) : -1;
+    const statuses = ['open', 'accepted', 'on-the-way', 'in-progress', 'waiting-payment', 'completed'];
+    const normalizedStatus = status === 'ontheway' ? 'on-the-way' :
+                             status === 'inprogress' ? 'in-progress' :
+                             status === 'waitingpayment' ? 'waiting-payment' :
+                             status;
+    const currentIndex = normalizedStatus ? statuses.indexOf(normalizedStatus) : 0;
 
     return [
-      { label: 'Chamado aceito', completed: currentIndex >= 0 },
-      { label: 'Profissional a caminho', completed: currentIndex >= 1 },
-      { label: 'Serviço em andamento', completed: currentIndex >= 2 },
-      { label: 'Aguardando pagamento', completed: currentIndex >= 3 },
-      { label: 'Concluído', completed: currentIndex >= 4 },
+      { label: 'Aguardando aceitação', completed: currentIndex >= 0 },
+      { label: 'Chamado aceito', completed: currentIndex >= 1 },
+      { label: 'Profissional a caminho', completed: currentIndex >= 2 },
+      { label: 'Serviço em andamento', completed: currentIndex >= 3 },
+      { label: 'Aguardando pagamento', completed: currentIndex >= 4 },
+      { label: 'Concluído', completed: currentIndex >= 5 },
     ];
   };
 
   const steps = getSteps(service?.status);
+
+  const handleCancelService = async () => {
+    const isDisplaced = service?.status === 'on-the-way' || service?.status === 'ontheway';
+    const alertMessage = isDisplaced
+      ? 'Tem certeza que deseja cancelar este serviço? Como o profissional já está a caminho, será cobrada uma taxa de deslocamento.'
+      : 'Tem certeza que deseja cancelar este serviço?';
+
+    Alert.alert(
+      'Cancelar chamado',
+      alertMessage,
+      [
+        { text: 'Não', style: 'cancel' },
+        {
+          text: 'Sim, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              const res = await apiRequest(`/api/Services/${id}/status?status=false`, {
+                method: 'PATCH'
+              });
+              if (res.error) {
+                Alert.alert('Erro', res.error);
+              } else {
+                Alert.alert('Sucesso', 'Serviço cancelado com sucesso!', [
+                  { text: 'OK', onPress: () => router.back() }
+                ]);
+              }
+            } catch (err) {
+              console.error(err);
+              Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+            } finally {
+              setCancelling(false);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -76,66 +131,113 @@ export default function ServiceTracking() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Status do serviço</Text>
 
-              <View style={styles.stepsContainer}>
-                {steps.map((step, index) => (
-                  <View key={index} style={styles.stepRow}>
-                    <View style={styles.stepIconColumn}>
-                      {step.completed ? (
-                        <View style={styles.completedIconWrapper}>
-                          <CheckCircle size={16} color="#FFF" />
-                        </View>
-                      ) : (
-                        <Circle size={24} color={WorkEzTheme.colors.border} />
-                      )}
-                      {index < steps.length - 1 && (
-                        <View
-                          style={[
-                            styles.stepLine,
-                            step.completed ? styles.stepLineCompleted : styles.stepLinePending
-                          ]}
-                        />
-                      )}
-                    </View>
-                    <View style={styles.stepTextContent}>
-                      <Text
-                        style={[
-                          styles.stepLabel,
-                          step.completed ? styles.stepLabelCompleted : styles.stepLabelPending
-                        ]}
-                      >
-                        {step.label}
-                      </Text>
-                      {index === 2 && step.completed && service?.status === 'in-progress' && (
-                        <Text style={styles.stepSubtext}>
-                          Serviço iniciado recentemente
-                        </Text>
-                      )}
-                    </View>
+              {service?.status === 'cancelled' ? (
+                <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                  <Text style={{ color: WorkEzTheme.colors.danger, fontWeight: '600', fontSize: 16 }}>
+                    Este serviço foi Cancelado.
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <View style={{ padding: 12, backgroundColor: '#EFF6FF', borderRadius: 12, borderWidth: 1, borderColor: '#BFDBFE', marginBottom: 16, alignItems: 'center' }}>
+                    <Text style={{ color: '#1D4ED8', fontWeight: '600', fontSize: 15, textAlign: 'center' }}>
+                      {service?.status === 'open' && 'Aguardando profissionais aceitarem seu chamado...'}
+                      {(service?.status === 'accepted' || service?.status === 'undernegotiation') && 'Profissional aceitou seu chamado!'}
+                      {(service?.status === 'on-the-way' || service?.status === 'ontheway') && 'O profissional está a caminho do seu local!'}
+                      {(service?.status === 'in-progress' || service?.status === 'inprogress') && 'Serviço em andamento...'}
+                      {(service?.status === 'waiting-payment' || service?.status === 'waitingpayment') && 'Serviço concluído! Aguardando seu pagamento.'}
+                      {service?.status === 'completed' && 'Serviço concluído com sucesso!'}
+                    </Text>
                   </View>
-                ))}
-              </View>
+
+                  <View style={styles.stepsContainer}>
+                  {steps.map((step, index) => (
+                    <View key={index} style={styles.stepRow}>
+                      <View style={styles.stepIconColumn}>
+                        {step.completed ? (
+                          <View style={styles.completedIconWrapper}>
+                            <CheckCircle size={16} color="#FFF" />
+                          </View>
+                        ) : (
+                          <Circle size={24} color={WorkEzTheme.colors.border} />
+                        )}
+                        {index < steps.length - 1 && (
+                          <View
+                            style={[
+                              styles.stepLine,
+                              step.completed ? styles.stepLineCompleted : styles.stepLinePending
+                            ]}
+                          />
+                        )}
+                      </View>
+                      <View style={styles.stepTextContent}>
+                        <Text
+                          style={[
+                            styles.stepLabel,
+                            step.completed ? styles.stepLabelCompleted : styles.stepLabelPending
+                          ]}
+                        >
+                          {step.label}
+                        </Text>
+                        {index === 1 && (service?.status === 'accepted' || service?.status === 'undernegotiation') && (
+                          <Text style={[styles.stepSubtext, { color: '#10B981' }]}>
+                            Cancelamento gratuito disponível
+                          </Text>
+                        )}
+                        {index === 2 && (service?.status === 'on-the-way' || service?.status === 'ontheway') && (
+                          <Text style={[styles.stepSubtext, { color: '#F59E0B' }]}>
+                            Cancelamento sujeito a taxa de deslocamento
+                          </Text>
+                        )}
+                        {index === 3 && (service?.status === 'in-progress' || service?.status === 'inprogress') && (
+                          <Text style={[styles.stepSubtext, { color: '#EF4444' }]}>
+                            Cancelamento indisponível
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </>
+              )}
             </View>
 
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Profissional</Text>
-              <View style={styles.proRow}>
-                <Image
-                  source={{ uri: service?.professional?.photo || "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop" }}
-                  style={styles.proAvatar}
-                />
-                <View style={styles.proInfo}>
-                  <Text style={styles.proName}>{service?.professional?.name || 'Profissional'}</Text>
-                  <Text style={styles.proDetails}>
-                    {service?.category || 'Serviço'} • <Star size={16} color={WorkEzTheme.colors.warning} /> {service?.professional?.rating || 'N/A'}
+              {service?.professional ? (
+                <View style={styles.proRow}>
+                  {service.professional.photo ? (
+                    <Image
+                      source={{ uri: service.professional.photo }}
+                      style={styles.proAvatar}
+                    />
+                  ) : (
+                    <View style={[styles.proAvatar, styles.proAvatarPlaceholder]}>
+                      <User size={24} color={WorkEzTheme.colors.textSecondary} />
+                    </View>
+                  )}
+                  <View style={styles.proInfo}>
+                    <Text style={styles.proName}>{service.professional.name}</Text>
+                    <Text style={styles.proDetails}>
+                      {service.category || 'Serviço'} • <Star size={16} color={WorkEzTheme.colors.warning} /> {service.professional.rating?.toFixed(1) || 'N/A'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.messageButton}
+                    onPress={() => router.push(`/client/chat/${service.professional?.id}`)}
+                  >
+                    <MessageCircle size={20} color={WorkEzTheme.colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={{ paddingVertical: 8 }}>
+                  <Text style={{ color: WorkEzTheme.colors.textSecondary, fontSize: 15 }}>
+                    {service?.status === 'cancelled' 
+                      ? 'Serviço cancelado.' 
+                      : 'Aguardando aceitação de um profissional...'}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.messageButton}
-                  onPress={() => router.push(`/client/chat/${service?.professional?.id || 1}`)}
-                >
-                  <MessageCircle size={20} color={WorkEzTheme.colors.primary} />
-                </TouchableOpacity>
-              </View>
+              )}
             </View>
 
             <View style={styles.card}>
@@ -156,13 +258,26 @@ export default function ServiceTracking() {
               </View>
             </View>
 
-            <Button
-              variant="secondary"
-              fullWidth
-              onPress={() => router.push(`/cancel/${id}`)}
-            >
-              Cancelar serviço
-            </Button>
+            {service?.status === 'waiting-payment' && (
+              <Button
+                fullWidth
+                onPress={() => router.push(`/client/payment/${id}` as any)}
+                style={{ marginBottom: 12 }}
+              >
+                Efetuar pagamento
+              </Button>
+            )}
+
+            {service && (service.status === 'open' || service.status === 'accepted' || service.status === 'on-the-way' || service.status === 'ontheway') && (
+              <Button
+                variant="secondary"
+                fullWidth
+                onPress={handleCancelService}
+                disabled={cancelling}
+              >
+                {cancelling ? <ActivityIndicator color="#FFF" /> : 'Cancelar chamado'}
+              </Button>
+            )}
           </>
         )}
       </ScrollView>
@@ -280,6 +395,11 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     resizeMode: 'cover',
+  },
+  proAvatarPlaceholder: {
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   proInfo: {
     flex: 1,

@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useMemo, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ServiceCard } from '../../components/ServiceCard';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
@@ -20,12 +20,24 @@ export default function MyServices() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'in-progress' | 'completed' | 'cancelled'>('in-progress');
 
-  const { data: fetchedServices, loading, error } = useFetch<Service[]>(
-    user ? `/api/Services/by-customer/${user.id}` : null
+  const { data: customer } = useFetch<any>(
+    user ? `/api/Customers/by-user/${user.id}` : null
+  );
+
+  const { data: fetchedServices, loading, error, refetch } = useFetch<Service[]>(
+    customer ? `/api/Services/by-customer/${customer.id}` : null
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (customer) {
+        refetch();
+      }
+    }, [customer, refetch])
   );
 
   const services = useMemo(() => {
-    const defaultGrouping: Record<string, Service[]> = {
+    const defaultGrouping: Record<'in-progress' | 'completed' | 'cancelled', Service[]> = {
       'in-progress': [],
       'completed': [],
       'cancelled': [],
@@ -33,9 +45,19 @@ export default function MyServices() {
     if (!fetchedServices) return defaultGrouping;
 
     return fetchedServices.reduce((acc, curr) => {
-      const status = curr.status || 'in-progress';
-      if (!acc[status]) acc[status] = [];
-      acc[status].push(curr);
+      const rawStatus = curr.status || 'in-progress';
+      const s = rawStatus.toLowerCase().replace(/[^a-z]/g, '');
+      let mappedStatus: 'in-progress' | 'completed' | 'cancelled' = 'in-progress';
+
+      if (s === 'completed' || s === 'concluido' || s === 'done' || s === 'finalizado') {
+        mappedStatus = 'completed';
+      } else if (s === 'cancelled' || s === 'cancelado' || s === 'refused') {
+        mappedStatus = 'cancelled';
+      } else {
+        mappedStatus = 'in-progress';
+      }
+
+      acc[mappedStatus].push(curr);
       return acc;
     }, defaultGrouping);
   }, [fetchedServices]);

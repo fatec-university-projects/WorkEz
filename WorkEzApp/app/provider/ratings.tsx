@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Star } from 'lucide-react-native';
 import { RatingCard } from '../../components/RatingCard';
@@ -26,9 +27,49 @@ export default function ReceivedRatings() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const { data: ratingsData, loading, error } = useFetch<RatingsData>(
-    user ? `/api/ServiceProviders/${user.id}/ratings` : null
+  const { data: rawReviews, loading, error } = useFetch<any[]>(
+    user ? `/api/Reviews/by-user/${user.id}` : null
   );
+
+  const ratingsData: RatingsData | null = useMemo(() => {
+    if (!rawReviews) return null;
+
+    const total = rawReviews.length;
+    const sum = rawReviews.reduce((acc, curr) => acc + (curr.rating || 0), 0);
+    const average = total > 0 ? sum / total : 0;
+
+    const mockNames = ['Mariana Souza', 'Lucas Ferreira', 'Beatriz Santos', 'Guilherme Silva', 'Fernanda Lima'];
+    const mockPhotos = [
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
+      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop'
+    ];
+    const mockTags = ['Pontual', 'Educado', 'Organizado', 'Recomendo'];
+
+    const ratings = rawReviews.map((rev, index) => {
+      const name = mockNames[index % mockNames.length];
+      const photo = mockPhotos[index % mockPhotos.length];
+      const tag = mockTags[index % mockTags.length];
+
+      return {
+        id: rev.id || String(index),
+        clientName: name,
+        clientPhoto: photo,
+        rating: rev.rating || 0,
+        comment: rev.comment || 'Nenhum comentário deixado.',
+        date: 'Recentemente',
+        tags: [tag]
+      };
+    });
+
+    return {
+      average,
+      total,
+      ratings
+    };
+  }, [rawReviews]);
 
   return (
     <View style={styles.container}>

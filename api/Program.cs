@@ -7,6 +7,8 @@ using WorkEz.Api.Data;
 using WorkEz.Api.Extensions;
 using WorkEz.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using WorkEz.Api.Entities;
+using WorkEz.Api.Enums;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -112,7 +114,32 @@ using (var scope = app.Services.CreateScope())
         var tableCount = Convert.ToInt32(result);
 
         if (tableCount == 0)
+        {
             await db.Database.MigrateAsync();
+        }
+
+        // Programmatic self-healing image column additions
+        using (var alterCmd = connection.CreateCommand())
+        {
+            alterCmd.CommandText = @"
+                ALTER TABLE ""Services"" ADD COLUMN IF NOT EXISTS ""ImageUrl"" VARCHAR(1000) NULL;
+            ";
+            await alterCmd.ExecuteNonQueryAsync();
+        }
+
+        // Programmatic category seeding
+        if (!await db.Categories.AnyAsync())
+        {
+            db.Categories.AddRange(
+                new Category { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), Name = "Encanador", Description = "Reparos e instalações hidráulicas", Status = CategoryStatus.Active },
+                new Category { Id = Guid.Parse("22222222-2222-2222-2222-222222222222"), Name = "Eletricista", Description = "Instalações e manutenções elétricas", Status = CategoryStatus.Active },
+                new Category { Id = Guid.Parse("33333333-3333-3333-3333-333333333333"), Name = "Diarista", Description = "Limpeza residencial e comercial", Status = CategoryStatus.Active },
+                new Category { Id = Guid.Parse("44444444-4444-4444-4444-444444444444"), Name = "Pintor", Description = "Pintura de paredes, tetos e portões", Status = CategoryStatus.Active },
+                new Category { Id = Guid.Parse("55555555-5555-5555-5555-555555555555"), Name = "Montador", Description = "Montagem de móveis e decorações", Status = CategoryStatus.Active },
+                new Category { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), Name = "Técnico geral", Description = "Assistência técnica de aparelhos", Status = CategoryStatus.Active }
+            );
+            await db.SaveChangesAsync();
+        }
     }
     else
     {

@@ -5,7 +5,7 @@ import { WorkEzTheme } from '../constants/theme';
 interface ServiceCardProps {
   category: string;
   description: string;
-  status: 'in-progress' | 'completed' | 'cancelled';
+  status: string;
   date: string;
   professional?: string;
   onClick?: () => void;
@@ -19,13 +19,33 @@ export function ServiceCard({
   professional,
   onClick
 }: ServiceCardProps) {
-  const statusConfig = {
+  const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
+    'pending': { color: '#EA580C', bg: 'rgba(234, 88, 12, 0.1)', label: 'Pendente' },
     'in-progress': { color: '#2563EB', bg: 'rgba(37, 99, 235, 0.1)', label: 'Em andamento' },
     'completed': { color: WorkEzTheme.colors.primary, bg: 'rgba(38, 255, 245, 0.1)', label: 'Concluído' },
     'cancelled': { color: WorkEzTheme.colors.textSecondary, bg: 'rgba(148, 163, 184, 0.1)', label: 'Cancelado' },
   };
 
-  const config = statusConfig[status];
+  const getNormalizedStatus = (rawStatus: string): string => {
+    if (!rawStatus) return 'pending';
+    const s = rawStatus.toLowerCase().replace(/[^a-z]/g, '');
+    if (s === 'pending' || s === 'open' || s === 'aberto' || s === 'inanalysis' || s === 'analise' || s === 'emanalise') {
+      return 'pending';
+    }
+    if (s === 'inprogress' || s === 'progress' || s === 'andamento' || s === 'emandamento') {
+      return 'in-progress';
+    }
+    if (s === 'completed' || s === 'concluido' || s === 'done' || s === 'finalizado') {
+      return 'completed';
+    }
+    if (s === 'cancelled' || s === 'cancelado' || s === 'refused') {
+      return 'cancelled';
+    }
+    return 'pending';
+  };
+
+  const normalizedStatus = getNormalizedStatus(status);
+  const config = statusConfig[normalizedStatus] || statusConfig['pending'];
 
   return (
     <TouchableOpacity

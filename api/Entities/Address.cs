@@ -36,6 +36,7 @@ public class Address
     public AddressType AddressType { get; set; } = AddressType.Home;
 
     // ── Navigation properties ──────────────────────────────────────────────────
+    [Microsoft.AspNetCore.Mvc.ModelBinding.Validation.ValidateNever]
     public User User { get; set; } = null!;
     public ICollection<Service> Services { get; set; } = [];
 }

@@ -21,6 +21,8 @@ public class Service
 
     public string? Description { get; set; }
 
+    public string? ImageUrl { get; set; }
+
     public DateTime? DesiredDate { get; set; }
 
     public UrgencyLevel UrgencyLevel { get; set; } = UrgencyLevel.Low;
@@ -41,8 +43,11 @@ public class Service
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     // ── Navigation properties ──────────────────────────────────────────────────
+    [Microsoft.AspNetCore.Mvc.ModelBinding.Validation.ValidateNever]
     public Customer Customer { get; set; } = null!;
+    [Microsoft.AspNetCore.Mvc.ModelBinding.Validation.ValidateNever]
     public Category Category { get; set; } = null!;
+    [Microsoft.AspNetCore.Mvc.ModelBinding.Validation.ValidateNever]
     public Address Address { get; set; } = null!;
     public ICollection<Proposal> Proposals { get; set; } = [];
     public Appointment? Appointment { get; set; }

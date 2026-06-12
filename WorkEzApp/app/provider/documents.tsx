@@ -18,9 +18,17 @@ export default function DocumentVerification() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const { data: userDocs, loading, error } = useFetch<DocumentStatus[]>(
-    user ? `/api/Providers/${user.id}/documents` : null
+  const { data: rawProvider, loading, error } = useFetch<any>(
+    user ? `/api/ServiceProviders/by-user/${user.id}` : null
   );
+
+  const userDocs: DocumentStatus[] = [
+    { id: '1', type: 'rg', label: 'RG ou CNH', required: true, status: 'pending' },
+    { id: '2', type: 'cpf', label: 'CPF', required: true, status: 'pending' },
+    { id: '3', type: 'address', label: 'Comprovante de residência', required: true, status: 'pending' },
+    { id: '4', type: 'bank', label: 'Dados bancários', required: true, status: 'pending' },
+    { id: '5', type: 'criminal', label: 'Antecedentes criminais', required: false, status: 'pending' },
+  ];
 
   const getIconForDoc = (type: string) => {
     switch (type) {

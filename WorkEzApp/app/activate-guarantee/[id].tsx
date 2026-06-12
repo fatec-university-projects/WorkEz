@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Camera, AlertTriangle } from 'lucide-react-native';
 import { Button } from '../../components/Button';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 
 export default function ActivateGuarantee() {
   const router = useRouter();
@@ -44,12 +44,15 @@ export default function ActivateGuarantee() {
             Descreva o problema
           </Text>
 
-          <textarea
+          <TextInput
             value={description}
             onChangeText={setDescription}
             placeholder="Explique detalhadamente o que aconteceu..."
-            rows={6}
-            className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all resize-none"
+            multiline={true}
+            numberOfLines={6}
+            textAlignVertical="top"
+            style={{ minHeight: 120 }}
+            className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#2563EB] transition-all"
           />
         </View>
 

@@ -1,10 +1,10 @@
-import { Star } from 'lucide-react-native';
+import { Star, User } from 'lucide-react-native';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { WorkEzTheme } from '../constants/theme';
 
 interface RatingCardProps {
   clientName: string;
-  clientPhoto: string;
+  clientPhoto?: string;
   rating: number;
   comment: string;
   date: string;
@@ -22,10 +22,16 @@ export function RatingCard({
   return (
     <View style={styles.cardContainer}>
       <View style={styles.contentRow}>
-        <Image
-          source={{ uri: clientPhoto }}
-          style={styles.avatar}
-        />
+        {clientPhoto ? (
+          <Image
+            source={{ uri: clientPhoto }}
+            style={styles.avatar}
+          />
+        ) : (
+          <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
+            <User size={24} color={WorkEzTheme.colors.textSecondary} />
+          </View>
+        )}
 
         <View style={styles.infoContainer}>
           <View style={styles.headerRow}>

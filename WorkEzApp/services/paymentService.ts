@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiRequest } from './api';
+import { safeStorage as AsyncStorage } from './storage';
+import { apiRequest, STORAGE_KEY_ACCESS } from './api';
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ export interface PaymentStatusResponse {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 async function authHeaders(): Promise<Record<string, string>> {
-  const token = await AsyncStorage.getItem('@adega_access_token');
+  const token = await AsyncStorage.getItem(STORAGE_KEY_ACCESS);
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

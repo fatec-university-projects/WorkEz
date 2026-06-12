@@ -1,60 +1,192 @@
 import { useRouter } from 'expo-router';
 import { User, Wrench } from 'lucide-react-native';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { authService } from '../services/authService';
+import { useAuth } from '../contexts/AuthContext';
+import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WorkEzTheme } from '../constants/theme';
 
 export default function ProfileChoice() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { signIn } = useAuth();
+  const [loading, setLoading] = useState<'client' | 'provider' | null>(null);
+
+  const handleClientPress = async () => {
+    setLoading('client');
+    await authService.setSelectedRole('client');
+    setLoading(null);
+    router.push('/signup');
+  };
+
+  const handleProviderPress = async () => {
+    setLoading('provider');
+    await authService.setSelectedRole('provider');
+    setLoading(null);
+    router.push('/provider/signup');
+  };
 
   return (
-    <View className="flex-1 bg-white items-center justify-center p-8">
-      <Text className="text-3xl font-bold text-[#0F172A] text-center mb-2">
-        Como você quer usar o WorkEz?
-      </Text>
-      <Text className="text-[#94A3B8] text-center mb-12">
-        Escolha uma opção para continuar
-      </Text>
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <Text style={styles.title}>
+          Como você quer usar o WorkEz?
+        </Text>
+        <Text style={styles.subtitle}>
+          Escolha uma opção para continuar
+        </Text>
 
-      <View className="w-full max-w-sm gap-4">
-        {/* Card Cliente */}
-        <Pressable
-          onPress={() => router.push('/client')}
-          android_ripple={{ color: '#2563EB22' }}
-          className="w-full bg-white border-2 border-[#E2E8F0] rounded-2xl p-6 active:border-[#2563EB]"
-        >
-          <View className="flex-row items-center gap-4">
-            <View className="w-16 h-16 bg-[#EFF6FF] rounded-2xl items-center justify-center">
-              <User className="w-8 h-8" color="#2563EB" />
+        <View style={styles.cardsContainer}>
+          {/* Card Cliente */}
+          <Pressable
+            onPress={handleClientPress}
+            disabled={loading !== null}
+            style={({ pressed }) => StyleSheet.flatten([
+              styles.card,
+              pressed && styles.cardPressed,
+            ])}
+          >
+            <View style={styles.cardRow}>
+              <View style={[styles.iconWrapper, styles.clientIconWrapper]}>
+                {loading === 'client' ? (
+                  <ActivityIndicator color="#2563EB" />
+                ) : (
+                  <User size={32} color="#2563EB" />
+                )}
+              </View>
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.cardTitle}>Sou cliente</Text>
+                <Text style={styles.cardDescription}>Preciso contratar serviços</Text>
+              </View>
             </View>
-            <View className="flex-1">
-              <Text className="text-xl font-semibold text-[#0F172A]">Sou cliente</Text>
-              <Text className="text-sm text-[#94A3B8] mt-1">Preciso contratar serviços</Text>
-            </View>
-          </View>
-        </Pressable>
+          </Pressable>
 
-        {/* Card Prestador */}
-        <Pressable
-          onPress={() => router.push('/provider/signup')}
-          android_ripple={{ color: '#26FFF522' }}
-          className="w-full bg-white border-2 border-[#E2E8F0] rounded-2xl p-6 active:border-[#26FFF5]"
-        >
-          <View className="flex-row items-center gap-4">
-            <View className="w-16 h-16 bg-[#F0FFFD] rounded-2xl items-center justify-center">
-              <Wrench className="w-8 h-8" color="#26FFF5" />
+          {/* Card Prestador */}
+          <Pressable
+            onPress={handleProviderPress}
+            disabled={loading !== null}
+            style={({ pressed }) => StyleSheet.flatten([
+              styles.card,
+              pressed && styles.cardPressed,
+            ])}
+          >
+            <View style={styles.cardRow}>
+              <View style={[styles.iconWrapper, styles.providerIconWrapper]}>
+                {loading === 'provider' ? (
+                  <ActivityIndicator color="#26FFF5" />
+                ) : (
+                  <Wrench size={32} color="#26FFF5" />
+                )}
+              </View>
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.cardTitle}>Sou prestador</Text>
+                <Text style={styles.cardDescription}>Quero oferecer meus serviços</Text>
+              </View>
             </View>
-            <View className="flex-1">
-              <Text className="text-xl font-semibold text-[#0F172A]">Sou prestador</Text>
-              <Text className="text-sm text-[#94A3B8] mt-1">Quero oferecer meus serviços</Text>
-            </View>
-          </View>
-        </Pressable>
+          </Pressable>
+        </View>
       </View>
 
-      {/* Link de login — string SEMPRE dentro de <Text> */}
-      <Pressable
-        onPress={() => router.push('/login')}
-        className="mt-8"
-      ><Text className="text-[#94A3B8] text-sm">Já tenho uma conta</Text></Pressable>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 20 }]}>
+        <Pressable
+          onPress={() => router.push('/login')}
+          style={({ pressed }) => StyleSheet.flatten([
+            styles.loginLink,
+            pressed && styles.loginLinkPressed,
+          ])}
+        >
+          <Text style={styles.loginLinkText}>Já tenho uma conta</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  title: {
+    ...WorkEzTheme.typography['3xl'],
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
+    color: '#0F172A',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    ...WorkEzTheme.typography.base,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginBottom: 48,
+  },
+  cardsContainer: {
+    gap: 16,
+    width: '100%',
+  },
+  card: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    borderRadius: 20,
+    padding: 20,
+  },
+  cardPressed: {
+    borderColor: '#2563EB',
+    backgroundColor: '#F8FAFC',
+    transform: [{ scale: 0.98 }],
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconWrapper: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clientIconWrapper: {
+    backgroundColor: '#EFF6FF',
+  },
+  providerIconWrapper: {
+    backgroundColor: '#F0FFFD',
+  },
+  cardTextContainer: {
+    flex: 1,
+  },
+  cardTitle: {
+    ...WorkEzTheme.typography.lg,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: '#0F172A',
+  },
+  cardDescription: {
+    ...WorkEzTheme.typography.sm,
+    color: '#94A3B8',
+    marginTop: 4,
+  },
+  footer: {
+    alignItems: 'center',
+    paddingTop: 16,
+  },
+  loginLink: {
+    padding: 8,
+  },
+  loginLinkPressed: {
+    opacity: 0.7,
+  },
+  loginLinkText: {
+    ...WorkEzTheme.typography.sm,
+    color: '#94A3B8',
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
+  },
+});

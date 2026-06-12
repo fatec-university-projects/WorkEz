@@ -16,17 +16,14 @@ interface Reference {
 export default function References() {
   const router = useRouter();
   const { user } = useAuth();
-  const [references, setReferences] = useState<Reference[]>([{ name: '', phone: '' }]);
+  const [references, setReferences] = useState<Reference[]>([
+    { name: 'Maria Silva (Cliente)', phone: '(11) 98765-4321' },
+    { name: 'João Santos (Cliente)', phone: '(11) 99888-7766' }
+  ]);
 
-  const { data: existingRefs, loading, error } = useFetch<Reference[]>(
-    user ? `/api/Providers/${user.id}/references` : null
+  const { data: rawProvider, loading, error } = useFetch<any>(
+    user ? `/api/ServiceProviders/by-user/${user.id}` : null
   );
-
-  useEffect(() => {
-    if (existingRefs && existingRefs.length > 0) {
-      setReferences(existingRefs);
-    }
-  }, [existingRefs]);
 
   const addReference = () => {
     setReferences([...references, { name: '', phone: '' }]);

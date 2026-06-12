@@ -16,6 +16,7 @@ public class Customer
     public string? Notes { get; set; }
 
     // ── Navigation properties ──────────────────────────────────────────────────
+    [Microsoft.AspNetCore.Mvc.ModelBinding.Validation.ValidateNever]
     public User User { get; set; } = null!;
     public ICollection<Service> Services { get; set; } = [];
     public ICollection<Appointment> Appointments { get; set; } = [];

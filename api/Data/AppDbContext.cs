@@ -207,6 +207,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(s => s.Id).ValueGeneratedNever();
             entity.Property(s => s.Title).IsRequired().HasMaxLength(300);
             entity.Property(s => s.Description).HasMaxLength(3000);
+            entity.Property(s => s.ImageUrl).HasMaxLength(1000);
             entity.Property(s => s.UrgencyLevel).HasConversion<string>().HasMaxLength(50).IsRequired();
             entity.Property(s => s.ServiceStatus).HasConversion<string>().HasMaxLength(50).IsRequired();
             entity.Property(s => s.UpdatedAt).IsRequired();

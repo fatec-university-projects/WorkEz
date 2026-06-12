@@ -19,7 +19,6 @@ export function BottomNav({ type }: BottomNavProps) {
   const clientNav: NavItem[] = [
     { icon: Home, label: 'Início', path: '/client' },
     { icon: Briefcase, label: 'Serviços', path: '/client/services' },
-    { icon: Heart, label: 'Favoritos', path: '/client/favorites' },
     { icon: User, label: 'Perfil', path: '/client/profile' },
   ];
 

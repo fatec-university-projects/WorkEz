@@ -1,8 +1,9 @@
-import { useRouter } from 'expo-router';
-import { Star, Award, Image as ImageIcon } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
+import { Star, Award, Image as ImageIcon, User, LogOut } from 'lucide-react-native';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
-import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
@@ -26,11 +27,41 @@ interface ProviderProfileData {
 
 export default function ProviderProfile() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
 
-  const { data: profile, loading, error } = useFetch<ProviderProfileData>(
-    user ? `/api/ServiceProviders/${user.id}` : null
+  const handleLogout = () => {
+    signOut();
+    router.replace('/' as any);
+  };
+
+  const { data: rawProfile, loading, error, refetch } = useFetch<any>(
+    user ? `/api/ServiceProviders/by-user/${user.id}` : null
   );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        refetch();
+      }
+    }, [user, refetch])
+  );
+
+  const profile: ProviderProfileData | null = rawProfile ? {
+    id: rawProfile.id,
+    name: rawProfile.name || user?.name || 'Profissional',
+    photo: rawProfile.photo || null,
+    rating: rawProfile.averageRating ?? 0,
+    servicesCompleted: rawProfile.completedServicesCount ?? 0,
+    specialties: rawProfile.specialties ?? [],
+    description: rawProfile.professionalDescription ?? 'Descrição do profissional indisponível.',
+    verified: rawProfile.documentVerified ?? false,
+    portfolio: rawProfile.portfolio ?? [],
+    reviewStats: rawProfile.reviewStats ?? {
+      average: rawProfile.averageRating ?? 0,
+      total: rawProfile.completedServicesCount ?? 0,
+      positivePercentage: 100
+    }
+  } : null;
 
   return (
     <View style={styles.container}>
@@ -53,10 +84,16 @@ export default function ProviderProfile() {
             <View style={styles.card}>
               <View style={styles.profileRow}>
                 <View style={styles.avatarWrapper}>
-                  <Image
-                    source={{ uri: profile?.photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop' }}
-                    style={styles.avatar}
-                  />
+                  {profile?.photo ? (
+                    <Image
+                      source={{ uri: profile.photo }}
+                      style={styles.avatar}
+                    />
+                  ) : (
+                    <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                      <User size={36} color={WorkEzTheme.colors.textSecondary} />
+                    </View>
+                  )}
                 </View>
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileName}>
@@ -98,42 +135,6 @@ export default function ProviderProfile() {
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
                 <View style={styles.cardTitleRow}>
-                  <ImageIcon size={20} color={WorkEzTheme.colors.text} />
-                  <Text style={styles.cardTitle}>Portfólio</Text>
-                </View>
-                <Button
-                  variant="ghost"
-                  onPress={() => router.push('/provider/portfolio')}
-                  style={styles.ghostBtn}
-                >
-                  <Text style={styles.ghostBtnText}>Ver todos</Text>
-                </Button>
-              </View>
-
-              <View style={styles.portfolioGrid}>
-                {profile?.portfolio?.slice(0, 3).map((img, index) => (
-                  <View key={index} style={styles.portfolioItem}>
-                    <Image source={{ uri: img }} style={styles.portfolioImg} />
-                  </View>
-                ))}
-                {(!profile?.portfolio || profile.portfolio.length === 0) && (
-                  <Text style={styles.emptyText}>Nenhuma imagem no portfólio.</Text>
-                )}
-              </View>
-
-              <Button
-                variant="secondary"
-                fullWidth
-                style={{ marginTop: 16 }}
-                onPress={() => router.push('/provider/portfolio')}
-              >
-                Adicionar trabalho
-              </Button>
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.cardTitleRow}>
                   <Award size={20} color={WorkEzTheme.colors.text} />
                   <Text style={styles.cardTitle}>Avaliações</Text>
                 </View>
@@ -161,6 +162,14 @@ export default function ProviderProfile() {
                 </View>
               </View>
             </View>
+
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.logoutButton}
+            >
+              <LogOut size={20} color={WorkEzTheme.colors.danger} />
+              <Text style={styles.logoutText}>Sair</Text>
+            </TouchableOpacity>
           </>
         )}
       </ScrollView>
@@ -229,6 +238,13 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     resizeMode: 'cover',
+  },
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileInfo: {
     flex: 1,
@@ -341,5 +357,28 @@ const styles = StyleSheet.create({
   statLabel: {
     ...WorkEzTheme.typography.sm,
     color: WorkEzTheme.colors.textSecondary,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: WorkEzTheme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    marginTop: 8,
+  },
+  logoutText: {
+    flex: 1,
+    ...WorkEzTheme.typography.base,
+    color: WorkEzTheme.colors.danger,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
   },
 });

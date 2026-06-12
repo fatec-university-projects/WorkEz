@@ -27,6 +27,7 @@ public class ServiceProvider
     public AvailabilityStatus AvailabilityStatus { get; set; } = AvailabilityStatus.Available;
 
     // ── Navigation properties ──────────────────────────────────────────────────
+    [Microsoft.AspNetCore.Mvc.ModelBinding.Validation.ValidateNever]
     public User User { get; set; } = null!;
     public ICollection<ProviderCategory> ProviderCategories { get; set; } = [];
     public ICollection<ServiceArea> ServiceAreas { get; set; } = [];

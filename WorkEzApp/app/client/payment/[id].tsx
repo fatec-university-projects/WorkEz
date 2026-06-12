@@ -1,253 +1,216 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  TouchableOpacity,
-  Alert,
-  Clipboard,
-  Image,
-} from 'react-native';
-import { ArrowLeft, CheckCircle, Clock, Copy, QrCode, RefreshCw, XCircle } from 'lucide-react-native';
-import { paymentService, CreatePaymentResponse } from '../../../services/paymentService';
+import { useState, useEffect } from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft, CreditCard, Shield, DollarSign, ExternalLink } from 'lucide-react-native';
+import { Button } from '../../../components/Button';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView, StyleSheet } from 'react-native';
+import { useFetch } from '../../../hooks/useFetch';
+import { paymentService } from '../../../services/paymentService';
 import { WorkEzTheme } from '../../../constants/theme';
-
-const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
+import * as WebBrowser from 'expo-web-browser';
 
 export default function Payment() {
-  const router                        = useRouter();
-  const { id: appointmentId }         = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { id } = useLocalSearchParams(); // service id
+  const [paying, setPaying] = useState(false);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
-  const [loading, setLoading]         = useState(true);
-  const [payment, setPayment]         = useState<CreatePaymentResponse | null>(null);
-  const [status, setStatus]           = useState<string>('Pending');
-  const [error, setError]             = useState<string | null>(null);
-  const [copied, setCopied]           = useState(false);
-  const [polling, setPolling]         = useState(false);
+  // Fetch service details
+  const { data: service, loading, error } = useFetch<any>(
+    id ? `/api/Services/${id}` : null
+  );
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // ── Create billing on mount ────────────────────────────────────────────────
+  // Fetch or resume existing payment once service details are loaded
   useEffect(() => {
-    if (!appointmentId) return;
+    if (!service || !service.appointmentId) return;
 
-    (async () => {
-      setLoading(true);
-      const { data, error: err } = await paymentService.createPayment(appointmentId);
-      if (err || !data) {
-        setError(err ?? 'Não foi possível criar o pagamento.');
-      } else {
-        setPayment(data);
-        setStatus(data.status);
-        if (data.status === 'Pending') startPolling(data.paymentId);
-      }
-      setLoading(false);
-    })();
+    paymentService.getPaymentByAppointment(service.appointmentId)
+      .then(res => {
+        if (res.data) {
+          setPaymentId(res.data.paymentId);
+          setPaymentStatus(res.data.status);
+          setPaymentUrl(res.data.paymentUrl);
+        }
+      })
+      .catch(err => console.error('Error fetching existing payment:', err));
+  }, [service]);
 
-    return () => stopPolling();
-  }, [appointmentId]);
+  // If already paid, automatically forward to completed screen
+  useEffect(() => {
+    if (paymentStatus === 'Paid') {
+      router.replace(`/client/completed/${id}` as any);
+    }
+  }, [paymentStatus, id]);
 
-  // ── Polling ────────────────────────────────────────────────────────────────
-  const startPolling = useCallback((paymentId: string) => {
-    stopPolling();
-    pollRef.current = setInterval(async () => {
-      setPolling(true);
-      const { data } = await paymentService.getPaymentStatus(paymentId);
-      if (data) {
-        setStatus(data.status);
-        if (data.status !== 'Pending') {
-          stopPolling();
-          if (data.status === 'Paid') {
-            setTimeout(() => router.push('/client/completed/1'), 1200);
+  // Polling payment status from backend / AbacatePay
+  useEffect(() => {
+    if (!paymentId || paymentStatus === 'Paid') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await paymentService.getPaymentStatus(paymentId);
+        if (res.data) {
+          setPaymentStatus(res.data.status);
+          if (res.data.status === 'Paid') {
+            clearInterval(interval);
+            Alert.alert('Sucesso', 'Pagamento realizado com sucesso!', [
+              { text: 'OK', onPress: () => router.push(`/client/completed/${id}` as any) }
+            ]);
           }
         }
+      } catch (err) {
+        console.error('Error polling status:', err);
       }
-      setPolling(false);
-    }, POLL_INTERVAL_MS);
-  }, [router]);
+    }, 5000);
 
-  const stopPolling = () => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
+    return () => clearInterval(interval);
+  }, [paymentId, paymentStatus, id]);
+
+  const handlePay = async () => {
+    if (!service || !service.appointmentId) return;
+    setPaying(true);
+    try {
+      const res = await paymentService.createPayment(service.appointmentId);
+      if (res.error) {
+        Alert.alert('Erro ao processar pagamento', res.error);
+      } else if (res.data) {
+        setPaymentId(res.data.paymentId);
+        setPaymentStatus(res.data.status);
+        setPaymentUrl(res.data.paymentUrl);
+
+        if (res.data.paymentUrl) {
+          await WebBrowser.openBrowserAsync(res.data.paymentUrl);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Erro', 'Não foi possível se conectar ao servidor.');
+    } finally {
+      setPaying(false);
     }
   };
 
-  // ── Copy PIX code ──────────────────────────────────────────────────────────
-  const copyPixCode = () => {
-    if (!payment?.pixCode) return;
-    Clipboard.setString(payment.pixCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // ── Status helpers ────────────────────────────────────────────────────────
-  const isPaid    = status === 'Paid';
-  const isExpired = status === 'Expired' || status === 'Cancelled';
-
-  // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
-        <Text style={styles.loadingText}>Gerando cobrança PIX...</Text>
       </View>
     );
   }
 
-  if (error) {
+  if (error || !service) {
     return (
-      <View style={styles.centered}>
-        <XCircle size={48} color={WorkEzTheme.colors.danger} />
-        <Text style={styles.errorTitle}>Erro ao criar pagamento</Text>
-        <Text style={styles.errorDesc}>{error}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={() => router.back()}>
-          <Text style={styles.retryText}>Voltar</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (isPaid) {
-    return (
-      <View style={styles.centered}>
-        <CheckCircle size={64} color={WorkEzTheme.colors.primary} />
-        <Text style={styles.successTitle}>Pagamento confirmado!</Text>
-        <Text style={styles.successDesc}>
-          Seu pagamento foi recebido. Redirecionando...
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>
+          {error || 'Não foi possível carregar o serviço.'}
         </Text>
+        <Button onPress={() => router.back()}>Voltar</Button>
       </View>
     );
   }
 
-  if (isExpired) {
-    return (
-      <View style={styles.centered}>
-        <XCircle size={64} color={WorkEzTheme.colors.danger} />
-        <Text style={styles.errorTitle}>Pagamento expirado</Text>
-        <Text style={styles.errorDesc}>O prazo para pagamento se encerrou.</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={() => router.back()}>
-          <Text style={styles.retryText}>Voltar e tentar novamente</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const priceVal = service.price || 150.00;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Pagamento via PIX</Text>
-        {polling && <ActivityIndicator size="small" color={WorkEzTheme.colors.primary} />}
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.iconButton}
+          >
+            <ArrowLeft size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Pagamento</Text>
+        </View>
       </View>
 
       <View style={styles.content}>
-        {/* Amount */}
-        <View style={styles.amountCard}>
-          <Text style={styles.amountLabel}>Valor a pagar</Text>
-          <Text style={styles.amountValue}>
-            R$ {payment?.amount?.toFixed(2).replace('.', ',')}
-          </Text>
-          {payment?.expiresAt && (
-            <View style={styles.expiryRow}>
-              <Clock size={14} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.expiryText}>
-                Expira em {new Date(payment.expiresAt).toLocaleTimeString('pt-BR', {
-                  hour: '2-digit', minute: '2-digit',
-                })}
+        {/* Service summary */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Resumo do serviço</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Profissional</Text>
+            <Text style={styles.value}>{service.professional?.name || 'Profissional'}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Serviço</Text>
+            <Text style={styles.value}>{service.category}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>R$ {priceVal.toFixed(2).replace('.', ',')}</Text>
+          </View>
+        </View>
+
+        {/* Payment Methods */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Forma de pagamento</Text>
+          
+          {/* AbacatePay notice */}
+          <View style={styles.noticeBox}>
+            <DollarSign size={20} color="#10B981" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.noticeTitle}>Processado por AbacatePay</Text>
+              <Text style={styles.noticeText}>
+                Seus pagamentos são processados de forma 100% segura através do AbacatePay via PIX ou Cartão.
+              </Text>
+            </View>
+          </View>
+
+          {paymentUrl ? (
+            <TouchableOpacity
+              onPress={async () => {
+                if (paymentUrl) await WebBrowser.openBrowserAsync(paymentUrl);
+              }}
+              style={styles.billingActiveBtn}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                <CreditCard size={24} color="#2563EB" />
+                <View>
+                  <Text style={styles.billingActiveTitle}>Fatura AbacatePay Gerada</Text>
+                  <Text style={styles.billingActiveSubtitle}>Clique para abrir a fatura</Text>
+                </View>
+              </View>
+              <ExternalLink size={20} color="#2563EB" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.billingNotice}>
+              <Text style={styles.billingNoticeText}>
+                Clique no botão abaixo para gerar a fatura de pagamento segura no AbacatePay.
               </Text>
             </View>
           )}
         </View>
 
-        {/* QR Code */}
-        {payment?.pixQrCode ? (
-          <View style={styles.qrCard}>
-            <View style={styles.qrHeader}>
-              <QrCode size={20} color={WorkEzTheme.colors.text} />
-              <Text style={styles.qrTitle}>QR Code PIX</Text>
-            </View>
-            <Text style={styles.qrDesc}>
-              Abra seu banco, escolha pagar via PIX e escaneie o código abaixo
+        {/* Guarantee Info */}
+        <View style={styles.shieldNotice}>
+          <Shield size={20} color="#2563EB" style={{ marginTop: 2 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.shieldTitle}>Pagamento seguro</Text>
+            <Text style={styles.shieldText}>
+              Seu pagamento é protegido pelo WorkEz. O profissional só recebe após a conclusão do serviço.
             </Text>
-            <View style={styles.qrImageWrapper}>
-              <Image
-                source={{ uri: `data:image/png;base64,${payment.pixQrCode}` }}
-                style={styles.qrImage}
-                resizeMode="contain"
-              />
-            </View>
           </View>
-        ) : (
-          <View style={styles.qrCard}>
-            <View style={styles.qrHeader}>
-              <QrCode size={20} color={WorkEzTheme.colors.text} />
-              <Text style={styles.qrTitle}>QR Code PIX</Text>
-            </View>
-            <View style={styles.qrPlaceholder}>
-              <RefreshCw size={32} color={WorkEzTheme.colors.textSecondary} />
-              <Text style={styles.qrPlaceholderText}>
-                QR Code gerado pelo gateway. Acesse o link abaixo para pagar.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* PIX Copia e Cola */}
-        {payment?.pixCode && (
-          <View style={styles.pixCodeCard}>
-            <Text style={styles.pixCodeLabel}>PIX Copia e Cola</Text>
-            <View style={styles.pixCodeRow}>
-              <Text style={styles.pixCodeValue} numberOfLines={2} ellipsizeMode="middle">
-                {payment.pixCode}
-              </Text>
-              <TouchableOpacity style={styles.copyBtn} onPress={copyPixCode}>
-                <Copy size={18} color={copied ? WorkEzTheme.colors.primary : WorkEzTheme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            {copied && (
-              <Text style={styles.copiedText}>✓ Copiado para a área de transferência!</Text>
-            )}
-          </View>
-        )}
-
-        {/* Payment link fallback */}
-        {payment?.paymentUrl && !payment.pixCode && (
-          <TouchableOpacity
-            style={styles.linkBtn}
-            onPress={() => Alert.alert('Link de pagamento', payment.paymentUrl ?? '')}
-          >
-            <Text style={styles.linkBtnText}>Abrir página de pagamento</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Status indicator */}
-        <View style={styles.statusCard}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>
-            Aguardando confirmação do pagamento...
-          </Text>
         </View>
+      </View>
 
-        {/* Instructions */}
-        <View style={styles.instructionsCard}>
-          <Text style={styles.instructionsTitle}>Como pagar</Text>
-          {[
-            '1. Abra o aplicativo do seu banco',
-            '2. Selecione a opção PIX',
-            '3. Escaneie o QR Code ou use o código copia e cola',
-            '4. Confirme o pagamento de R$ ' + payment?.amount?.toFixed(2).replace('.', ','),
-            '5. Aguarde a confirmação automática',
-          ].map((step, i) => (
-            <Text key={i} style={styles.instructionStep}>{step}</Text>
-          ))}
-        </View>
+      <View style={styles.footer}>
+        <Button
+          fullWidth
+          onPress={paymentUrl ? async () => { await WebBrowser.openBrowserAsync(paymentUrl); } : handlePay}
+          disabled={paying}
+        >
+          {paying ? (
+            <ActivityIndicator color="#FFF" />
+          ) : paymentUrl ? (
+            'Abrir Fatura AbacatePay'
+          ) : (
+            `Pagar R$ ${priceVal.toFixed(2).replace('.', ',')} com segurança`
+          )}
+        </Button>
       </View>
     </ScrollView>
   );
@@ -261,228 +224,180 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
-  centered: {
+  centerContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
-    gap: 16,
+    alignItems: 'center',
     backgroundColor: '#F8FAFC',
-  },
-  loadingText: {
-    color: WorkEzTheme.colors.textSecondary,
-    marginTop: 8,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: WorkEzTheme.colors.text,
-    textAlign: 'center',
-  },
-  errorDesc: {
-    color: WorkEzTheme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  successTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: WorkEzTheme.colors.text,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  successDesc: {
-    color: WorkEzTheme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  retryBtn: {
-    backgroundColor: WorkEzTheme.colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  retryText: {
-    color: '#FFF',
-    fontWeight: '600',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
-  },
-  backBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    flex: 1,
-    ...WorkEzTheme.typography.xl,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: WorkEzTheme.colors.text,
-  },
-  content: {
-    padding: 20,
-    gap: 16,
-  },
-  amountCard: {
-    backgroundColor: WorkEzTheme.colors.primary,
-    borderRadius: 20,
     padding: 24,
-    alignItems: 'center',
   },
-  amountLabel: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  amountValue: {
-    color: '#FFF',
-    fontSize: 40,
-    fontWeight: 'bold',
-  },
-  expiryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  expiryText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 13,
-  },
-  qrCard: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: WorkEzTheme.colors.border,
-    alignItems: 'center',
-  },
-  qrHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-    alignSelf: 'flex-start',
-  },
-  qrTitle: {
-    fontWeight: '600',
-    color: WorkEzTheme.colors.text,
-  },
-  qrDesc: {
-    color: WorkEzTheme.colors.textSecondary,
-    fontSize: 13,
+  errorText: {
+    color: WorkEzTheme.colors.danger,
     textAlign: 'center',
     marginBottom: 16,
   },
-  qrImageWrapper: {
-    borderWidth: 2,
-    borderColor: WorkEzTheme.colors.border,
-    borderRadius: 12,
-    padding: 12,
-    backgroundColor: '#FFF',
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  qrImage: {
-    width: 220,
-    height: 220,
-  },
-  qrPlaceholder: {
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 24,
   },
-  qrPlaceholderText: {
-    color: WorkEzTheme.colors.textSecondary,
-    textAlign: 'center',
-    fontSize: 13,
-  },
-  pixCodeCard: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: WorkEzTheme.colors.border,
-  },
-  pixCodeLabel: {
-    fontWeight: '600',
-    color: WorkEzTheme.colors.text,
-    marginBottom: 8,
-  },
-  pixCodeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  iconButton: {
+    padding: 8,
     backgroundColor: '#F1F5F9',
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 8,
   },
-  pixCodeValue: {
-    flex: 1,
-    color: WorkEzTheme.colors.textSecondary,
-    fontSize: 12,
-    fontFamily: 'monospace',
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#0F172A',
   },
-  copyBtn: {
-    padding: 4,
+  content: {
+    padding: 24,
+    gap: 24,
   },
-  copiedText: {
-    color: WorkEzTheme.colors.primary,
-    fontSize: 12,
-    marginTop: 6,
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  label: {
+    color: '#64748B',
+    fontSize: 14,
+  },
+  value: {
+    color: '#0F172A',
     fontWeight: '500',
+    fontSize: 14,
   },
-  linkBtn: {
-    backgroundColor: WorkEzTheme.colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
+  divider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 12,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  linkBtnText: {
-    color: '#FFF',
+  totalLabel: {
+    fontSize: 18,
     fontWeight: '600',
-    fontSize: 15,
+    color: '#0F172A',
   },
-  statusCard: {
+  totalValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  noticeBox: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  noticeTitle: {
+    color: '#064e3b',
+    fontWeight: '600',
+    fontSize: 14,
+    textAlign: 'left',
+  },
+  noticeText: {
+    color: '#065f46',
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 18,
+    textAlign: 'left',
+  },
+  billingActiveBtn: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#2563EB',
+    backgroundColor: 'rgba(37, 99, 235, 0.05)',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(251,191,36,0.08)',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.3)',
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: WorkEzTheme.colors.warning,
-  },
-  statusText: {
-    color: WorkEzTheme.colors.warning,
-    fontWeight: '500',
-    fontSize: 13,
-  },
-  instructionsCard: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: WorkEzTheme.colors.border,
-    gap: 8,
-  },
-  instructionsTitle: {
+  billingActiveTitle: {
     fontWeight: '600',
-    color: WorkEzTheme.colors.text,
-    marginBottom: 4,
+    color: '#0F172A',
+    fontSize: 14,
   },
-  instructionStep: {
-    color: WorkEzTheme.colors.textSecondary,
-    fontSize: 13,
+  billingActiveSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  billingNotice: {
+    padding: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+  },
+  billingNoticeText: {
+    fontSize: 14,
+    color: '#475569',
+    textAlign: 'center',
     lineHeight: 20,
+  },
+  shieldNotice: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  shieldTitle: {
+    color: '#1D4ED8',
+    fontWeight: '600',
+    fontSize: 14,
+    textAlign: 'left',
+  },
+  shieldText: {
+    color: '#1E40AF',
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 18,
+    textAlign: 'left',
+  },
+  footer: {
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
   },
 });

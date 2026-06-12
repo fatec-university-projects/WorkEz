@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Logo } from "../components/Logo";
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { WorkEzTheme } from '../constants/theme';
 
 export default function Splash() {
   const router = useRouter();
@@ -15,13 +17,38 @@ export default function Splash() {
   }, [router]);
 
   return (
-    <View className="min-h-screen bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] flex flex-col items-center justify-center p-8">
-      <View className="w-32 h-32 mb-6 scale-150">
+    <LinearGradient
+      colors={['#2563EB', '#1D4ED8']}
+      style={styles.container}
+    >
+      <View style={styles.logoContainer}>
         <Logo />
       </View>
-      <Text className="text-white/90 text-center text-lg max-w-sm mt-4">
+      <Text style={styles.subtitle}>
         Serviços profissionais, quando você precisar.
       </Text>
-    </View>
+    </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  logoContainer: {
+    width: 128,
+    height: 128,
+    marginBottom: 24,
+    transform: [{ scale: 1.5 }],
+  },
+  subtitle: {
+    ...WorkEzTheme.typography.base,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    maxWidth: 280,
+    marginTop: 16,
+  },
+});
