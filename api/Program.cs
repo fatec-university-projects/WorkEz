@@ -42,7 +42,10 @@ builder.Services.AddSingleton<IPasswordHasherService, PasswordHasherService>();
 builder.Services.AddSingleton<ITokenService, TokenService>();
 
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IPaymentService, AbacatePayService>();
+
+// AbacatePay payment gateway – typed HttpClient
+builder.Services.AddHttpClient<IPaymentService, AbacatePayService>();
+
 
 // Domain services
 builder.Services.AddScoped<IAddressService, AddressService>();

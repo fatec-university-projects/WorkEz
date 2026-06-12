@@ -6,6 +6,11 @@
 # dotenv files
 .env
 
+# Local configuration overrides with secrets – never commit these
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+
 # User-specific files
 *.rsuser
 *.suo
