@@ -80,7 +80,7 @@ export default function Help() {
               <Mail className="w-5 h-5 text-[#2563EB]" />
               <View className="text-left flex-1">
                 <Text className="font-medium text-[#0F172A]">E-mail</Text>
-                <Text className="text-sm text-[#94A3B8]">suporte@servix.com.br</Text>
+                <Text className="text-sm text-[#94A3B8]">suporte@workez.com.br</Text>
               </View>
             </TouchableOpacity>
 

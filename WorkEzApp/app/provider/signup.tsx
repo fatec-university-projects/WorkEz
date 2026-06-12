@@ -283,8 +283,8 @@ export default function ProviderSignUp() {
           </View>
         )}
 
-        <Button fullWidth onPress={handleContinue} disabled={loading} style={styles.button}>
-          {loading ? <ActivityIndicator color="#fff" size="small" /> : 'Continuar'}
+        <Button variant="secondary" fullWidth onPress={handleContinue} disabled={loading} style={styles.button}>
+          {loading ? <ActivityIndicator color="#2563EB" size="small" /> : 'Continuar'}
         </Button>
       </ScrollView>
     </KeyboardAvoidingView>

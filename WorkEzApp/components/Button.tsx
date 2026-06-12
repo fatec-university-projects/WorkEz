@@ -85,9 +85,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   secondaryButton: {
-    backgroundColor: WorkEzTheme.colors.background,
+    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: WorkEzTheme.colors.border,
+    borderColor: '#2563EB',
   },
   ghostButton: {
     backgroundColor: 'transparent',
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   secondaryText: {
-    color: WorkEzTheme.colors.text,
+    color: '#2563EB',
   },
   ghostText: {
     color: WorkEzTheme.colors.textSecondary,

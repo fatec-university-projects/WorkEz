@@ -69,9 +69,9 @@ export default function Onboarding() {
       </View>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 20 }]}>
-        <Button fullWidth onPress={handleNext}>
+        <Button variant="secondary" fullWidth onPress={handleNext}>
           {currentSlide < slides.length - 1 ? 'Continuar' : 'Começar'}
-          <ChevronRight size={20} color="#FFFFFF" />
+          <ChevronRight size={20} color="#2563EB" />
         </Button>
 
         {currentSlide < slides.length - 1 && (

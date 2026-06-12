@@ -1,9 +1,9 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { Star, Award, Image as ImageIcon, User } from 'lucide-react-native';
+import { Star, Award, Image as ImageIcon, User, LogOut } from 'lucide-react-native';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
-import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
@@ -27,7 +27,12 @@ interface ProviderProfileData {
 
 export default function ProviderProfile() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+
+  const handleLogout = () => {
+    signOut();
+    router.replace('/' as any);
+  };
 
   const { data: rawProfile, loading, error, refetch } = useFetch<any>(
     user ? `/api/ServiceProviders/by-user/${user.id}` : null
@@ -130,42 +135,6 @@ export default function ProviderProfile() {
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
                 <View style={styles.cardTitleRow}>
-                  <ImageIcon size={20} color={WorkEzTheme.colors.text} />
-                  <Text style={styles.cardTitle}>Portfólio</Text>
-                </View>
-                <Button
-                  variant="ghost"
-                  onPress={() => router.push('/provider/portfolio')}
-                  style={styles.ghostBtn}
-                >
-                  <Text style={styles.ghostBtnText}>Ver todos</Text>
-                </Button>
-              </View>
-
-              <View style={styles.portfolioGrid}>
-                {profile?.portfolio?.slice(0, 3).map((img, index) => (
-                  <View key={index} style={styles.portfolioItem}>
-                    <Image source={{ uri: img }} style={styles.portfolioImg} />
-                  </View>
-                ))}
-                {(!profile?.portfolio || profile.portfolio.length === 0) && (
-                  <Text style={styles.emptyText}>Nenhuma imagem no portfólio.</Text>
-                )}
-              </View>
-
-              <Button
-                variant="secondary"
-                fullWidth
-                style={{ marginTop: 16 }}
-                onPress={() => router.push('/provider/portfolio')}
-              >
-                Adicionar trabalho
-              </Button>
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.cardTitleRow}>
                   <Award size={20} color={WorkEzTheme.colors.text} />
                   <Text style={styles.cardTitle}>Avaliações</Text>
                 </View>
@@ -193,6 +162,14 @@ export default function ProviderProfile() {
                 </View>
               </View>
             </View>
+
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.logoutButton}
+            >
+              <LogOut size={20} color={WorkEzTheme.colors.danger} />
+              <Text style={styles.logoutText}>Sair</Text>
+            </TouchableOpacity>
           </>
         )}
       </ScrollView>
@@ -380,5 +357,28 @@ const styles = StyleSheet.create({
   statLabel: {
     ...WorkEzTheme.typography.sm,
     color: WorkEzTheme.colors.textSecondary,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: WorkEzTheme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    marginTop: 8,
+  },
+  logoutText: {
+    flex: 1,
+    ...WorkEzTheme.typography.base,
+    color: WorkEzTheme.colors.danger,
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
   },
 });

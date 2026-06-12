@@ -35,7 +35,7 @@ export default function ClientProfile() {
   const menuItems = [
     { icon: User, label: 'Dados pessoais', path: '/client/edit-profile' },
     { icon: MapPin, label: 'Meus endereços', path: '#' },
-    { icon: CreditCard, label: 'Formas de pagamento', path: '#' },
+    { icon: CreditCard, label: 'Formas de pagamento', path: '/client/payment-methods' },
     { icon: HelpCircle, label: 'Ajuda e suporte', path: '/help' },
   ];
 
@@ -80,15 +80,21 @@ export default function ClientProfile() {
           {menuItems.map((item, index) => {
             const Icon = item.icon;
             const isLast = index === menuItems.length - 1;
+            const isDisabled = item.path === '#';
             return (
               <TouchableOpacity
                 key={index}
-                onPress={() => router.push(item.path as any)}
-                style={[styles.menuItem, isLast && styles.menuItemLast]}
+                onPress={() => !isDisabled && router.push(item.path as any)}
+                disabled={isDisabled}
+                style={[
+                  styles.menuItem,
+                  isLast && styles.menuItemLast,
+                  { opacity: isDisabled ? 0.4 : 1 }
+                ]}
               >
                 <Icon size={20} color={WorkEzTheme.colors.textSecondary} />
                 <Text style={styles.menuItemText}>{item.label}</Text>
-                <ChevronRight size={20} color={WorkEzTheme.colors.textSecondary} />
+                {!isDisabled && <ChevronRight size={20} color={WorkEzTheme.colors.textSecondary} />}
               </TouchableOpacity>
             );
           })}

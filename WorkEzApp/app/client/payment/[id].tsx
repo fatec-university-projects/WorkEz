@@ -1,165 +1,403 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  TouchableOpacity,
-  Alert,
-  Clipboard,
-  Image,
-} from 'react-native';
-import { ArrowLeft, CheckCircle, Clock, Copy, QrCode, RefreshCw, XCircle } from 'lucide-react-native';
-import { paymentService, CreatePaymentResponse } from '../../../services/paymentService';
+import { useState, useEffect } from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft, CreditCard, Shield, DollarSign, ExternalLink } from 'lucide-react-native';
+import { Button } from '../../../components/Button';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView, StyleSheet } from 'react-native';
+import { useFetch } from '../../../hooks/useFetch';
+import { paymentService } from '../../../services/paymentService';
 import { WorkEzTheme } from '../../../constants/theme';
-
-const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
+import * as WebBrowser from 'expo-web-browser';
 
 export default function Payment() {
   const router = useRouter();
-  const [paymentMethod, setPaymentMethod] = useState('pix');
+  const { id } = useLocalSearchParams(); // service id
+  const [paying, setPaying] = useState(false);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+
+  // Fetch service details
+  const { data: service, loading, error } = useFetch<any>(
+    id ? `/api/Services/${id}` : null
+  );
+
+  // Fetch or resume existing payment once service details are loaded
+  useEffect(() => {
+    if (!service || !service.appointmentId) return;
+
+    paymentService.getPaymentByAppointment(service.appointmentId)
+      .then(res => {
+        if (res.data) {
+          setPaymentId(res.data.paymentId);
+          setPaymentStatus(res.data.status);
+          setPaymentUrl(res.data.paymentUrl);
+        }
+      })
+      .catch(err => console.error('Error fetching existing payment:', err));
+  }, [service]);
+
+  // If already paid, automatically forward to completed screen
+  useEffect(() => {
+    if (paymentStatus === 'Paid') {
+      router.replace(`/client/completed/${id}` as any);
+    }
+  }, [paymentStatus, id]);
+
+  // Polling payment status from backend / AbacatePay
+  useEffect(() => {
+    if (!paymentId || paymentStatus === 'Paid') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await paymentService.getPaymentStatus(paymentId);
+        if (res.data) {
+          setPaymentStatus(res.data.status);
+          if (res.data.status === 'Paid') {
+            clearInterval(interval);
+            Alert.alert('Sucesso', 'Pagamento realizado com sucesso!', [
+              { text: 'OK', onPress: () => router.push(`/client/completed/${id}` as any) }
+            ]);
+          }
+        }
+      } catch (err) {
+        console.error('Error polling status:', err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [paymentId, paymentStatus, id]);
+
+  const handlePay = async () => {
+    if (!service || !service.appointmentId) return;
+    setPaying(true);
+    try {
+      const res = await paymentService.createPayment(service.appointmentId);
+      if (res.error) {
+        Alert.alert('Erro ao processar pagamento', res.error);
+      } else if (res.data) {
+        setPaymentId(res.data.paymentId);
+        setPaymentStatus(res.data.status);
+        setPaymentUrl(res.data.paymentUrl);
+
+        if (res.data.paymentUrl) {
+          await WebBrowser.openBrowserAsync(res.data.paymentUrl);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Erro', 'Não foi possível se conectar ao servidor.');
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (error || !service) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>
+          {error || 'Não foi possível carregar o serviço.'}
+        </Text>
+        <Button onPress={() => router.back()}>Voltar</Button>
+      </View>
+    );
+  }
+
+  const priceVal = service.price || 150.00;
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3">
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
+            style={styles.iconButton}
           >
-            <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
+            <ArrowLeft size={24} color="#0F172A" />
           </TouchableOpacity>
-          <Text className="text-xl font-semibold text-[#0F172A]">
-            Pagamento
-          </Text>
+          <Text style={styles.headerTitle}>Pagamento</Text>
         </View>
       </View>
 
-      <View className="p-6 space-y-6">
-        <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <Text className="font-semibold text-[#0F172A] mb-4">
-            Resumo do serviço
-          </Text>
-
-          <View className="space-y-3 pb-4 border-b border-[#E2E8F0]">
-            <View className="flex-row justify-between">
-              <Text className="text-[#64748B]">Profissional</Text>
-              <Text className="font-medium text-[#0F172A]">Carlos Silva</Text>
-            </View>
-            <View className="flex-row justify-between">
-              <Text className="text-[#64748B]">Serviço</Text>
-              <Text className="font-medium text-[#0F172A]">Encanador</Text>
-            </View>
-            <View className="flex-row justify-between">
-              <Text className="text-[#64748B]">Duração</Text>
-              <Text className="font-medium text-[#0F172A]">1h 15min</Text>
-            </View>
+      <View style={styles.content}>
+        {/* Service summary */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Resumo do serviço</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Profissional</Text>
+            <Text style={styles.value}>{service.professional?.name || 'Profissional'}</Text>
           </View>
-
-          <View className="flex-row justify-between items-center pt-4">
-            <Text className="text-lg font-semibold text-[#0F172A]">Total</Text>
-            <Text className="text-2xl font-bold text-[#2563EB]">R$ 150,00</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Serviço</Text>
+            <Text style={styles.value}>{service.category}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>R$ {priceVal.toFixed(2).replace('.', ',')}</Text>
           </View>
         </View>
 
-        <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <Text className="font-semibold text-[#0F172A] mb-4">
-            Forma de pagamento
-          </Text>
-
-          <View className="space-y-3">
-            <TouchableOpacity
-              onPress={() => setPaymentMethod('pix')}
-              className={`w-full p-4 rounded-xl border-2 transition-all text-left ${paymentMethod === 'pix' ? 'border-[#2563EB] bg-[#2563EB]/5' : 'border-[#E2E8F0]'}`}
-            >
-              <View className="flex-row items-center gap-3">
-                <View className="w-12 h-12 bg-[#00C89F]/10 rounded-lg flex-row items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-[#10B981]" />
-                </View>
-                <View className="flex-1">
-                  <Text className="font-medium text-[#0F172A]">PIX</Text>
-                  <Text className="text-sm text-[#64748B]">Pagamento instantâneo</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setPaymentMethod('card')}
-              className={`w-full p-4 rounded-xl border-2 transition-all text-left ${paymentMethod === 'card' ? 'border-[#2563EB] bg-[#2563EB]/5' : 'border-[#E2E8F0]'}`}
-            >
-              <View className="flex-row items-center gap-3">
-                <View className="w-12 h-12 bg-[#2563EB]/10 rounded-lg flex-row items-center justify-center">
-                  <CreditCard className="w-6 h-6 text-[#2563EB]" />
-                </View>
-                <View className="flex-1">
-                  <Text className="font-medium text-[#0F172A]">Cartão de crédito</Text>
-                  <Text className="text-sm text-[#64748B]">Visa, Master, Elo</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
-
-          <View className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-4">
-            <View className="flex-row items-start gap-3">
-              <Shield className="w-5 h-5 text-[#2563EB] flex-shrink-0 mt-0.5" />
-              <View>
-                <Text className="font-medium text-[#1d4ed8] mb-1">
-                  Pagamento seguro
-                </Text>
-                <Text className="text-sm text-[#1e40af]">
-                  Seu pagamento é protegido pelo WorkEz. O profissional só recebe após a conclusão do serviço.
-                </Text>
-              </View>
-              {copied && (
-                <Text style={styles.copiedText}>✓ Copiado para a área de transferência!</Text>
-              )}
-            </View>
-        )}
-
-            {/* Payment link fallback */}
-            {payment?.paymentUrl && !payment.pixCode && (
-              <TouchableOpacity
-                style={styles.linkBtn}
-                onPress={() => Alert.alert('Link de pagamento', payment.paymentUrl ?? '')}
-              >
-                <Text style={styles.linkBtnText}>Abrir página de pagamento</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Status indicator */}
-            <View style={styles.statusCard}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>
-                Aguardando confirmação do pagamento...
+        {/* Payment Methods */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Forma de pagamento</Text>
+          
+          {/* AbacatePay notice */}
+          <View style={styles.noticeBox}>
+            <DollarSign size={20} color="#10B981" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.noticeTitle}>Processado por AbacatePay</Text>
+              <Text style={styles.noticeText}>
+                Seus pagamentos são processados de forma 100% segura através do AbacatePay via PIX ou Cartão.
               </Text>
             </View>
-
-            {/* Instructions */}
-            <View style={styles.instructionsCard}>
-              <Text style={styles.instructionsTitle}>Como pagar</Text>
-              {[
-                '1. Abra o aplicativo do seu banco',
-                '2. Selecione a opção PIX',
-                '3. Escaneie o QR Code ou use o código copia e cola',
-                '4. Confirme o pagamento de R$ ' + payment?.amount?.toFixed(2).replace('.', ','),
-                '5. Aguarde a confirmação automática',
-              ].map((step, i) => (
-                <Text key={i} style={styles.instructionStep}>{step}</Text>
-              ))}
-            </View>
           </View>
 
-          <View className="fixed bottom-0 left-0 right-0 bg-white p-6 border-t border-[#E2E8F0]">
-            <Button
-              fullWidth
-              onPress={() => router.push('/client/completed/1')}
+          {paymentUrl ? (
+            <TouchableOpacity
+              onPress={async () => {
+                if (paymentUrl) await WebBrowser.openBrowserAsync(paymentUrl);
+              }}
+              style={styles.billingActiveBtn}
             >
-              Pagar R$ 150,00 com segurança
-            </Button>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                <CreditCard size={24} color="#2563EB" />
+                <View>
+                  <Text style={styles.billingActiveTitle}>Fatura AbacatePay Gerada</Text>
+                  <Text style={styles.billingActiveSubtitle}>Clique para abrir a fatura</Text>
+                </View>
+              </View>
+              <ExternalLink size={20} color="#2563EB" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.billingNotice}>
+              <Text style={styles.billingNoticeText}>
+                Clique no botão abaixo para gerar a fatura de pagamento segura no AbacatePay.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Guarantee Info */}
+        <View style={styles.shieldNotice}>
+          <Shield size={20} color="#2563EB" style={{ marginTop: 2 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.shieldTitle}>Pagamento seguro</Text>
+            <Text style={styles.shieldText}>
+              Seu pagamento é protegido pelo WorkEz. O profissional só recebe após a conclusão do serviço.
+            </Text>
           </View>
         </View>
-        );
+      </View>
+
+      <View style={styles.footer}>
+        <Button
+          fullWidth
+          onPress={paymentUrl ? async () => { await WebBrowser.openBrowserAsync(paymentUrl); } : handlePay}
+          disabled={paying}
+        >
+          {paying ? (
+            <ActivityIndicator color="#FFF" />
+          ) : paymentUrl ? (
+            'Abrir Fatura AbacatePay'
+          ) : (
+            `Pagar R$ ${priceVal.toFixed(2).replace('.', ',')} com segurança`
+          )}
+        </Button>
+      </View>
+    </ScrollView>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 24,
+  },
+  errorText: {
+    color: WorkEzTheme.colors.danger,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconButton: {
+    padding: 8,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  content: {
+    padding: 24,
+    gap: 24,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  label: {
+    color: '#64748B',
+    fontSize: 14,
+  },
+  value: {
+    color: '#0F172A',
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 12,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  totalValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  noticeBox: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  noticeTitle: {
+    color: '#064e3b',
+    fontWeight: '600',
+    fontSize: 14,
+    textAlign: 'left',
+  },
+  noticeText: {
+    color: '#065f46',
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 18,
+    textAlign: 'left',
+  },
+  billingActiveBtn: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#2563EB',
+    backgroundColor: 'rgba(37, 99, 235, 0.05)',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  billingActiveTitle: {
+    fontWeight: '600',
+    color: '#0F172A',
+    fontSize: 14,
+  },
+  billingActiveSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  billingNotice: {
+    padding: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+  },
+  billingNoticeText: {
+    fontSize: 14,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  shieldNotice: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  shieldTitle: {
+    color: '#1D4ED8',
+    fontWeight: '600',
+    fontSize: 14,
+    textAlign: 'left',
+  },
+  shieldText: {
+    color: '#1E40AF',
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 18,
+    textAlign: 'left',
+  },
+  footer: {
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+});

@@ -2,7 +2,7 @@ import { useMemo, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { DollarSign, TrendingUp, Calendar, ArrowDownToLine } from 'lucide-react-native';
 import { Button } from '../../components/Button';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, TouchableOpacity, Platform } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
@@ -123,13 +123,38 @@ export default function Wallet() {
             <View style={styles.balanceCard}>
               <Text style={styles.balanceLabel}>Saldo disponível</Text>
               <Text style={styles.balanceValue}>R$ {walletData?.availableBalance?.toFixed(2).replace('.', ',') || '0,00'}</Text>
-              <Button
-                variant="secondary"
-                style={styles.withdrawButton}
+              <TouchableOpacity
+                onPress={() => {
+                  console.log('Solicitar saque clicked!');
+                  const valStr = (walletData?.receivable || 0).toFixed(2).replace('.', ',');
+                  const message = `Seu saque no valor de R$ ${valStr} (A receber) está sendo processado.`;
+                  if (Platform.OS === 'web') {
+                    alert(message);
+                  } else {
+                    Alert.alert(
+                      'Solicitação de Saque',
+                      message,
+                      [{ text: 'OK' }],
+                      { cancelable: true }
+                    );
+                  }
+                }}
+                activeOpacity={0.8}
+                style={[
+                  styles.withdrawButton,
+                  {
+                    paddingHorizontal: 24,
+                    paddingVertical: 14,
+                    borderRadius: WorkEzTheme.borderRadius.lg,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }
+                ]}
               >
                 <ArrowDownToLine size={20} color={WorkEzTheme.colors.primary} style={styles.withdrawIcon} />
                 <Text style={styles.withdrawText}>Solicitar saque</Text>
-              </Button>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.rowCards}>

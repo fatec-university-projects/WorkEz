@@ -158,8 +158,8 @@ export default function Login() {
         )}
 
         <View style={styles.footerContainer}>
-          <Button fullWidth onPress={handleLogin} disabled={loading}>
-            {loading ? <ActivityIndicator color="#366e15ff" size="small" /> : 'Entrar'}
+          <Button variant="secondary" fullWidth onPress={handleLogin} disabled={loading}>
+            {loading ? <ActivityIndicator color="#2563EB" size="small" /> : 'Entrar'}
           </Button>
 
           {/* AUDITORIA FIX: "Cadastre-se" vai para /profile-choice, não /signup */}

@@ -267,8 +267,8 @@ export default function SignUp() {
         )}
 
         <View style={styles.footerContainer}>
-          <Button fullWidth onPress={handleSignUp} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" size="small" /> : 'Criar conta'}
+          <Button variant="secondary" fullWidth onPress={handleSignUp} disabled={loading}>
+            {loading ? <ActivityIndicator color="#2563EB" size="small" /> : 'Criar conta'}
           </Button>
 
           <View style={styles.loginContainer}>

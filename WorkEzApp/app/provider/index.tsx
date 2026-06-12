@@ -137,13 +137,13 @@ export default function ProviderHome() {
         <View style={styles.tipCard}>
           <Text style={styles.tipTitle}>Dica profissional 💡</Text>
           <Text style={styles.tipDescription}>
-            Profissionais que mantêm fotos atualizadas no portfólio recebem 40% mais chamados.
+            Profissionais que mantêm seus dados e especialidades atualizados recebem 40% mais chamados.
           </Text>
           <Pressable
-            onPress={() => router.push('/provider/portfolio')}
+            onPress={() => router.push('/provider/settings')}
             style={styles.tipButton}
           >
-            <Text style={styles.tipButtonText}>Atualizar portfólio</Text>
+            <Text style={styles.tipButtonText}>Atualizar perfil</Text>
           </Pressable>
         </View>
       </View>

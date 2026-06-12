@@ -22,6 +22,7 @@ interface ProviderProfile {
   photo?: string;
   phone?: string;
   professionalDescription?: string;
+  categories?: { id: string; name: string }[];
 }
 
 export default function ProviderEditProfile() {
@@ -41,6 +42,9 @@ export default function ProviderEditProfile() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const { data: allCategories, loading: loadingCategories } = useFetch<any[]>('/api/Categories');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
   useEffect(() => {
     if (profile) {
       setName(profile.name || user?.name || '');
@@ -48,11 +52,24 @@ export default function ProviderEditProfile() {
       setPhone(profile.phone || '');
       setPhoto(profile.photo || '');
       setDescription(profile.professionalDescription || '');
+      if (profile.categories) {
+        setSelectedCategories(profile.categories.map(c => c.id));
+      }
     } else if (user) {
       setName(user.name);
       setEmail(user.email);
     }
   }, [profile, user]);
+
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(categoryId)) {
+        return prev.filter(id => id !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
+  };
 
   const applyPhoneMask = (value: string): string => {
     const digits = value.replace(/\D/g, '').slice(0, 11);
@@ -145,6 +162,18 @@ export default function ProviderEditProfile() {
 
         if (providerResponse.error) {
           Alert.alert('Erro ao atualizar descrição', providerResponse.error);
+          setSaving(false);
+          return;
+        }
+
+        // Update Provider Categories
+        const catResponse = await apiRequest<any>(`/api/ProviderCategories/by-provider/${profile.id}/categories`, {
+          method: 'POST',
+          body: JSON.stringify(selectedCategories)
+        });
+
+        if (catResponse.error) {
+          Alert.alert('Erro ao atualizar especialidades', catResponse.error);
           setSaving(false);
           return;
         }
@@ -283,6 +312,40 @@ export default function ProviderEditProfile() {
                   style={styles.descriptionInput}
                 />
               </View>
+            </View>
+
+            {/* Categorias / Especialidades */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Especialidades / Categorias</Text>
+              {loadingCategories ? (
+                <ActivityIndicator size="small" color={WorkEzTheme.colors.primary} />
+              ) : (
+                <View style={styles.categoriesContainer}>
+                  {allCategories?.map((cat) => {
+                    const isSelected = selectedCategories.includes(cat.id);
+                    return (
+                      <TouchableOpacity
+                        key={cat.id}
+                        onPress={() => toggleCategory(cat.id)}
+                        activeOpacity={0.8}
+                        style={[
+                          styles.categoryTag,
+                          isSelected && styles.categoryTagSelected
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryTagText,
+                            isSelected && styles.categoryTagTextSelected
+                          ]}
+                        >
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
             </View>
 
             <View style={{ marginTop: 24 }}>
@@ -450,5 +513,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 16,
+  },
+  categoriesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  categoryTag: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  categoryTagSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  categoryTagText: {
+    ...WorkEzTheme.typography.sm,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  categoryTagTextSelected: {
+    color: '#1D4ED8',
+    fontWeight: '600',
   },
 });
