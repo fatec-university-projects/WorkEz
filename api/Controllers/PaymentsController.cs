@@ -212,8 +212,6 @@ public class PaymentsController(
 
         if (!string.IsNullOrEmpty(secret))
         {
-            if (!Request.Headers.TryGetValue("x-abacatepay-signature", out var signatureHeader))
-                return Unauthorized("Webhook signature header missing.");
 
             using var ms     = new MemoryStream();
             await Request.Body.CopyToAsync(ms);
@@ -229,10 +227,15 @@ public class PaymentsController(
                     Encoding.UTF8.GetBytes(computed),
                     Encoding.UTF8.GetBytes(received)))
             {
+                logger.LogWarning("Webhook signature mismatch. Computed: {Computed}, Received: {Received}", computed, received);
                 return Unauthorized("Invalid webhook signature.");
             }
 
             Request.Body = new MemoryStream(rawBody);
+        }
+        else
+        {
+            logger.LogWarning("WebhookSecret is not configured. Webhook validation skipped.");
         }
 
         // ── Parse payload ────────────────────────────────────────────────────
