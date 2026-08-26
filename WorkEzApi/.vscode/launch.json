@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🚀 Execute WorkEz.WebUID (VS Code F5)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/WorkEz.WebUID/bin/Debug/net10.0/WorkEz.WebUID.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/WorkEz.WebUID",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openUrl",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/swagger"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
+      "name": "⚡ Watch & Run WorkEz.WebUID (Hot Reload)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "dotnet",
+      "args": ["watch", "run", "--project", "${workspaceFolder}/WorkEz.WebUID/WorkEz.WebUID.csproj"],
+      "cwd": "${workspaceFolder}/WorkEz.WebUID",
+      "console": "integratedTerminal"
+    }
+  ]
+}

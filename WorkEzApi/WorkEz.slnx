@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="WorkEz.Application/WorkEz.Application.csproj" />
+  <Project Path="WorkEz.Domain/WorkEz.Domain.csproj" />
+  <Project Path="WorkEz.Infra.Data/WorkEz.Infra.Data.csproj" />
+  <Project Path="WorkEz.Infra.Ioc/WorkEz.Infra.Ioc.csproj" />
+  <Project Path="WorkEz.WebUID/WorkEz.WebUID.csproj" />
+</Solution>

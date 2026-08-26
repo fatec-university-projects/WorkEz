@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\WorkEz.Domain\WorkEz.Domain.csproj" />
+    <ProjectReference Include="..\WorkEz.Application\WorkEz.Application.csproj" />
+    <ProjectReference Include="..\WorkEz.Infra.Data\WorkEz.Infra.Data.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
