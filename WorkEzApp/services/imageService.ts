@@ -9,13 +9,16 @@ export const imageService = {
     const match = /\.(\w+)$/.exec(filename);
     const type = match ? `image/${match[1]}` : `image/jpeg`;
 
-    // React Native FormData format for file upload
-    // Fetch the local file URI to get a native binary Blob
-    const localResponse = await fetch(uri);
-    const blob = await localResponse.blob();
+    const normalizedUri = Platform.OS === 'ios' && uri.startsWith('file://')
+      ? uri.replace('file://', '')
+      : uri;
 
     const formData = new FormData();
-    formData.append('image', blob, filename);
+    formData.append('image', {
+      uri: normalizedUri,
+      name: filename,
+      type,
+    } as any);
 
     try {
       const response = await fetch(IMGBB_UPLOAD_URL, {

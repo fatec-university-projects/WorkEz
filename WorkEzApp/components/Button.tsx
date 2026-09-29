@@ -96,6 +96,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     ...WorkEzTheme.typography.base,
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: '#2563EB',
   },
   primaryText: {
     color: '#FFFFFF',
@@ -104,6 +105,6 @@ const styles = StyleSheet.create({
     color: '#2563EB',
   },
   ghostText: {
-    color: WorkEzTheme.colors.textSecondary,
+    color: '#2563EB',
   },
 });

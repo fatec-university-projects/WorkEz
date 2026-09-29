@@ -348,17 +348,18 @@ export default function ProviderEditProfile() {
               )}
             </View>
 
-            <View style={{ marginTop: 24 }}>
+            <View style={styles.saveBtn}>
               <Button
+                variant="secondary"
                 fullWidth
                 onPress={handleSave}
                 disabled={saving || uploading}
               >
                 {saving ? (
-                  <ActivityIndicator color="#FFF" />
+                  <ActivityIndicator color="#2563EB" />
                 ) : (
                   <>
-                    <Save size={20} color="#FFF" style={{ marginRight: 8 }} />
+                    <Save size={20} color="#2563EB" style={{ marginRight: 8 }} />
                     <Text style={styles.saveBtnText}>Salvar Alterações</Text>
                   </>
                 )}
@@ -410,6 +411,17 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     color: '#64748B',
+  },
+  saveBtn: {
+    marginTop: 16,
+    borderWidth: 1,
+    backgroundColor: '#2563EB',
+    fontWeight: '600',
+    fontSize: 16,
+    display: 'flex',
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 8,
   },
   form: {
     backgroundColor: '#FFFFFF',
@@ -510,7 +522,9 @@ const styles = StyleSheet.create({
     minHeight: 100,
   },
   saveBtnText: {
-    color: '#FFFFFF',
+    display: 'flex',
+    alignItems: 'center',
+    color: '#FFF',
     fontWeight: '600',
     fontSize: 16,
   },

@@ -36,6 +36,12 @@ export default function ProviderSettings() {
           {menuItems.map((item, i) => {
             const Icon = item.icon;
             const isDisabled = item.path === '#';
+            const isFormAction = [
+              '/provider/edit-profile',
+              '#',
+            ].includes(item.path) === false ? false : item.path !== '#';
+            const itemTextClass = isFormAction ? 'text-[#2563EB]' : 'text-[#0F172A]';
+            const iconClass = isFormAction ? 'text-[#2563EB]' : 'text-[#64748B]';
             return (
               <TouchableOpacity
                 key={i}
@@ -44,9 +50,9 @@ export default function ProviderSettings() {
                 style={{ opacity: isDisabled ? 0.4 : 1 }}
                 className="w-full flex-row items-center gap-3 px-6 py-4 border-b last:border-0"
               >
-                <Icon className="w-5 h-5 text-[#64748B]" />
-                <Text className="flex-1 text-left">{item.label}</Text>
-                {!isDisabled && <ChevronRight className="w-5 h-5 text-[#64748B]" />}
+                <Icon className={`w-5 h-5 ${iconClass}`} />
+                <Text className={`flex-1 text-left ${itemTextClass}`}>{item.label}</Text>
+                {!isDisabled && <ChevronRight className={`w-5 h-5 ${iconClass}`} />}
               </TouchableOpacity>
             );
           })}
