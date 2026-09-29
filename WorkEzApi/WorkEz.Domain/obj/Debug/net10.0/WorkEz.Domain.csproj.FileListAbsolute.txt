@@ -1,0 +1,12 @@
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\obj\Debug\net10.0\WorkEz.Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\obj\Debug\net10.0\WorkEz.Domain.AssemblyInfoInputs.cache
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\obj\Debug\net10.0\WorkEz.Domain.AssemblyInfo.cs
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\obj\Debug\net10.0\WorkEz.Domain.csproj.CoreCompileInputs.cache
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\obj\Debug\net10.0\WorkEz.Domain.sourcelink.json
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\bin\Debug\net10.0\WorkEz.Domain.deps.json
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\bin\Debug\net10.0\WorkEz.Domain.dll
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\bin\Debug\net10.0\WorkEz.Domain.pdb
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\obj\Debug\net10.0\WorkEz.Domain.dll
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\obj\Debug\net10.0\refint\WorkEz.Domain.dll
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\obj\Debug\net10.0\WorkEz.Domain.pdb
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Domain\obj\Debug\net10.0\ref\WorkEz.Domain.dll

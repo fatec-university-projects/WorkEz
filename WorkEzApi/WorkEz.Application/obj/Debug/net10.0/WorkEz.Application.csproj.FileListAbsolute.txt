@@ -1,0 +1,16 @@
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\bin\Debug\net10.0\WorkEz.Application.deps.json
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\bin\Debug\net10.0\WorkEz.Application.dll
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\bin\Debug\net10.0\WorkEz.Application.pdb
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\bin\Debug\net10.0\WorkEz.Domain.dll
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\bin\Debug\net10.0\WorkEz.Domain.pdb
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\WorkEz.Application.csproj.AssemblyReference.cache
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\WorkEz.Application.GeneratedMSBuildEditorConfig.editorconfig
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\WorkEz.Application.AssemblyInfoInputs.cache
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\WorkEz.Application.AssemblyInfo.cs
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\WorkEz.Application.csproj.CoreCompileInputs.cache
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\WorkEz.Application.sourcelink.json
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\WorkEz.A.102852C3.Up2Date
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\WorkEz.Application.dll
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\refint\WorkEz.Application.dll
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\WorkEz.Application.pdb
+D:\Dev\WorkEz\WorkEzApi\WorkEz.Application\obj\Debug\net10.0\ref\WorkEz.Application.dll

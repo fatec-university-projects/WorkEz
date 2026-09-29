@@ -1,0 +1,42 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🌐 Executar API Backend (WorkEzApi)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-api",
+      "program": "${workspaceFolder}/WorkEzApi/WorkEz.WebUID/bin/Debug/net10.0/WorkEz.WebUID.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/WorkEzApi/WorkEz.WebUID",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openUrl",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/swagger"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
+      "name": "📱 Executar App Mobile (WorkEzApp Expo)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/WorkEzApp",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start"],
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "🚀 Executar API + App Mobile (Juntos)",
+      "configurations": [
+        "🌐 Executar API Backend (WorkEzApi)",
+        "📱 Executar App Mobile (WorkEzApp Expo)"
+      ],
+      "stopAll": true
+    }
+  ]
+}
