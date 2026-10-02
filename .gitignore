@@ -1,0 +1,158 @@
+# ═══════════════════════════════════════════════════════════════
+#  WorkEz — .gitignore
+#  Monorepo: .NET (WorkEzApi) + Expo / React Native (WorkEzApp)
+# ═══════════════════════════════════════════════════════════════
+
+# ────────────────────────────────────────────────────────────────
+# .NET / C# — Build Output
+# ────────────────────────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+out/
+build/
+publish/
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuspec
+project.lock.json
+project.assets.json
+project.nuget.cache
+*.nuget.props
+*.nuget.targets
+.nuget/
+packages/
+nuget.config
+
+# Visual Studio artifacts
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.DotSettings.user
+*.csproj.user
+*.vbproj.user
+*.dbmdl
+*.dbproj.schemaview
+*.jfm
+*.pfx
+*.publishsettings
+*.VisualState.xml
+.vscode/settings.json
+
+# Build logs & caches
+*.log
+*.tlog
+*.ilk
+*.meta
+*.pdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# MSTest / xUnit
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings
+nCrunchTemp_*
+
+# Web publish
+*.pubxml
+*.pubxml.user
+PublishScripts/
+*_i.c
+*_p.c
+*_i.h
+*.ilk
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.sup
+*.rsp
+
+# EF Core Migrations cache
+# (keep the Migrations folder itself)
+*.mdf
+*.ldf
+*.ndf
+
+# Azure / Deploy
+.azure/
+*.azurePubxml
+
+# ────────────────────────────────────────────────────────────────
+# Expo / React Native
+# ────────────────────────────────────────────────────────────────
+WorkEzApp/node_modules/
+WorkEzApp/.expo/
+WorkEzApp/dist/
+WorkEzApp/web-build/
+WorkEzApp/.expo-shared/
+WorkEzApp/expo-env.d.ts
+WorkEzApp/.env
+WorkEzApp/.env.local
+WorkEzApp/.env.production
+WorkEzApp/.env.development
+
+# Android
+WorkEzApp/android/
+WorkEzApp/ios/
+
+# Metro bundler cache
+WorkEzApp/.metro-cache/
+
+# Yarn / npm
+WorkEzApp/yarn-error.log
+WorkEzApp/npm-debug.log*
+WorkEzApp/.yarn-integrity
+
+# ────────────────────────────────────────────────────────────────
+# Secrets / Environment
+# ────────────────────────────────────────────────────────────────
+*.env
+*.env.*
+appsettings.Production.json
+appsettings.Secrets.json
+secrets.json
+.secrets/
+
+# ────────────────────────────────────────────────────────────────
+# OS / Editor
+# ────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*~
+.direnv/
+tmp/
+temp/
