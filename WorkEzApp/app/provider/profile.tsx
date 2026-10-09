@@ -132,6 +132,44 @@ export default function ProviderProfile() {
               </Button>
             </View>
 
+            {/* ── Portfólio ── */}
+            <View style={styles.card}>
+              <View style={styles.cardHeaderRow}>
+                <View style={styles.cardTitleRow}>
+                  <ImageIcon size={20} color={WorkEzTheme.colors.text} />
+                  <Text style={styles.cardTitle}>Portfólio</Text>
+                </View>
+                <Button
+                  variant="ghost"
+                  onPress={() => router.push('/provider/portfolio')}
+                  style={styles.ghostBtn}
+                >
+                  <Text style={styles.ghostBtnText}>Ver todos</Text>
+                </Button>
+              </View>
+
+              {profile?.portfolio && profile.portfolio.length > 0 ? (
+                <View style={styles.portfolioGrid}>
+                  {profile.portfolio.slice(0, 3).map((img, i) => (
+                    <View key={i} style={styles.portfolioImg}>
+                      <Image source={{ uri: img }} style={styles.portfolioImgFill} />
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.emptyText}>Nenhuma foto no portfólio ainda.</Text>
+              )}
+
+              <Button
+                variant="secondary"
+                fullWidth
+                style={{ marginTop: 12 }}
+                onPress={() => router.push('/provider/portfolio')}
+              >
+                Adicionar trabalho
+              </Button>
+            </View>
+
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
                 <View style={styles.cardTitleRow}>
@@ -165,10 +203,13 @@ export default function ProviderProfile() {
 
             <TouchableOpacity
               onPress={handleLogout}
+              activeOpacity={0.8}
               style={styles.logoutButton}
             >
-              <LogOut size={20} color={WorkEzTheme.colors.danger} />
-              <Text style={styles.logoutText}>Sair</Text>
+              <View style={styles.logoutIconBadge}>
+                <LogOut size={20} color="#EF4444" />
+              </View>
+              <Text style={styles.logoutText}>Sair da conta</Text>
             </TouchableOpacity>
           </>
         )}
@@ -319,12 +360,14 @@ const styles = StyleSheet.create({
   },
   ghostBtnText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.primary,
+    color: WorkEzTheme.colors.textSecondary,
   },
   portfolioGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginTop: 4,
+    marginBottom: 4,
   },
   portfolioItem: {
     width: '31%',
@@ -333,6 +376,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   portfolioImg: {
+    flex: 1,
+    height: 90,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#E2E8F0',
+  },
+  portfolioImgFill: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
@@ -362,23 +412,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: WorkEzTheme.colors.border,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
-    marginTop: 8,
+  },
+  logoutIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutText: {
-    flex: 1,
-    ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.danger,
-    fontWeight: WorkEzTheme.typography.fontWeight.medium,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#EF4444',
   },
 });

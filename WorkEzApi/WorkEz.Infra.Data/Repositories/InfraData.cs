@@ -15,6 +15,7 @@ namespace WorkEz.Infra.Data.Context
         public DbSet<Service> Services => Set<Service>();
         public DbSet<Proposal> Proposals => Set<Proposal>();
         public DbSet<Appointment> Appointments => Set<Appointment>();
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -23,8 +24,9 @@ namespace WorkEz.Infra.Data.Context
             modelBuilder.Entity<Customer>(e => { e.HasKey(c => c.Id); e.HasOne(c => c.User).WithOne(u => u.Customer).HasForeignKey<Customer>(c => c.UserId); });
             modelBuilder.Entity<ServiceProvider>(e => { e.HasKey(sp => sp.Id); e.HasOne(sp => sp.User).WithOne(u => u.ServiceProvider).HasForeignKey<ServiceProvider>(sp => sp.UserId); });
             modelBuilder.Entity<Service>(e => { e.HasKey(s => s.Id); e.Property(s => s.Title).IsRequired().HasMaxLength(300); e.HasOne(s => s.Customer).WithMany(c => c.Services).HasForeignKey(s => s.CustomerId).OnDelete(DeleteBehavior.Restrict); });
-            modelBuilder.Entity<Proposal>(e => { e.HasKey(p => p.Id); e.Property(p => p.ProposedPrice).HasPrecision(10, 2).IsRequired(); e.HasOne(p => p.Service).WithMany(s => s.Proposals).HasForeignKey(p => p.ServiceId).OnDelete(DeleteBehavior.Cascade); e.HasOne(p => p.Provider).WithMany(sp => sp.Proposals).HasForeignKey(p => p.ProviderId).OnDelete(DeleteBehavior.Restrict); });
-            modelBuilder.Entity<Appointment>(e => { e.HasKey(a => a.Id); e.Property(a => a.FinalPrice).HasPrecision(10, 2).IsRequired(); e.HasOne(a => a.Service).WithOne(s => s.Appointment).HasForeignKey<Appointment>(a => a.ServiceId).OnDelete(DeleteBehavior.Restrict); e.HasOne(a => a.Proposal).WithOne(p => p.Appointment).HasForeignKey<Appointment>(a => a.ProposalId).OnDelete(DeleteBehavior.Restrict); });
+            modelBuilder.Entity<Proposal>(e => { e.HasKey(p => p.Id); e.Property(p => p.ProposedPrice).HasPrecision(10, 2).IsRequired(); e.Property(p => p.CounterPrice).HasPrecision(10, 2); e.HasOne(p => p.Service).WithMany(s => s.Proposals).HasForeignKey(p => p.ServiceId).OnDelete(DeleteBehavior.Cascade); e.HasOne(p => p.Provider).WithMany(sp => sp.Proposals).HasForeignKey(p => p.ProviderId).OnDelete(DeleteBehavior.Restrict); });
+            modelBuilder.Entity<Appointment>(e => { e.HasKey(a => a.Id); e.Property(a => a.FinalPrice).HasPrecision(10, 2).IsRequired(); e.HasOne(a => a.Service).WithOne(s => s.Appointment).HasForeignKey<Appointment>(a => a.ServiceId).OnDelete(DeleteBehavior.Restrict); e.HasOne(a => a.Proposal).WithOne(p => p.Appointment).HasForeignKey<Appointment>(a => a.ProposalId).OnDelete(DeleteBehavior.Restrict); e.HasOne(a => a.Provider).WithMany(sp => sp.Appointments).HasForeignKey(a => a.ProviderId).OnDelete(DeleteBehavior.Restrict); });
+            modelBuilder.Entity<ChatMessage>(e => { e.HasKey(m => m.Id); e.Property(m => m.Content).IsRequired().HasMaxLength(2000); e.HasIndex(m => m.ProposalId); e.HasIndex(m => m.ServiceId); });
         }
     }
 }
@@ -53,6 +55,7 @@ namespace WorkEz.Infra.Data.Repositories
         public async Task<IEnumerable<Proposal>> GetProposalsByServiceIdAsync(Guid serviceId) => await DbSet.Include(p => p.Provider).ThenInclude(pr => pr.User).Where(p => p.ServiceId == serviceId).OrderByDescending(p => p.CreatedAt).AsNoTracking().ToListAsync();
         public async Task<IEnumerable<Proposal>> GetPendingProposalsByServiceIdAsync(Guid serviceId) => await DbSet.Where(p => p.ServiceId == serviceId && p.ProposalStatus == ProposalStatus.Pending).ToListAsync();
         public async Task<Proposal?> GetExistingProposalAsync(Guid serviceId, Guid providerId) => await DbSet.FirstOrDefaultAsync(p => p.ServiceId == serviceId && p.ProviderId == providerId && p.ProposalStatus == ProposalStatus.Pending);
+        public async Task<IEnumerable<Proposal>> GetProposalsByProviderUserIdAsync(Guid providerUserId) => await DbSet.Include(p => p.Service).Include(p => p.Provider).ThenInclude(pr => pr.User).Where(p => p.Provider.UserId == providerUserId).OrderByDescending(p => p.CreatedAt).AsNoTracking().ToListAsync();
     }
 
     public class ServiceRepository(AppDbContext context) : BaseRepository<Service>(context), IServiceRepository
@@ -64,6 +67,95 @@ namespace WorkEz.Infra.Data.Repositories
     public class AppointmentRepository(AppDbContext context) : BaseRepository<Appointment>(context), IAppointmentRepository
     {
         public async Task<Appointment?> GetByServiceIdAsync(Guid serviceId) => await DbSet.FirstOrDefaultAsync(a => a.ServiceId == serviceId);
+    }
+
+    public class ServiceProviderRepository(AppDbContext context) : BaseRepository<ServiceProvider>(context), IServiceProviderRepository
+    {
+        public async Task<ServiceProvider?> GetByUserIdAsync(Guid userId) =>
+            await DbSet.Include(sp => sp.User).FirstOrDefaultAsync(sp => sp.UserId == userId);
+
+        public async Task<ServiceProvider?> GetByIdWithUserAsync(Guid id) =>
+            await DbSet.Include(sp => sp.User).FirstOrDefaultAsync(sp => sp.Id == id);
+
+        public async Task<ServiceProvider?> GetWithDetailsByUserIdAsync(Guid userId) =>
+            await DbSet
+                .Include(sp => sp.User)
+                .Include(sp => sp.Appointments)
+                .Include(sp => sp.Proposals)
+                .FirstOrDefaultAsync(sp => sp.UserId == userId);
+
+        public async Task<ServiceProvider?> GetWithDetailsByIdAsync(Guid id) =>
+            await DbSet
+                .Include(sp => sp.User)
+                .Include(sp => sp.Appointments)
+                .Include(sp => sp.Proposals)
+                .FirstOrDefaultAsync(sp => sp.Id == id);
+
+        public async Task<List<string>> GetPortfolioAsync(Guid providerId)
+        {
+            var provider = await DbSet.AsNoTracking().FirstOrDefaultAsync(sp => sp.Id == providerId);
+            return provider?.Portfolio ?? [];
+        }
+
+        public async Task<bool> AddPortfolioImageAsync(Guid providerId, string imageUrl)
+        {
+            var provider = await DbSet.FirstOrDefaultAsync(sp => sp.Id == providerId);
+            if (provider is null) return false;
+            if (provider.Portfolio.Contains(imageUrl)) return true;
+            provider.Portfolio.Add(imageUrl);
+            provider.Touch();
+            DbSet.Update(provider);
+            await Context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RemovePortfolioImageAsync(Guid providerId, string imageUrl)
+        {
+            var provider = await DbSet.FirstOrDefaultAsync(sp => sp.Id == providerId);
+            if (provider is null) return false;
+            var removed = provider.Portfolio.Remove(imageUrl);
+            if (!removed) return false;
+            provider.Touch();
+            DbSet.Update(provider);
+            await Context.SaveChangesAsync();
+            return true;
+        }
+    }
+
+    public class ChatMessageRepository(AppDbContext context) : BaseRepository<ChatMessage>(context), IChatMessageRepository
+    {
+        public async Task<IEnumerable<ChatMessage>> GetByProposalIdAsync(Guid proposalId) =>
+            await DbSet
+                .Where(m => m.ProposalId == proposalId)
+                .OrderBy(m => m.SentAt)
+                .AsNoTracking()
+                .ToListAsync();
+
+        public async Task<IEnumerable<ChatMessage>> GetByServiceIdAsync(Guid serviceId) =>
+            await DbSet
+                .Where(m => m.ServiceId == serviceId)
+                .OrderBy(m => m.SentAt)
+                .AsNoTracking()
+                .ToListAsync();
+
+        public async Task<ChatMessage> SendMessageAsync(Guid? proposalId, Guid? serviceId, Guid senderId, string content, bool isFromProvider)
+        {
+            var message = new ChatMessage
+            {
+                ProposalId = proposalId,
+                ServiceId = serviceId,
+                SenderId = senderId,
+                Content = content,
+                IsFromProvider = isFromProvider,
+                SentAt = DateTime.UtcNow
+            };
+            await DbSet.AddAsync(message);
+            await Context.SaveChangesAsync();
+            return message;
+        }
+
+        public Task<ChatMessage> SendMessageAsync(Guid proposalId, Guid senderId, string content, bool isFromProvider) =>
+            SendMessageAsync(proposalId, null, senderId, content, isFromProvider);
     }
 }
 

@@ -1,0 +1,135 @@
+using Microsoft.AspNetCore.Mvc;
+using WorkEz.Application.Services;
+
+namespace WorkEz.WebUID.Controllers;
+
+/// <summary>
+/// ServiceProvidersController — Clean Architecture.
+/// Gerencia perfil do prestador e portfólio de imagens.
+/// </summary>
+[ApiController]
+[Route("api/[controller]")]
+public class ServiceProvidersController(IPortfolioApplicationService portfolioService) : ControllerBase
+{
+    private readonly IPortfolioApplicationService _portfolioService = portfolioService;
+
+    /// <summary>
+    /// Busca perfil do prestador pelo UserId.
+    /// </summary>
+    [HttpGet("by-user/{userId:guid}")]
+    [ProducesResponseType(typeof(ServiceProviderProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetByUserId(Guid userId)
+    {
+        var result = await _portfolioService.GetProviderByUserIdAsync(userId);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    /// <summary>
+    /// Busca perfil do prestador pelo Id do ServiceProvider.
+    /// </summary>
+    [HttpGet("{providerId:guid}")]
+    [ProducesResponseType(typeof(ServiceProviderProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid providerId)
+    {
+        var result = await _portfolioService.GetProviderByIdAsync(providerId);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    /// <summary>
+    /// Atualiza dados do prestador (descrição profissional).
+    /// </summary>
+    [HttpPut("{providerId:guid}")]
+    [ProducesResponseType(typeof(ServiceProviderProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateProvider(Guid providerId, [FromBody] UpdateProviderRequest request)
+    {
+        var result = await _portfolioService.UpdateProviderAsync(providerId, request.ProfessionalDescription);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    /// <summary>
+    /// Retorna o resumo semanal de desempenho do prestador pelo UserId.
+    /// </summary>
+    [HttpGet("by-user/{userId:guid}/weekly-summary")]
+    [ProducesResponseType(typeof(ProviderWeeklySummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetWeeklySummaryByUserId(Guid userId)
+    {
+        var result = await _portfolioService.GetWeeklySummaryByUserIdAsync(userId);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    /// <summary>
+    /// Retorna o resumo semanal de desempenho do prestador pelo Id do ServiceProvider.
+    /// </summary>
+    [HttpGet("{providerId:guid}/weekly-summary")]
+    [ProducesResponseType(typeof(ProviderWeeklySummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetWeeklySummaryById(Guid providerId)
+    {
+        var result = await _portfolioService.GetWeeklySummaryByProviderIdAsync(providerId);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    // ─── Portfolio Endpoints ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Retorna todas as imagens do portfólio de um prestador (pelo UserId).
+    /// </summary>
+    [HttpGet("{userId:guid}/portfolio")]
+    [ProducesResponseType(typeof(List<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPortfolio(Guid userId)
+    {
+        var result = await _portfolioService.GetPortfolioByUserIdAsync(userId);
+        return result.IsSuccess
+            ? Ok(result.Value!.Images)
+            : NotFound(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    /// <summary>
+    /// Adiciona uma imagem ao portfólio do prestador.
+    /// </summary>
+    [HttpPost("{userId:guid}/portfolio")]
+    [ProducesResponseType(typeof(List<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AddPortfolioImage(Guid userId, [FromBody] AddPortfolioImageBodyRequest body)
+    {
+        var result = await _portfolioService.AddImageAsync(new AddPortfolioImageRequest(userId, body.ImageUrl));
+        return result.IsSuccess
+            ? Ok(result.Value!.Images)
+            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    /// <summary>
+    /// Remove uma imagem do portfólio do prestador.
+    /// </summary>
+    [HttpDelete("{userId:guid}/portfolio")]
+    [ProducesResponseType(typeof(List<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RemovePortfolioImage(Guid userId, [FromBody] RemovePortfolioImageBodyRequest body)
+    {
+        var result = await _portfolioService.RemoveImageAsync(new RemovePortfolioImageRequest(userId, body.ImageUrl));
+        return result.IsSuccess
+            ? Ok(result.Value!.Images)
+            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+    }
+}
+
+// ─── Request Models ───────────────────────────────────────────────────────────
+
+public record UpdateProviderRequest(string? ProfessionalDescription);
+public record AddPortfolioImageBodyRequest(string ImageUrl);
+public record RemovePortfolioImageBodyRequest(string ImageUrl);

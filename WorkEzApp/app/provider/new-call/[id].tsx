@@ -1,40 +1,62 @@
 import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MapPin, FileText, Image as ImageIcon, X, Wrench, Timer, Star, User } from 'lucide-react-native';
+import { MapPin, FileText, Image as ImageIcon, X, Wrench, Timer, Star, User, Gavel, DollarSign, Clock } from 'lucide-react-native';
 import { Button } from '../../../components/Button';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView, TextInput } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
 import { apiRequest } from '../../../services/api';
 import { WorkEzTheme } from '../../../constants/theme';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export default function NewCall() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [accepting, setAccepting] = useState(false);
+  const { user } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
+  const [proposedPrice, setProposedPrice] = useState('');
+  const [description, setDescription] = useState('');
+  const [estimatedTime, setEstimatedTime] = useState('');
 
   const { data: service, loading, error } = useFetch<any>(
     id ? `/api/Services/${id}` : null
   );
 
-  const handleAcceptCall = async () => {
-    if (!id) return;
-    setAccepting(true);
+  const handleSubmitProposal = async () => {
+    if (!id || !user) return;
+    const priceNum = parseFloat(proposedPrice.replace(',', '.'));
+    if (isNaN(priceNum) || priceNum <= 0) {
+      Alert.alert('Valor inválido', 'Por favor, informe o valor que você está disposto a receber.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const res = await apiRequest<any>(`/api/Services/${id}/accept`, {
-        method: 'POST'
+      const res = await apiRequest('/api/Proposals/propose', {
+        method: 'POST',
+        body: JSON.stringify({
+          providerUserId: user.id,
+          serviceId: id,
+          proposedPrice: priceNum,
+          description: description.trim() || undefined,
+          estimatedTime: estimatedTime.trim() || undefined
+        })
       });
+
       if (res.error) {
-        Alert.alert('Erro ao aceitar', res.error);
+        Alert.alert('Erro ao enviar proposta', res.error);
       } else {
-        Alert.alert('Sucesso', 'Você aceitou o chamado com sucesso!', [
-          { text: 'OK', onPress: () => router.push(`/provider/accepted/${id}` as any) }
-        ]);
+        Alert.alert(
+          'Proposta Enviada!',
+          'Seu lance no leilão foi enviado com sucesso. O cliente poderá aceitar, enviar contra-proposta ou abrir chat.',
+          [
+            { text: 'Acompanhar', onPress: () => router.push('/provider/calls' as any) }
+          ]
+        );
       }
     } catch (err) {
-      console.error(err);
       Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
     } finally {
-      setAccepting(false);
+      setSubmitting(false);
     }
   };
 
@@ -145,9 +167,93 @@ export default function NewCall() {
           </View>
         </View>
 
+        {/* Card do Leilão / Formulário de Proposta */}
+        <View className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]">
+          <View className="flex-row items-center gap-2 mb-3">
+            <Gavel className="w-5 h-5 text-[#2563EB]" />
+            <Text className="font-semibold text-lg text-[#0F172A]">Enviar Lance (Leilão)</Text>
+          </View>
+          <Text className="text-xs text-[#64748B] mb-4">
+            Defina o valor que está disposto a receber. O cliente receberá as propostas e poderá aceitar, negociar ou fazer uma contra-proposta.
+          </Text>
+
+          <View style={{ gap: 12 }}>
+            <View>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B', marginBottom: 4 }}>
+                Valor da sua proposta (R$) *
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: '#F8FAFC',
+                  borderWidth: 1,
+                  borderColor: '#CBD5E1',
+                  borderRadius: 12,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: '#0F172A',
+                }}
+                placeholder="Ex: 250,00"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+                value={proposedPrice}
+                onChangeText={setProposedPrice}
+              />
+            </View>
+
+            <View>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B', marginBottom: 4 }}>
+                Estimativa de tempo (opcional)
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: '#F8FAFC',
+                  borderWidth: 1,
+                  borderColor: '#CBD5E1',
+                  borderRadius: 12,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  fontSize: 14,
+                  color: '#0F172A',
+                }}
+                placeholder="Ex: 2 a 3 horas"
+                placeholderTextColor="#94A3B8"
+                value={estimatedTime}
+                onChangeText={setEstimatedTime}
+              />
+            </View>
+
+            <View>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B', marginBottom: 4 }}>
+                Observações / Descrição da proposta (opcional)
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: '#F8FAFC',
+                  borderWidth: 1,
+                  borderColor: '#CBD5E1',
+                  borderRadius: 12,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  fontSize: 14,
+                  color: '#0F172A',
+                  height: 70,
+                  textAlignVertical: 'top',
+                }}
+                placeholder="Ex: Inclui material básico e deslocamento."
+                placeholderTextColor="#94A3B8"
+                multiline
+                value={description}
+                onChangeText={setDescription}
+              />
+            </View>
+          </View>
+        </View>
+
         <View className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-4">
           <Text className="text-sm text-[#1d4ed8]">
-            <Timer className="w-4 h-4 text-[#3B82F6] inline" /> <Text>Responda rápido!</Text> Ao aceitar o chamado, o cliente será notificado imediatamente.
+            <Timer className="w-4 h-4 text-[#3B82F6] inline" /> <Text>Dica competitiva:</Text> Valores justos e boas descrições aumentam suas chances de ter a proposta aceita pelo cliente.
           </Text>
         </View>
       </View>
@@ -155,18 +261,18 @@ export default function NewCall() {
       <View className="bg-white p-6 border-t border-[#E2E8F0] space-y-3">
         <Button
           fullWidth
-          onPress={handleAcceptCall}
-          disabled={accepting}
+          onPress={handleSubmitProposal}
+          disabled={submitting}
         >
-          {accepting ? <ActivityIndicator color="#FFF" /> : 'Aceitar chamado'}
+          {submitting ? <ActivityIndicator color="#FFF" /> : 'Enviar Proposta'}
         </Button>
         <Button
           variant="secondary"
           fullWidth
           onPress={() => router.back()}
-          disabled={accepting}
+          disabled={submitting}
         >
-          Recusar
+          Voltar
         </Button>
       </View>
     </ScrollView>

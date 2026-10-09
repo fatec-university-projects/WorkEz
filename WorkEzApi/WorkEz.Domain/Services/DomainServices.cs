@@ -38,6 +38,12 @@ namespace WorkEz.Domain.Services
         Task<Result<Proposal>> AcceptProposalAsync(Guid customerUserId, Guid proposalId);
         Task<Result> RejectProposalAsync(Guid customerUserId, Guid proposalId, string? reason);
         Task<IEnumerable<Proposal>> GetProposalsByServiceIdAsync(Guid serviceId);
+        Task<IEnumerable<Proposal>> GetProposalsByProviderUserIdAsync(Guid providerUserId);
+
+        // ── Negociação ─────────────────────────────────────────────────────
+        Task<Result<Proposal>> CounterProposalAsync(Guid customerUserId, Guid proposalId, decimal counterPrice, string? counterDescription);
+        Task<Result<Proposal>> AcceptCounterAsync(Guid providerUserId, Guid proposalId);
+        Task<Result<Proposal>> RejectCounterAsync(Guid providerUserId, Guid proposalId);
     }
 
     public class ProposalDomainService(
@@ -55,6 +61,12 @@ namespace WorkEz.Domain.Services
         private readonly IBaseRepository<ServiceProvider> _providerRepository = providerRepository;
         private readonly IBaseRepository<Customer> _customerRepository = customerRepository;
         private readonly IBaseMessageBroker _messageBroker = messageBroker;
+
+        public override async Task<Proposal?> GetByIdAsync(Guid id) =>
+            await _proposalRepository.GetByIdWithServiceAndProviderAsync(id);
+
+        public async Task<IEnumerable<Proposal>> GetProposalsByProviderUserIdAsync(Guid providerUserId) =>
+            await _proposalRepository.GetProposalsByProviderUserIdAsync(providerUserId);
 
         public async Task<Result<Proposal>> ProposePriceAsync(Guid providerUserId, Guid serviceId, decimal proposedPrice, string? description, string? estimatedTime)
         {
@@ -96,10 +108,13 @@ namespace WorkEz.Domain.Services
         {
             var proposal = await _proposalRepository.GetByIdWithServiceAndProviderAsync(proposalId);
             if (proposal is null) return Result<Proposal>.Failure("Proposta não encontrada.", "PROPOSAL_NOT_FOUND");
-            if (proposal.ProposalStatus != ProposalStatus.Pending) return Result<Proposal>.Failure("Apenas propostas pendentes podem ser aceitas.", "INVALID_PROPOSAL_STATUS");
+            if (proposal.ProposalStatus != ProposalStatus.Pending && proposal.ProposalStatus != ProposalStatus.NegotiationOpen)
+                return Result<Proposal>.Failure("Apenas propostas pendentes ou em negociação podem ser aceitas.", "INVALID_PROPOSAL_STATUS");
 
             var service = proposal.Service;
             if (service is null) return Result<Proposal>.Failure("Serviço associado não foi encontrado.", "SERVICE_NOT_FOUND");
+            if (service.ServiceStatus == ServiceStatus.Accepted || service.ServiceStatus == ServiceStatus.Completed || service.ServiceStatus == ServiceStatus.Cancelled)
+                return Result<Proposal>.Failure($"O serviço já se encontra com status '{service.ServiceStatus}' e não pode mais aceitar propostas.", "INVALID_SERVICE_STATUS");
 
             var customers = await _customerRepository.FindAsync(c => c.Id == service.CustomerId);
             var customer = customers.FirstOrDefault();
@@ -147,7 +162,8 @@ namespace WorkEz.Domain.Services
         {
             var proposal = await _proposalRepository.GetByIdWithServiceAndProviderAsync(proposalId);
             if (proposal is null) return Result.Failure("Proposta não encontrada.", "PROPOSAL_NOT_FOUND");
-            if (proposal.ProposalStatus != ProposalStatus.Pending) return Result.Failure("Apenas propostas pendentes podem ser recusadas.", "INVALID_PROPOSAL_STATUS");
+            if (proposal.ProposalStatus != ProposalStatus.Pending && proposal.ProposalStatus != ProposalStatus.NegotiationOpen && proposal.ProposalStatus != ProposalStatus.CounterOffered)
+                return Result.Failure("Apenas propostas ativas podem ser recusadas.", "INVALID_PROPOSAL_STATUS");
 
             var service = proposal.Service;
             if (service is null) return Result.Failure("Serviço associado não foi encontrado.", "SERVICE_NOT_FOUND");
@@ -177,6 +193,101 @@ namespace WorkEz.Domain.Services
         public async Task<IEnumerable<Proposal>> GetProposalsByServiceIdAsync(Guid serviceId)
         {
             return await _proposalRepository.GetProposalsByServiceIdAsync(serviceId);
+        }
+
+        // ── Negociação ───────────────────────────────────────────────────────────────
+
+        public async Task<Result<Proposal>> CounterProposalAsync(Guid customerUserId, Guid proposalId, decimal counterPrice, string? counterDescription)
+        {
+            var proposal = await _proposalRepository.GetByIdWithServiceAndProviderAsync(proposalId);
+            if (proposal is null) return Result<Proposal>.Failure("Proposta não encontrada.", "PROPOSAL_NOT_FOUND");
+
+            if (proposal.ProposalStatus != ProposalStatus.Pending && proposal.ProposalStatus != ProposalStatus.NegotiationOpen)
+                return Result<Proposal>.Failure("Contra-proposta só pode ser feita em propostas pendentes ou em negociação.", "INVALID_PROPOSAL_STATUS");
+
+            var service = proposal.Service;
+            if (service is null) return Result<Proposal>.Failure("Serviço não encontrado.", "SERVICE_NOT_FOUND");
+
+            var customers = await _customerRepository.FindAsync(c => c.Id == service.CustomerId);
+            if (!customers.Any(c => c.UserId == customerUserId))
+                return Result<Proposal>.Failure("Você não tem permissão para fazer contra-proposta neste serviço.", "UNAUTHORIZED_CUSTOMER");
+
+            proposal.CounterPrice = counterPrice;
+            proposal.CounterDescription = counterDescription;
+            proposal.CounterOfferedAt = DateTime.UtcNow;
+            proposal.ProposalStatus = ProposalStatus.CounterOffered;
+            _proposalRepository.Update(proposal);
+            await _proposalRepository.SaveChangesAsync();
+
+            return Result<Proposal>.Success(proposal);
+        }
+
+        public async Task<Result<Proposal>> AcceptCounterAsync(Guid providerUserId, Guid proposalId)
+        {
+            var proposal = await _proposalRepository.GetByIdWithServiceAndProviderAsync(proposalId);
+            if (proposal is null) return Result<Proposal>.Failure("Proposta não encontrada.", "PROPOSAL_NOT_FOUND");
+
+            if (proposal.ProposalStatus != ProposalStatus.CounterOffered)
+                return Result<Proposal>.Failure("Apenas propostas com contra-oferta podem ser aceitas pelo prestador.", "INVALID_PROPOSAL_STATUS");
+
+            if (proposal.Provider?.UserId != providerUserId)
+                return Result<Proposal>.Failure("Você não tem permissão para aceitar esta contra-proposta.", "UNAUTHORIZED_PROVIDER");
+
+            // Aceita com o valor da contra-proposta
+            var finalPrice = proposal.CounterPrice ?? proposal.ProposedPrice;
+            proposal.ProposedPrice = finalPrice;
+            proposal.ProposalStatus = ProposalStatus.Accepted;
+            _proposalRepository.Update(proposal);
+
+            var service = proposal.Service!;
+            service.ServiceStatus = ServiceStatus.Accepted;
+            _serviceRepository.Update(service);
+
+            // Rejeita demais propostas pendentes
+            var pending = await _proposalRepository.GetPendingProposalsByServiceIdAsync(service.Id);
+            foreach (var p in pending.Where(p => p.Id != proposal.Id))
+            {
+                p.ProposalStatus = ProposalStatus.Rejected;
+                _proposalRepository.Update(p);
+            }
+
+            var appointment = new Appointment
+            {
+                ServiceId = service.Id,
+                ProposalId = proposal.Id,
+                CustomerId = service.CustomerId,
+                ProviderId = proposal.ProviderId,
+                AppointmentStatus = AppointmentStatus.Confirmed,
+                FinalPrice = finalPrice,
+                ScheduledDate = service.DesiredDate ?? DateTime.UtcNow.AddDays(1),
+                ConfirmationCode = new Random().Next(1000, 9999).ToString()
+            };
+            await _appointmentRepository.AddAsync(appointment);
+            await _proposalRepository.SaveChangesAsync();
+
+            return Result<Proposal>.Success(proposal);
+        }
+
+        public async Task<Result<Proposal>> RejectCounterAsync(Guid providerUserId, Guid proposalId)
+        {
+            var proposal = await _proposalRepository.GetByIdWithServiceAndProviderAsync(proposalId);
+            if (proposal is null) return Result<Proposal>.Failure("Proposta não encontrada.", "PROPOSAL_NOT_FOUND");
+
+            if (proposal.ProposalStatus != ProposalStatus.CounterOffered)
+                return Result<Proposal>.Failure("Apenas propostas com contra-oferta podem ser recusadas pelo prestador.", "INVALID_PROPOSAL_STATUS");
+
+            if (proposal.Provider?.UserId != providerUserId)
+                return Result<Proposal>.Failure("Você não tem permissão para recusar esta contra-proposta.", "UNAUTHORIZED_PROVIDER");
+
+            // Volta para Pending para o cliente poder aceitar o valor original
+            proposal.ProposalStatus = ProposalStatus.Pending;
+            proposal.CounterPrice = null;
+            proposal.CounterDescription = null;
+            proposal.CounterOfferedAt = null;
+            _proposalRepository.Update(proposal);
+            await _proposalRepository.SaveChangesAsync();
+
+            return Result<Proposal>.Success(proposal);
         }
     }
 }

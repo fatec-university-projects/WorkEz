@@ -35,6 +35,21 @@ public class ServiceProvider : BaseEntity
     public User User { get; set; } = null!;
     public ICollection<Proposal> Proposals { get; set; } = [];
     public ICollection<Appointment> Appointments { get; set; } = [];
+    public List<string> Portfolio { get; set; } = [];
+    public List<Guid> CategoryIds { get; set; } = [];
+}
+
+public class ChatMessage : BaseEntity
+{
+    public Guid? ProposalId { get; set; }
+    public Guid? ServiceId { get; set; }
+    public Guid SenderId { get; set; }
+    public string Content { get; set; } = string.Empty;
+    public bool IsFromProvider { get; set; }
+    public DateTime SentAt { get; set; } = DateTime.UtcNow;
+
+    public Proposal? Proposal { get; set; }
+    public Service? Service { get; set; }
 }
 
 public class Service : BaseEntity
@@ -61,9 +76,15 @@ public class Proposal : BaseEntity
     public string? EstimatedTime { get; set; }
     public ProposalStatus ProposalStatus { get; set; } = ProposalStatus.Pending;
 
+    // ── Contra-proposta (feita pelo cliente) ──────────────────────────────────
+    public decimal? CounterPrice { get; set; }
+    public string? CounterDescription { get; set; }
+    public DateTime? CounterOfferedAt { get; set; }
+
     public Service Service { get; set; } = null!;
     public ServiceProvider Provider { get; set; } = null!;
     public Appointment? Appointment { get; set; }
+    public ICollection<ChatMessage> ChatMessages { get; set; } = [];
 }
 
 public class Appointment : BaseEntity

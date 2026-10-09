@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using WorkEz.Application.DTOs;
 using WorkEz.Application.Services;
 
+using WorkEz.WebUID.WebSockets;
+
 namespace WorkEz.WebUID.Controllers;
 
 /// <summary>
@@ -10,9 +12,15 @@ namespace WorkEz.WebUID.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class ProposalsController(IProposalApplicationService proposalApplicationService) : ControllerBase
+public class ProposalsController(
+    IProposalApplicationService proposalApplicationService,
+    ITrackingNotificationService? trackingNotification = null,
+    IChatNotificationService? chatNotification = null
+) : ControllerBase
 {
     private readonly IProposalApplicationService _proposalApplicationService = proposalApplicationService;
+    private readonly ITrackingNotificationService? _trackingNotification = trackingNotification;
+    private readonly IChatNotificationService? _chatNotification = chatNotification;
 
     /// <summary>
     /// Envia proposta de preço do prestador.
@@ -23,6 +31,10 @@ public class ProposalsController(IProposalApplicationService proposalApplication
     public async Task<IActionResult> ProposePrice([FromBody] ProposePriceRequest request)
     {
         var result = await _proposalApplicationService.ProposePriceAsync(request);
+        if (result.IsSuccess && _trackingNotification != null)
+        {
+            await _trackingNotification.NotifyServiceUpdateAsync(request.ServiceId, "proposal_created", result.Value);
+        }
         return result.IsSuccess 
             ? Ok(result.Value) 
             : BadRequest(new { message = result.Error, code = result.ErrorCode });
@@ -37,6 +49,17 @@ public class ProposalsController(IProposalApplicationService proposalApplication
     public async Task<IActionResult> AcceptProposal([FromBody] AcceptProposalRequest request)
     {
         var result = await _proposalApplicationService.AcceptProposalAsync(request);
+        if (result.IsSuccess && result.Value != null)
+        {
+            if (_trackingNotification != null)
+            {
+                await _trackingNotification.NotifyServiceUpdateAsync(result.Value.ServiceId, "proposal_accepted", result.Value);
+            }
+            if (_chatNotification != null)
+            {
+                await _chatNotification.NotifyChatUpdateAsync(result.Value.Id, result.Value.ServiceId, "proposal_updated", result.Value);
+            }
+        }
         return result.IsSuccess 
             ? Ok(result.Value) 
             : BadRequest(new { message = result.Error, code = result.ErrorCode });
@@ -51,13 +74,40 @@ public class ProposalsController(IProposalApplicationService proposalApplication
     public async Task<IActionResult> RejectProposal([FromBody] RejectProposalRequest request)
     {
         var result = await _proposalApplicationService.RejectProposalAsync(request);
+        if (result.IsSuccess)
+        {
+            var prop = await _proposalApplicationService.GetProposalByIdAsync(request.ProposalId);
+            if (prop != null)
+            {
+                if (_trackingNotification != null)
+                {
+                    await _trackingNotification.NotifyServiceUpdateAsync(prop.ServiceId, "proposal_rejected", prop);
+                }
+                if (_chatNotification != null)
+                {
+                    await _chatNotification.NotifyChatUpdateAsync(prop.Id, prop.ServiceId, "proposal_updated", prop);
+                }
+            }
+        }
         return result.IsSuccess 
             ? Ok(new { message = "Proposta recusada com sucesso." }) 
             : BadRequest(new { message = result.Error, code = result.ErrorCode });
     }
 
     /// <summary>
-    /// Consulta propostas por ID do serviço.
+    /// Consulta uma proposta por ID.
+    /// </summary>
+    [HttpGet("{id}")]
+    [ProducesResponseType(typeof(ProposalResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var proposal = await _proposalApplicationService.GetProposalByIdAsync(id);
+        return proposal is not null ? Ok(proposal) : NotFound(new { message = "Proposta não encontrada." });
+    }
+
+    /// <summary>
+    /// Consulta propostas por ID do serviço (apenas visível para o solicitante).
     /// </summary>
     [HttpGet("by-service/{serviceId}")]
     [ProducesResponseType(typeof(IEnumerable<ProposalResponseDto>), StatusCodes.Status200OK)]
@@ -65,5 +115,127 @@ public class ProposalsController(IProposalApplicationService proposalApplication
     {
         var list = await _proposalApplicationService.GetProposalsByServiceIdAsync(serviceId);
         return Ok(list);
+    }
+
+    /// <summary>
+    /// Consulta propostas enviadas por um prestador específico.
+    /// </summary>
+    [HttpGet("by-provider-user/{providerUserId}")]
+    [ProducesResponseType(typeof(IEnumerable<ProposalResponseDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetProposalsByProviderUser(Guid providerUserId)
+    {
+        var list = await _proposalApplicationService.GetProposalsByProviderUserIdAsync(providerUserId);
+        return Ok(list);
+    }
+
+    // ── Negociação ────────────────────────────────────────────────────────────
+
+    /// <summary>Cliente faz contra-proposta ao prestador.</summary>
+    [HttpPost("counter")]
+    [ProducesResponseType(typeof(ProposalResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CounterProposal([FromBody] CounterProposalRequest request)
+    {
+        var result = await _proposalApplicationService.CounterProposalAsync(request);
+        if (result.IsSuccess && result.Value != null)
+        {
+            if (_trackingNotification != null)
+            {
+                await _trackingNotification.NotifyServiceUpdateAsync(result.Value.ServiceId, "proposal_countered", result.Value);
+            }
+            if (_chatNotification != null)
+            {
+                await _chatNotification.NotifyChatUpdateAsync(result.Value.Id, result.Value.ServiceId, "proposal_updated", result.Value);
+            }
+        }
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    /// <summary>Prestador aceita a contra-proposta do cliente.</summary>
+    [HttpPost("{proposalId}/accept-counter")]
+    [ProducesResponseType(typeof(ProposalResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AcceptCounter(Guid proposalId, [FromBody] ProviderActionRequest request)
+    {
+        var result = await _proposalApplicationService.AcceptCounterAsync(new AcceptCounterRequest(request.ProviderUserId, proposalId));
+        if (result.IsSuccess && result.Value != null)
+        {
+            if (_trackingNotification != null)
+            {
+                await _trackingNotification.NotifyServiceUpdateAsync(result.Value.ServiceId, "counter_accepted", result.Value);
+            }
+            if (_chatNotification != null)
+            {
+                await _chatNotification.NotifyChatUpdateAsync(result.Value.Id, result.Value.ServiceId, "proposal_updated", result.Value);
+            }
+        }
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    /// <summary>Prestador recusa a contra-proposta do cliente.</summary>
+    [HttpPost("{proposalId}/reject-counter")]
+    [ProducesResponseType(typeof(ProposalResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RejectCounter(Guid proposalId, [FromBody] ProviderActionRequest request)
+    {
+        var result = await _proposalApplicationService.RejectCounterAsync(new RejectCounterRequest(request.ProviderUserId, proposalId));
+        if (result.IsSuccess && result.Value != null)
+        {
+            if (_trackingNotification != null)
+            {
+                await _trackingNotification.NotifyServiceUpdateAsync(result.Value.ServiceId, "counter_rejected", result.Value);
+            }
+            if (_chatNotification != null)
+            {
+                await _chatNotification.NotifyChatUpdateAsync(result.Value.Id, result.Value.ServiceId, "proposal_updated", result.Value);
+            }
+        }
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    // ── Chat / Barganha ───────────────────────────────────────────────────────
+
+    /// <summary>Envia mensagem no chat de negociação da proposta.</summary>
+    [HttpPost("{proposalId}/chat")]
+    [ProducesResponseType(typeof(ChatMessageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SendMessage(Guid proposalId, [FromBody] SendChatMessageRequest request)
+    {
+        var result = await _proposalApplicationService.SendChatMessageAsync(request with { ProposalId = proposalId });
+        if (result.IsSuccess && result.Value != null && _chatNotification != null)
+        {
+            await _chatNotification.NotifyChatUpdateAsync(proposalId, result.Value.ServiceId, "new_message", result.Value);
+        }
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    /// <summary>Busca o histórico de mensagens do chat de uma proposta.</summary>
+    [HttpGet("{proposalId}/chat")]
+    [ProducesResponseType(typeof(IEnumerable<ChatMessageDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetChat(Guid proposalId)
+    {
+        var messages = await _proposalApplicationService.GetChatMessagesAsync(proposalId);
+        return Ok(messages);
+    }
+
+    /// <summary>
+    /// Busca a proposta de chat ativa para um serviço (aceita ou em negociação).
+    /// Permite que o chat persista até a conclusão do trabalho ou que um novo chat seja criado caso não tenha havido barganha.
+    /// </summary>
+    [HttpGet("chat-by-service/{serviceId}")]
+    [ProducesResponseType(typeof(ProposalResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetChatProposalByService(Guid serviceId)
+    {
+        var proposal = await _proposalApplicationService.GetActiveChatProposalByServiceIdAsync(serviceId);
+        return proposal is not null ? Ok(proposal) : NotFound(new { message = "Nenhum chat ativo encontrado para este serviço." });
     }
 }

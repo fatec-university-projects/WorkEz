@@ -253,6 +253,7 @@ export default function EditProfile() {
                   <ActivityIndicator color="#2563EB" />
                 ) : (
                   <>
+                    <Save size={20} color="#2563EB" />
                     <Text style={styles.saveBtnText}>Salvar Alterações</Text>
                   </>
                 )}
@@ -385,19 +386,11 @@ const styles = StyleSheet.create({
     paddingLeft: 48,
   },
   saveBtnText: {
-    color: '#fff',
+    color: '#2563EB',
     fontWeight: '600',
     fontSize: 16,
   },
   saveBtn: {
     marginTop: 16,
-    borderWidth: 1,
-    backgroundColor: '#2563EB',
-    fontWeight: '600',
-    fontSize: 16,
-    display: 'flex',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 8,
   },
 });

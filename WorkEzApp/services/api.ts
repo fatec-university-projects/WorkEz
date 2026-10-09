@@ -4,6 +4,11 @@ const STORAGE_KEY_ACCESS = '@workez_access_token';
 const STORAGE_KEY_REFRESH = '@workez_refresh_token';
 const API_BASE_URL = 'https://workez-api.onrender.com';
 
+export function getWebSocketUrl(path: string): string {
+  const base = API_BASE_URL.replace(/^http/, 'ws');
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {},

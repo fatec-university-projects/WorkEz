@@ -359,7 +359,7 @@ export default function ProviderEditProfile() {
                   <ActivityIndicator color="#2563EB" />
                 ) : (
                   <>
-                    <Save size={20} color="#2563EB" style={{ marginRight: 8 }} />
+                    <Save size={20} color="#2563EB" />
                     <Text style={styles.saveBtnText}>Salvar Alterações</Text>
                   </>
                 )}
@@ -414,14 +414,6 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     marginTop: 16,
-    borderWidth: 1,
-    backgroundColor: '#2563EB',
-    fontWeight: '600',
-    fontSize: 16,
-    display: 'flex',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 8,
   },
   form: {
     backgroundColor: '#FFFFFF',
@@ -524,7 +516,7 @@ const styles = StyleSheet.create({
   saveBtnText: {
     display: 'flex',
     alignItems: 'center',
-    color: '#FFF',
+    color: '#2563EB',
     fontWeight: '600',
     fontSize: 16,
   },

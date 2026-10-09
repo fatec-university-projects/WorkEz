@@ -31,9 +31,14 @@ public static class DependencyInjection
         services.AddScoped<IProposalRepository, ProposalRepository>();
         services.AddScoped<IServiceRepository, ServiceRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
+        services.AddScoped<IServiceProviderRepository, ServiceProviderRepository>();
+        services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
 
         services.AddScoped<IProposalDomainService, ProposalDomainService>();
         services.AddScoped<IProposalApplicationService, ProposalApplicationService>();
+        services.AddScoped<IPortfolioApplicationService, PortfolioApplicationService>();
+        services.AddScoped<IChatApplicationService, ChatApplicationService>();
+        services.AddScoped<IServiceOpportunityApplicationService, ServiceOpportunityApplicationService>();
 
         return services;
     }

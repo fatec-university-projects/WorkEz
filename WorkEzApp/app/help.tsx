@@ -39,7 +39,7 @@ export default function Help() {
       <View className="p-6 space-y-6">
         <View className="bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] rounded-2xl p-6 text-white text-center">
           <HelpCircle className="w-12 h-12 mx-auto mb-3" />
-          <Text className="text-xl font-bold mb-2">Como podemos ajudar?</Text>
+          <Text className="text-white text-xl font-bold mb-2">Como podemos ajudar?</Text>
           <Text className="text-white/90 text-sm">
             Estamos aqui para resolver suas dúvidas
           </Text>

@@ -3,9 +3,10 @@ services:
     name: workez-api
     plan: free
     runtime: docker
-    rootDir: api
+    rootDir: WorkEzApi
     dockerfilePath: ./Dockerfile
     dockerContext: .
+    healthCheckPath: /health
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production

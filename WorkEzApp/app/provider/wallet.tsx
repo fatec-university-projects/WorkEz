@@ -1,6 +1,10 @@
 import { useMemo, useCallback } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { DollarSign, TrendingUp, Calendar, ArrowDownToLine } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import {
+  DollarSign, TrendingUp, Calendar, ArrowDownToLine,
+  ArrowLeft, Wallet as WalletIcon, ShieldCheck
+} from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Button } from '../../components/Button';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, TouchableOpacity, Platform } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
@@ -26,6 +30,7 @@ interface WalletData {
 }
 
 export default function Wallet() {
+  const router = useRouter();
   const { user } = useAuth();
 
   const { data: services, loading, error, refetch } = useFetch<any[]>(
@@ -103,9 +108,21 @@ export default function Wallet() {
   }, [services]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Carteira</Text>
+        <TouchableOpacity
+          onPress={() => (router.canGoBack() ? router.back() : router.push('/provider'))}
+          style={styles.backButton}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          activeOpacity={0.7}
+        >
+          <ArrowLeft size={22} color={WorkEzTheme.colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Minha Carteira</Text>
+        <View style={styles.verifiedBadge}>
+          <ShieldCheck size={14} color="#10B981" />
+          <Text style={styles.verifiedBadgeText}>PIX Ativo</Text>
+        </View>
       </View>
 
       <View style={styles.content}>
@@ -120,9 +137,27 @@ export default function Wallet() {
           </View>
         ) : (
           <>
-            <View style={styles.balanceCard}>
-              <Text style={styles.balanceLabel}>Saldo disponível</Text>
-              <Text style={styles.balanceValue}>R$ {walletData?.availableBalance?.toFixed(2).replace('.', ',') || '0,00'}</Text>
+            <LinearGradient
+              colors={['#06B6D4', '#2563EB']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.balanceCard}
+            >
+              <View style={styles.balanceTopRow}>
+                <View style={styles.balanceTag}>
+                  <WalletIcon size={14} color="#FFFFFF" />
+                  <Text style={styles.balanceTagText}>Saldo Principal</Text>
+                </View>
+                <View style={styles.pixTag}>
+                  <Text style={styles.pixTagText}>Conta Verificada</Text>
+                </View>
+              </View>
+
+              <Text style={styles.balanceLabel}>Saldo disponível para saque</Text>
+              <Text style={styles.balanceValue}>
+                R$ {walletData?.availableBalance?.toFixed(2).replace('.', ',') || '0,00'}
+              </Text>
+
               <TouchableOpacity
                 onPress={() => {
                   console.log('Solicitar saque clicked!');
@@ -139,23 +174,13 @@ export default function Wallet() {
                     );
                   }
                 }}
-                activeOpacity={0.8}
-                style={[
-                  styles.withdrawButton,
-                  {
-                    paddingHorizontal: 24,
-                    paddingVertical: 14,
-                    borderRadius: WorkEzTheme.borderRadius.lg,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }
-                ]}
+                activeOpacity={0.88}
+                style={styles.withdrawButton}
               >
-                <ArrowDownToLine size={20} color={WorkEzTheme.colors.primary} style={styles.withdrawIcon} />
-                <Text style={styles.withdrawText}>Solicitar saque</Text>
+                <ArrowDownToLine size={18} color="#2563EB" style={styles.withdrawIcon} />
+                <Text style={styles.withdrawText}>Solicitar saque via PIX</Text>
               </TouchableOpacity>
-            </View>
+            </LinearGradient>
 
             <View style={styles.rowCards}>
               <View style={styles.smallCard}>
@@ -242,47 +267,119 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: WorkEzTheme.colors.backgroundCard,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 48 : 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
+    borderBottomColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: 6,
+    marginRight: 8,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
   },
   headerTitle: {
     ...WorkEzTheme.typography.xl,
     fontWeight: WorkEzTheme.typography.fontWeight.bold,
     color: WorkEzTheme.colors.text,
+    flex: 1,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  verifiedBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
   },
   content: {
-    padding: 24,
-    gap: 24,
+    padding: 20,
+    gap: 20,
   },
   balanceCard: {
-    backgroundColor: WorkEzTheme.colors.primary,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 22,
+    padding: 22,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  balanceTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  balanceTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  balanceTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  pixTag: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  pixTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   balanceLabel: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    ...WorkEzTheme.typography.sm,
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 13,
+    fontWeight: '500',
     marginBottom: 4,
   },
   balanceValue: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 34,
+    fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 16,
+    marginBottom: 18,
+    letterSpacing: -0.5,
   },
   withdrawButton: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 0,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   withdrawIcon: {
     marginRight: 8,
   },
   withdrawText: {
-    color: WorkEzTheme.colors.primary,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: '#2563EB',
+    fontWeight: '700',
+    fontSize: 14,
   },
   rowCards: {
     flexDirection: 'row',

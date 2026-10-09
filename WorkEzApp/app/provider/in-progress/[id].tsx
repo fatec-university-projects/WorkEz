@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Button } from '../../../components/Button';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { MapPin, User, FileText, ArrowLeft, ShieldCheck, Play, CheckCircle } from 'lucide-react-native';
+import { MapPin, User, FileText, ArrowLeft, ShieldCheck, Play, CheckCircle, MessageCircle } from 'lucide-react-native';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
 import { apiRequest } from '../../../services/api';
@@ -108,6 +108,21 @@ export default function ServiceInProgress() {
               <Text style={styles.clientName}>{service.clientName}</Text>
               <Text style={styles.categoryName}>{service.category}</Text>
             </View>
+            <TouchableOpacity
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: 'rgba(38, 255, 245, 0.1)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: WorkEzTheme.colors.primary,
+              }}
+              onPress={() => router.push({ pathname: '/provider/chat/[id]', params: { id, serviceId: id } } as any)}
+            >
+              <MessageCircle size={20} color={WorkEzTheme.colors.primary} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.divider} />
@@ -133,6 +148,14 @@ export default function ServiceInProgress() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Ações</Text>
           <View style={{ gap: 12 }}>
+            <Button
+              fullWidth
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/provider/chat/[id]', params: { id, serviceId: id } } as any)}
+            >
+              <MessageCircle size={18} color={WorkEzTheme.colors.primary} />
+              Chat com o cliente
+            </Button>
             {isOnTheWay && (
               <>
                 {!arrived ? (

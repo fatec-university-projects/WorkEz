@@ -21,6 +21,7 @@ public interface IProposalRepository : IBaseRepository<Proposal>
     Task<IEnumerable<Proposal>> GetProposalsByServiceIdAsync(Guid serviceId);
     Task<IEnumerable<Proposal>> GetPendingProposalsByServiceIdAsync(Guid serviceId);
     Task<Proposal?> GetExistingProposalAsync(Guid serviceId, Guid providerId);
+    Task<IEnumerable<Proposal>> GetProposalsByProviderUserIdAsync(Guid providerUserId);
 }
 
 public interface IServiceRepository : IBaseRepository<Service>
@@ -29,9 +30,28 @@ public interface IServiceRepository : IBaseRepository<Service>
     Task<IEnumerable<Service>> GetServicesByCustomerAsync(Guid customerId);
 }
 
+public interface IServiceProviderRepository : IBaseRepository<ServiceProvider>
+{
+    Task<ServiceProvider?> GetByUserIdAsync(Guid userId);
+    Task<ServiceProvider?> GetByIdWithUserAsync(Guid id);
+    Task<ServiceProvider?> GetWithDetailsByUserIdAsync(Guid userId);
+    Task<ServiceProvider?> GetWithDetailsByIdAsync(Guid id);
+    Task<List<string>> GetPortfolioAsync(Guid providerId);
+    Task<bool> AddPortfolioImageAsync(Guid providerId, string imageUrl);
+    Task<bool> RemovePortfolioImageAsync(Guid providerId, string imageUrl);
+}
+
 public interface IAppointmentRepository : IBaseRepository<Appointment>
 {
     Task<Appointment?> GetByServiceIdAsync(Guid serviceId);
+}
+
+public interface IChatMessageRepository : IBaseRepository<ChatMessage>
+{
+    Task<IEnumerable<ChatMessage>> GetByProposalIdAsync(Guid proposalId);
+    Task<IEnumerable<ChatMessage>> GetByServiceIdAsync(Guid serviceId);
+    Task<ChatMessage> SendMessageAsync(Guid? proposalId, Guid? serviceId, Guid senderId, string content, bool isFromProvider);
+    Task<ChatMessage> SendMessageAsync(Guid proposalId, Guid senderId, string content, bool isFromProvider);
 }
 
 public interface IDomainEvent

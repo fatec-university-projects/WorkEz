@@ -1,5 +1,20 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Wrench, Brush, Zap, Paintbrush, Hammer, Settings } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Wrench,
+  Brush,
+  Zap,
+  Paintbrush,
+  Hammer,
+  Settings,
+  Droplet,
+  Sparkles,
+  Wind,
+  Key,
+  Trees,
+  Cpu,
+  ShieldCheck,
+} from 'lucide-react-native';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { useFetch } from '../../hooks/useFetch';
@@ -10,14 +25,50 @@ interface Category {
   description?: string;
 }
 
-const CATEGORY_UI_MAP: Record<string, any> = {
-  'Encanador': { icon: Wrench, bgColor: '#EFF6FF', borderColor: '#BFDBFE', iconColor: '#3B82F6' },
-  'Eletricista': { icon: Zap, bgColor: '#FEFCE8', borderColor: '#FEF08A', iconColor: '#EAB308' },
-  'Diarista': { icon: Brush, bgColor: '#FAF5FF', borderColor: '#E9D5FF', iconColor: '#A855F7' },
-  'Pintor': { icon: Paintbrush, bgColor: '#F0FDF4', borderColor: '#BBF7D0', iconColor: '#22C55E' },
-  'Montador': { icon: Hammer, bgColor: '#FFF7ED', borderColor: '#FED7AA', iconColor: '#F97316' },
-  'Técnico geral': { icon: Settings, bgColor: '#FEF2F2', borderColor: '#FECACA', iconColor: '#EF4444' },
-};
+function getCategoryConfig(name: string) {
+  const norm = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  if (norm.includes('jard') || norm.includes('grama') || norm.includes('poda') || norm.includes('paisag')) {
+    return { icon: Trees, bgColor: '#ECFDF5', borderColor: '#A7F3D0', iconColor: '#059669' };
+  }
+  if (norm.includes('encan') || norm.includes('hidraul') || norm.includes('vazam') || norm.includes('cano') || norm.includes('torneira')) {
+    return { icon: Droplet, bgColor: '#EFF6FF', borderColor: '#BFDBFE', iconColor: '#2563EB' };
+  }
+  if (norm.includes('eletri') || norm.includes('luz') || norm.includes('fiac') || norm.includes('disjunt') || norm.includes('tomada')) {
+    return { icon: Zap, bgColor: '#FEFCE8', borderColor: '#FEF08A', iconColor: '#CA8A04' };
+  }
+  if (norm.includes('diar') || norm.includes('limp') || norm.includes('faxin') || norm.includes('passad')) {
+    return { icon: Sparkles, bgColor: '#FAF5FF', borderColor: '#E9D5FF', iconColor: '#9333EA' };
+  }
+  if (norm.includes('pint') || norm.includes('parede') || norm.includes('verniz')) {
+    return { icon: Paintbrush, bgColor: '#F0FDF4', borderColor: '#BBF7D0', iconColor: '#16A34A' };
+  }
+  if (norm.includes('mont') || norm.includes('marcen') || norm.includes('move')) {
+    return { icon: Hammer, bgColor: '#FFF7ED', borderColor: '#FED7AA', iconColor: '#EA580C' };
+  }
+  if (norm.includes('pedreir') || norm.includes('alvenar') || norm.includes('obra') || norm.includes('reforma') || norm.includes('constru')) {
+    return { icon: Hammer, bgColor: '#F1F5F9', borderColor: '#CBD5E1', iconColor: '#475569' };
+  }
+  if (norm.includes('serralh') || norm.includes('solda') || norm.includes('portao') || norm.includes('grade')) {
+    return { icon: Settings, bgColor: '#F0F9FF', borderColor: '#BAE6FD', iconColor: '#0284C7' };
+  }
+  if (norm.includes('dedetiz') || norm.includes('praga') || norm.includes('inset')) {
+    return { icon: ShieldCheck, bgColor: '#ECFDF5', borderColor: '#A7F3D0', iconColor: '#0D9488' };
+  }
+  if (norm.includes('ar-cond') || norm.includes('ar cond') || norm.includes('clima') || norm.includes('refrig') || norm.includes('split') || norm.includes('ventilador')) {
+    return { icon: Wind, bgColor: '#F0F9FF', borderColor: '#BAE6FD', iconColor: '#0284C7' };
+  }
+  if (norm.includes('chave') || norm.includes('tranc') || norm.includes('fechad')) {
+    return { icon: Key, bgColor: '#FFFBEB', borderColor: '#FDE68A', iconColor: '#D97706' };
+  }
+  if (norm.includes('tec') || norm.includes('comput') || norm.includes('celul') || norm.includes('eletron')) {
+    return { icon: Cpu, bgColor: '#F8FAFC', borderColor: '#CBD5E1', iconColor: '#475569' };
+  }
+  return { icon: Wrench, bgColor: '#F8FAFC', borderColor: '#E2E8F0', iconColor: '#2563EB' };
+}
 
 export default function SelectCategory() {
   const router = useRouter();
@@ -53,7 +104,7 @@ export default function SelectCategory() {
           </View>
         ) : (
           categories?.map((category) => {
-            const uiConfig = CATEGORY_UI_MAP[category.name] || { icon: Settings, bgColor: '#F1F5F9', borderColor: '#E2E8F0', iconColor: '#64748B' };
+            const uiConfig = getCategoryConfig(category.name);
             const Icon = uiConfig.icon;
             return (
               <TouchableOpacity

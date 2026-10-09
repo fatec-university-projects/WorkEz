@@ -54,9 +54,13 @@ export default function AcceptedService() {
             {service?.address || 'Endereço não disponível'}
           </Text>
         </View>
-        <Button fullWidth onPress={() => router.push(`/provider/chat/${id}` as any)} className="mb-3">
+        <Button
+          fullWidth
+          onPress={() => router.push({ pathname: '/provider/chat/[id]', params: { id, serviceId: id } } as any)}
+          className="mb-3"
+        >
           <MessageCircle className="w-5 h-5 inline mr-2" />
-          Abrir chat
+          Abrir chat com o cliente
         </Button>
         <Button 
           fullWidth 

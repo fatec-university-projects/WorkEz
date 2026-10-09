@@ -1,70 +1,85 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, User, CreditCard, FileText, MapPin, Bell, HelpCircle, LogOut, ChevronRight } from 'lucide-react-native';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { useAuth } from '../../contexts/AuthContext';
+import { ArrowLeft, User, CreditCard, FileText, MapPin, Bell, HelpCircle, ChevronRight } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
 export default function ProviderSettings() {
   const router = useRouter();
-  const { signOut } = useAuth();
-
-  const handleLogout = () => {
-    signOut();
-    router.replace('/' as any);
-  };
 
   const menuItems = [
-    { icon: User, label: 'Dados pessoais', path: '/provider/edit-profile' },
-    { icon: CreditCard, label: 'Dados bancários', path: '#' },
-    { icon: FileText, label: 'Documentos', path: '#' },
-    { icon: MapPin, label: 'Regiões de atendimento', path: '#' },
-    { icon: Bell, label: 'Notificações', path: '#' },
-    { icon: HelpCircle, label: 'Ajuda', path: '/help' },
+    { icon: User,        label: 'Dados pessoais',         path: '/provider/edit-profile' },
+    { icon: CreditCard,  label: 'Dados bancários',         path: '#' },
+    { icon: FileText,    label: 'Documentos',               path: '#' },
+    { icon: MapPin,      label: 'Regiões de atendimento',  path: '#' },
+    { icon: Bell,        label: 'Notificações',            path: '#' },
+    { icon: HelpCircle,  label: 'Ajuda e suporte',         path: '/help' },
   ];
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b">
-        <View className="flex-row items-center gap-3">
-          <TouchableOpacity onPress={() => router.back()}>
-            <ArrowLeft className="w-6 h-6" />
-          </TouchableOpacity>
-          <Text className="text-xl font-semibold">Configurações</Text>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} activeOpacity={0.8}>
+          <ArrowLeft size={24} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Configurações</Text>
       </View>
-      <View className="p-6">
-        <View className="bg-white rounded-2xl overflow-hidden mb-4">
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.card}>
           {menuItems.map((item, i) => {
             const Icon = item.icon;
             const isDisabled = item.path === '#';
-            const isFormAction = [
-              '/provider/edit-profile',
-              '#',
-            ].includes(item.path) === false ? false : item.path !== '#';
-            const itemTextClass = isFormAction ? 'text-[#2563EB]' : 'text-[#0F172A]';
-            const iconClass = isFormAction ? 'text-[#2563EB]' : 'text-[#64748B]';
             return (
               <TouchableOpacity
-                key={i}
-                onPress={() => !isDisabled && router.push(item.path)}
+                key={item.label}
+                onPress={() => !isDisabled && router.push(item.path as any)}
                 disabled={isDisabled}
-                style={{ opacity: isDisabled ? 0.4 : 1 }}
-                className="w-full flex-row items-center gap-3 px-6 py-4 border-b last:border-0"
+                activeOpacity={0.7}
+                style={[styles.menuItem, i < menuItems.length - 1 && styles.menuItemBorder, isDisabled && styles.menuItemDisabled]}
               >
-                <Icon className={`w-5 h-5 ${iconClass}`} />
-                <Text className={`flex-1 text-left ${itemTextClass}`}>{item.label}</Text>
-                {!isDisabled && <ChevronRight className={`w-5 h-5 ${iconClass}`} />}
+                <View style={styles.iconBadge}>
+                  <Icon size={20} color="#2563EB" />
+                </View>
+                <Text style={styles.menuLabel}>{item.label}</Text>
+                {!isDisabled && <ChevronRight size={18} color="#CBD5E1" />}
               </TouchableOpacity>
             );
           })}
         </View>
-        <TouchableOpacity
-          onPress={handleLogout}
-          className="w-full flex-row items-center gap-3 px-6 py-4 bg-white rounded-2xl text-red-500"
-        >
-          <LogOut className="w-5 h-5" />
-          <Text className="flex-1 text-left font-medium">Sair</Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backButton: { padding: 8, borderRadius: 8, backgroundColor: '#F1F5F9' },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: '#0F172A' },
+  scrollContent: { padding: 24, gap: 16, flexGrow: 1 },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, gap: 12 },
+  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  menuItemDisabled: { opacity: 0.4 },
+  iconBadge: { width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(37,99,235,0.08)', alignItems: 'center', justifyContent: 'center' },
+  menuLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: '#0F172A' },
+});
