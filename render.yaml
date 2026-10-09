@@ -10,21 +10,22 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      # Segredos: defina os valores no painel do Render (sync: false não os versiona).
       - key: ConnectionStrings__DefaultConnection
-        value: "Host=ep-billowing-night-ac7hfoy7-pooler.sa-east-1.aws.neon.tech;Database=WorkEz;Username=neondb_owner;Password=npg_ftATc3z7BEMG;SslMode=Require;Channel Binding=require;"
+        sync: false
+      - key: Jwt__SecretKey
+        sync: false
+      - key: AbacatePay__ApiKey
+        sync: false
+      - key: AbacatePay__WebhookSecret
+        sync: false
       - key: Jwt__Issuer
         value: WorkEz
       - key: Jwt__Audience
         value: WorkEzClient
-      - key: Jwt__SecretKey
-        value: "ad73a326-5687-4684-8d45-2b9641e0715e-b75c5aab-2dc5-4906-8dc4-3253d3e6dd89"
       - key: Jwt__AccessTokenExpirationMinutes
         value: "15"
       - key: Jwt__RefreshTokenExpirationDays
         value: "7"
-      - key: AbacatePay__ApiKey
-        value: "abc_dev_qBNN4qbr3e2dNtZdzEbfRBpW"
       - key: AbacatePay__BaseUrl
         value: "https://api.abacatepay.com/v1"
-      - key: AbacatePay__WebhookSecret
-        value: "wez_whsec_2026_WorkEz!"

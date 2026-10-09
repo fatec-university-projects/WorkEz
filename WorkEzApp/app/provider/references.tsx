@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   addBtnText: {
     ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.primary,
+    color: '#0F766E',
     fontWeight: WorkEzTheme.typography.fontWeight.medium,
   },
   infoBanner: {

@@ -2,7 +2,8 @@ import { Platform } from 'react-native';
 
 export const WorkEzTheme = {
   colors: {
-    primary: '#26FFF5', // Accent cyan
+    primary: '#26FFF5', // Accent cyan (para fundos, badges, detalhes visuais)
+    primaryText: '#0F766E', // Versão com alto contraste para textos e lances
     background: '#FFFFFF',
     backgroundAlt: '#F1F5F9', // slate-100
     backgroundCard: '#FFFFFF',

@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   },
   historyItemValue: {
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: WorkEzTheme.colors.primary,
+    color: '#0F766E',
     marginBottom: 4,
   },
   statusBadge: {
@@ -520,7 +520,8 @@ const styles = StyleSheet.create({
     ...WorkEzTheme.typography.xs,
   },
   statusReceivedText: {
-    color: WorkEzTheme.colors.primary,
+    color: '#0F766E',
+    fontWeight: '600',
   },
   statusPendingText: {
     color: WorkEzTheme.colors.warning,

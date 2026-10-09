@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   uploadCardTitle: {
     ...WorkEzTheme.typography.base,
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: WorkEzTheme.colors.primary,
+    color: '#0F766E',
   },
   uploadCardHint: {
     ...WorkEzTheme.typography.xs,

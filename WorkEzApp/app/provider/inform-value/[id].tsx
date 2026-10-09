@@ -1,39 +1,83 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Button } from '../../../components/Button';
-import { Input } from '../../../components/Input';
-import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle2, DollarSign, User, Wrench, AlertCircle } from 'lucide-react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  ActivityIndicator, 
+  Alert, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Platform, 
+  ScrollView 
+} from 'react-native';
 import { WorkEzTheme } from '../../../constants/theme';
+import { useFetch } from '../../../hooks/useFetch';
 import { apiRequest } from '../../../services/api';
 
 export default function InformValue() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Busca dados do serviço para pré-preencher o valor acordado
+  const { data: service, loading } = useFetch<any>(
+    id ? `/api/Services/${id}` : null
+  );
+
+  useEffect(() => {
+    if (service && service.price && !value) {
+      setValue(Number(service.price).toFixed(2));
+    }
+  }, [service]);
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.push(`/provider/in-progress/${id}` as any);
+    }
+  };
+
   const handleConfirmValue = async () => {
     if (!id) return;
-    const priceNum = parseFloat(value.replace(',', '.'));
+    const cleanVal = value.replace(/\s/g, '').replace(',', '.');
+    const priceNum = parseFloat(cleanVal);
+    
     if (isNaN(priceNum) || priceNum <= 0) {
-      Alert.alert('Valor inválido', 'Por favor, insira um valor válido maior que zero.');
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert('Por favor, insira um valor válido maior que zero.');
+      } else {
+        Alert.alert('Valor inválido', 'Por favor, insira um valor válido maior que zero.');
+      }
       return;
     }
 
     setSaving(true);
     try {
       const res = await apiRequest<any>(`/api/Services/${id}/complete?price=${priceNum}`, {
-        method: 'PATCH'
+        method: 'POST'
       });
+
       if (res.error) {
-        Alert.alert('Erro', res.error);
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert(`Erro ao concluir: ${res.error}`);
+        } else {
+          Alert.alert('Erro', res.error);
+        }
       } else {
         router.push(`/provider/waiting-payment/${id}` as any);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      Alert.alert('Erro', 'Não foi possível se conectar ao servidor.');
+      const msg = err?.message || 'Não foi possível se conectar ao servidor.';
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert(`Erro: ${msg}`);
+      } else {
+        Alert.alert('Erro', msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -41,41 +85,94 @@ export default function InformValue() {
 
   return (
     <View style={styles.container}>
+      {/* Top Header */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.iconButton}
-            activeOpacity={0.8}
+            onPress={handleBack}
+            style={styles.backButton}
+            activeOpacity={0.7}
           >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
+            <ArrowLeft size={22} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Informar Valor</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>Informar Valor Final</Text>
+            <Text style={styles.headerSubtitle}>Conclusão do atendimento</Text>
+          </View>
         </View>
       </View>
 
-      <View className="p-6">
-        <View className="bg-white rounded-2xl p-6 border border-[#E2E8F0] shadow-sm">
-          <Text className="text-[#64748B] mb-4">
-            Insira o valor final acordado com o cliente para a realização do serviço.
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Card do Chamado */}
+        {service && (
+          <View style={styles.serviceCard}>
+            <View style={styles.serviceHeaderRow}>
+              <View style={styles.iconCircle}>
+                <Wrench size={20} color="#2563EB" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.serviceCategory}>{service.category || 'Serviço Prestado'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <User size={13} color="#64748B" />
+                  <Text style={styles.serviceClient}>{service.clientName || 'Cliente'}</Text>
+                </View>
+              </View>
+            </View>
+
+            {service.price ? (
+              <View style={styles.priceEstimateRow}>
+                <Text style={styles.priceEstimateLabel}>Valor acordado na proposta:</Text>
+                <Text style={styles.priceEstimateValue}>
+                  R$ {Number(service.price).toFixed(2).replace('.', ',')}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+
+        {/* Card do Input de Valor */}
+        <View style={styles.inputCard}>
+          <Text style={styles.cardTitle}>Valor Final do Serviço</Text>
+          <Text style={styles.cardSubtitle}>
+            Confirme ou ajuste o valor a ser cobrado do cliente para liberar o pagamento.
           </Text>
-          <Input
-            label="Valor do serviço (R$)"
-            keyboardType="numeric"
-            placeholder="150.00"
-            value={value}
-            onChangeText={setValue}
-          />
-          <Button
-            fullWidth
-            className="mt-6"
+
+          <View style={styles.inputWrapper}>
+            <Text style={styles.currencyPrefix}>R$</Text>
+            <TextInput
+              style={styles.textInput}
+              keyboardType="decimal-pad"
+              placeholder="0,00"
+              placeholderTextColor="#94A3B8"
+              value={value}
+              onChangeText={setValue}
+            />
+          </View>
+
+          <View style={styles.hintBox}>
+            <AlertCircle size={16} color="#64748B" style={{ marginTop: 2 }} />
+            <Text style={styles.hintText}>
+              Este valor será cobrado diretamente do cliente na tela de pagamento.
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.btnConfirm, saving && styles.btnDisabled]}
             onPress={handleConfirmValue}
             disabled={saving}
+            activeOpacity={0.85}
           >
-            {saving ? <ActivityIndicator color="#FFF" /> : 'Confirmar valor'}
-          </Button>
+            {saving ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <>
+                <CheckCircle2 size={20} color="#FFFFFF" />
+                <Text style={styles.btnConfirmText}>Confirmar Valor e Finalizar</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -87,24 +184,181 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  iconButton: {
-    padding: 8,
-    borderRadius: 8,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    ...WorkEzTheme.typography.lg,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    fontSize: 18,
+    fontWeight: '700',
     color: '#0F172A',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    maxWidth: 600,
+    width: '100%',
+    alignSelf: 'center',
+    gap: 16,
+  },
+  serviceCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  serviceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  serviceCategory: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  serviceClient: {
+    fontSize: 13,
+    color: '#64748B',
+  },
+  priceEstimateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  priceEstimateLabel: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  priceEstimateValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  inputCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#2563EB',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    marginBottom: 14,
+  },
+  currencyPrefix: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2563EB',
+    marginRight: 8,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#0F172A',
+    paddingVertical: 14,
+  },
+  hintBox: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  hintText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 17,
+  },
+  btnConfirm: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2563EB',
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  btnConfirmText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  btnDisabled: {
+    opacity: 0.65,
   },
 });

@@ -11,11 +11,11 @@ export const Input = forwardRef<TextInput, InputProps>(
   ({ label, error, style, ...props }, ref) => {
     return (
       <View style={styles.container}>
-        {label && (
+        {label ? (
           <Text style={styles.label}>
             {label}
           </Text>
-        )}
+        ) : null}
         <TextInput
           ref={ref}
           style={[
@@ -26,9 +26,9 @@ export const Input = forwardRef<TextInput, InputProps>(
           placeholderTextColor={WorkEzTheme.colors.textSecondary}
           {...props}
         />
-        {error && (
+        {error ? (
           <Text style={styles.errorText}>{error}</Text>
-        )}
+        ) : null}
       </View>
     );
   }

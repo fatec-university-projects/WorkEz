@@ -83,7 +83,18 @@ namespace WorkEz.Domain.Services
             }
 
             var existingProposal = await _proposalRepository.GetExistingProposalAsync(service.Id, provider.Id);
-            if (existingProposal != null) return Result<Proposal>.Failure("Você já possui uma proposta pendente para este serviço.", "DUPLICATE_PROPOSAL");
+            if (existingProposal != null)
+            {
+                existingProposal.ProposedPrice = proposedPrice;
+                existingProposal.Description = description;
+                existingProposal.EstimatedTime = estimatedTime;
+                existingProposal.Touch();
+                _proposalRepository.Update(existingProposal);
+                await _proposalRepository.SaveChangesAsync();
+
+                await _messageBroker.PublishAsync(new ProposalSubmittedEvent(Guid.NewGuid(), DateTime.UtcNow, existingProposal.Id, service.Id, provider.Id, existingProposal.ProposedPrice));
+                return Result<Proposal>.Success(existingProposal);
+            }
 
             var proposal = new Proposal
             {

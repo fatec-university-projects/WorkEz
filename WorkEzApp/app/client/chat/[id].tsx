@@ -77,10 +77,18 @@ export default function ClientChat() {
 
     const loadInitialMessages = async () => {
       try {
-        const res = await apiRequest<ChatMessage[]>(`/api/Proposals/${activeProposalId}/chat`);
+        const res = await apiRequest<any[]>(`/api/Proposals/${activeProposalId}/chat`);
         if (isCurrent) {
           if (res.data) {
-            setMessages(res.data);
+            const mapped: ChatMessage[] = res.data.map((raw: any, index: number) => ({
+              id: raw.id || raw.Id || `init_${index}_${Date.now()}`,
+              proposalId: raw.proposalId || raw.ProposalId || '',
+              senderId: raw.senderId || raw.SenderId || '',
+              content: raw.content || raw.Content || '',
+              isFromProvider: raw.isFromProvider ?? raw.IsFromProvider ?? false,
+              sentAt: raw.sentAt || raw.SentAt || new Date().toISOString()
+            })).filter(m => m.content && m.content.trim().length > 0);
+            setMessages(mapped);
           }
           if (res.error) {
             setChatError(res.error);
@@ -122,7 +130,16 @@ export default function ClientChat() {
           try {
             const data = JSON.parse(event.data);
             if (data.eventType === 'new_message' && data.payload) {
-              const newMsg = data.payload as ChatMessage;
+              const raw = data.payload;
+              const newMsg: ChatMessage = {
+                id: raw.id || raw.Id || `ws_${Date.now()}_${Math.random()}`,
+                proposalId: raw.proposalId || raw.ProposalId || '',
+                senderId: raw.senderId || raw.SenderId || '',
+                content: raw.content || raw.Content || '',
+                isFromProvider: raw.isFromProvider ?? raw.IsFromProvider ?? false,
+                sentAt: raw.sentAt || raw.SentAt || new Date().toISOString()
+              };
+              if (!newMsg.content || !newMsg.content.trim()) return;
               setMessages((prev) => {
                 if (prev.some((m) => m.id === newMsg.id)) return prev;
                 return [...prev, newMsg];
@@ -189,7 +206,15 @@ export default function ClientChat() {
         Alert.alert('Aviso', res.error);
         setMessageText(textToSend);
       } else if (res.data) {
-        const sentMsg = res.data;
+        const raw: any = res.data;
+        const sentMsg: ChatMessage = {
+          id: raw.id || raw.Id || `sent_${Date.now()}_${Math.random()}`,
+          proposalId: raw.proposalId || raw.ProposalId || '',
+          senderId: raw.senderId || raw.SenderId || '',
+          content: raw.content || raw.Content || textToSend,
+          isFromProvider: raw.isFromProvider ?? raw.IsFromProvider ?? false,
+          sentAt: raw.sentAt || raw.SentAt || new Date().toISOString()
+        };
         setMessages((prev) => {
           if (prev.some((m) => m.id === sentMsg.id)) return prev;
           return [...prev, sentMsg];
@@ -203,12 +228,22 @@ export default function ClientChat() {
     }
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else if (effectiveServiceId) {
+      router.replace(`/client/tracking/${effectiveServiceId}` as any);
+    } else {
+      router.replace('/client/services' as any);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={handleBack}
             style={styles.backButton}
             activeOpacity={0.8}
           >
@@ -273,16 +308,16 @@ export default function ClientChat() {
         contentContainerStyle={styles.messagesContent}
       >
         {chatLoading && (!messages || messages.length === 0) ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+          <View key="chat-loading" style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#0F766E" />
             <Text style={styles.loadingText}>Carregando mensagens...</Text>
           </View>
         ) : chatError ? (
-          <View style={styles.centerContainer}>
+          <View key="chat-error" style={styles.centerContainer}>
             <Text style={styles.errorText}>{chatError}</Text>
           </View>
         ) : (!messages || messages.length === 0) ? (
-          <View style={styles.centerContainer}>
+          <View key="chat-empty" style={styles.centerContainer}>
             <Text style={{ color: '#94A3B8', textAlign: 'center', fontSize: 14 }}>
               {isAccepted
                 ? 'Inicie a conversa! Envie uma mensagem para alinhar os detalhes da execução do chamado com o prestador.'
@@ -290,12 +325,23 @@ export default function ClientChat() {
             </Text>
           </View>
         ) : (
-          messages.map((msg) => {
+          messages.map((msg, index) => {
             const isClient = !msg.isFromProvider;
-            const timeFormatted = new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            let timeFormatted = '';
+            try {
+              if (msg.sentAt) {
+                const dateObj = new Date(msg.sentAt);
+                if (!isNaN(dateObj.getTime())) {
+                  timeFormatted = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+              }
+            } catch {
+              timeFormatted = '';
+            }
+
             return (
               <View
-                key={msg.id}
+                key={msg.id || `msg-${index}-${msg.sentAt}`}
                 style={[
                   styles.messageRow,
                   isClient ? styles.messageRowRight : styles.messageRowLeft
@@ -313,12 +359,14 @@ export default function ClientChat() {
                   ]}>
                     {msg.content}
                   </Text>
-                  <Text style={[
-                    styles.messageTime,
-                    isClient ? styles.messageTimeClient : styles.messageTimePro
-                  ]}>
-                    {timeFormatted}
-                  </Text>
+                  {timeFormatted ? (
+                    <Text style={[
+                      styles.messageTime,
+                      isClient ? styles.messageTimeClient : styles.messageTimePro
+                    ]}>
+                      {timeFormatted}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             );
@@ -394,7 +442,8 @@ const styles = StyleSheet.create({
   },
   statusText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.primary,
+    color: '#0F766E', // Verde/teal escuro com contraste excelente sobre fundo branco
+    fontWeight: '600',
   },
   alertBanner: {
     backgroundColor: '#EFF6FF',

@@ -101,6 +101,9 @@ public class ChatWebSocketManager : IChatNotificationService
             eventType,
             payload,
             timestamp = DateTime.UtcNow
+        }, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
 
         var bytes = Encoding.UTF8.GetBytes(message);

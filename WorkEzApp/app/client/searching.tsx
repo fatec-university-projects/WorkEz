@@ -44,6 +44,13 @@ export default function SearchingProfessional() {
   );
 
   useEffect(() => {
+    if (customerError) {
+      alert('Não foi possível identificar o perfil de cliente: ' + customerError);
+      router.back();
+    }
+  }, [customerError]);
+
+  useEffect(() => {
     if (!customer) return;
 
     let isMounted = true;
@@ -120,6 +127,15 @@ export default function SearchingProfessional() {
             Obtendo dados do perfil do cliente...
           </Text>
         )}
+
+        <View style={{ marginTop: 24 }}>
+          <Text
+            onPress={() => router.back()}
+            style={{ color: '#EF4444', fontWeight: '600', fontSize: 14, textDecorationLine: 'underline', padding: 8 }}
+          >
+            Cancelar e voltar
+          </Text>
+        </View>
       </View>
 
       <View className="p-6 space-y-3 bg-white border-t border-[#E2E8F0]">

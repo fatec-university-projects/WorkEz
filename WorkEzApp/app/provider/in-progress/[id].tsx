@@ -190,7 +190,7 @@ export default function ServiceInProgress() {
                 fullWidth
                 onPress={() => router.push(`/provider/inform-value/${id}` as any)}
               >
-                <CheckCircle className="w-5 h-5 inline mr-2" />
+                <CheckCircle size={18} color="#FFFFFF" />
                 Marcar como concluído
               </Button>
             )}

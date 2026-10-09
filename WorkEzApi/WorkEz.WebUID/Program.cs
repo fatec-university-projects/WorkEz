@@ -1,4 +1,8 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using WorkEz.Infra.Ioc;
+using WorkEz.WebUID.Auth;
 using WorkEz.WebUID.WebSockets;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +24,34 @@ builder.Services.AddSingleton<ChatWebSocketManager>();
 builder.Services.AddSingleton<IChatNotificationService>(sp => sp.GetRequiredService<ChatWebSocketManager>());
 
 builder.Services.AddInfrastructure(builder.Configuration);
+
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtOptions = jwtSection.Get<JwtOptions>() ?? new JwtOptions();
+if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey) || jwtOptions.SecretKey.Length < 32)
+    throw new InvalidOperationException("Jwt:SecretKey ausente ou com menos de 32 caracteres. Configure Jwt__SecretKey.");
+
+builder.Services.Configure<JwtOptions>(jwtSection);
+builder.Services.AddSingleton<TokenService>();
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+            NameClaimType = "name",
+            RoleClaimType = "role",
+        };
+    });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -77,10 +109,14 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCors("AllowAll");
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))

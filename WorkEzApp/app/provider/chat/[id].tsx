@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Send, AlertCircle, User, Check, X, CornerDownRight, CheckCircle, MessageCircle } from 'lucide-react-native';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -78,9 +78,19 @@ export default function ProviderChat() {
 
     const loadInitialMessages = async () => {
       try {
-        const res = await apiRequest<ChatMessage[]>(`/api/Proposals/${activeProposalId}/chat`);
+        const res = await apiRequest<any[]>(`/api/Proposals/${activeProposalId}/chat`);
         if (isCurrent) {
-          if (res.data) setMessages(res.data);
+          if (res.data) {
+            const mapped: ChatMessage[] = res.data.map((raw: any, index: number) => ({
+              id: raw.id || raw.Id || `init_${index}_${Date.now()}`,
+              proposalId: raw.proposalId || raw.ProposalId || '',
+              senderId: raw.senderId || raw.SenderId || '',
+              content: raw.content || raw.Content || '',
+              isFromProvider: raw.isFromProvider ?? raw.IsFromProvider ?? false,
+              sentAt: raw.sentAt || raw.SentAt || new Date().toISOString()
+            })).filter(m => m.content && m.content.trim().length > 0);
+            setMessages(mapped);
+          }
           if (res.error) setChatError(res.error);
         }
       } catch (err: any) {
@@ -119,7 +129,16 @@ export default function ProviderChat() {
           try {
             const data = JSON.parse(event.data);
             if (data.eventType === 'new_message' && data.payload) {
-              const newMsg = data.payload as ChatMessage;
+              const raw = data.payload;
+              const newMsg: ChatMessage = {
+                id: raw.id || raw.Id || `ws_${Date.now()}_${Math.random()}`,
+                proposalId: raw.proposalId || raw.ProposalId || '',
+                senderId: raw.senderId || raw.SenderId || '',
+                content: raw.content || raw.Content || '',
+                isFromProvider: raw.isFromProvider ?? raw.IsFromProvider ?? false,
+                sentAt: raw.sentAt || raw.SentAt || new Date().toISOString()
+              };
+              if (!newMsg.content || !newMsg.content.trim()) return;
               setMessages((prev) => {
                 if (prev.some((m) => m.id === newMsg.id)) return prev;
                 return [...prev, newMsg];
@@ -186,7 +205,15 @@ export default function ProviderChat() {
         Alert.alert('Erro ao enviar', res.error);
         setMessageText(textToSend);
       } else if (res.data) {
-        const sentMsg = res.data;
+        const raw: any = res.data;
+        const sentMsg: ChatMessage = {
+          id: raw.id || raw.Id || `sent_${Date.now()}_${Math.random()}`,
+          proposalId: raw.proposalId || raw.ProposalId || '',
+          senderId: raw.senderId || raw.SenderId || '',
+          content: raw.content || raw.Content || textToSend,
+          isFromProvider: raw.isFromProvider ?? raw.IsFromProvider ?? true,
+          sentAt: raw.sentAt || raw.SentAt || new Date().toISOString()
+        };
         setMessages((prev) => {
           if (prev.some((m) => m.id === sentMsg.id)) return prev;
           return [...prev, sentMsg];
@@ -202,72 +229,119 @@ export default function ProviderChat() {
 
   const handleAcceptCounter = async () => {
     if (!activeProposalId || !user) return;
-    Alert.alert(
-      'Aceitar Contra-proposta',
-      `Deseja aceitar o valor de R$ ${proposal?.counterPrice?.toFixed(2)} proposto pelo cliente? O trabalho será confirmado.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Aceitar',
-          onPress: async () => {
-            setActionLoading(true);
-            try {
-              const res = await apiRequest<ProposalInfo>(`/api/Proposals/${activeProposalId}/accept-counter`, {
-                method: 'POST',
-                body: JSON.stringify({ providerUserId: user.id })
-              });
-              if (res.error) {
-                Alert.alert('Erro', res.error);
-              } else {
-                if (res.data) setLiveProposal(res.data);
-                Alert.alert('Sucesso!', 'Contra-proposta aceita! O chamado agora está em "Trabalhos Aceitos".');
-              }
-            } catch (err) {
-              Alert.alert('Erro', 'Não foi possível aceitar a contra-proposta.');
-            } finally {
-              setActionLoading(false);
-            }
+
+    const execute = async () => {
+      setActionLoading(true);
+      try {
+        const res = await apiRequest<ProposalInfo>(`/api/Proposals/${activeProposalId}/accept-counter`, {
+          method: 'POST',
+          body: JSON.stringify({ providerUserId: user.id })
+        });
+        if (res.error) {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.alert(`Erro: ${res.error}`);
+          } else {
+            Alert.alert('Erro', res.error);
+          }
+        } else {
+          if (res.data) setLiveProposal(res.data);
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.alert('Contra-proposta aceita! O chamado agora está em "Trabalhos Aceitos".');
+          } else {
+            Alert.alert('Sucesso!', 'Contra-proposta aceita! O chamado agora está em "Trabalhos Aceitos".');
           }
         }
-      ]
-    );
+      } catch (err) {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert('Não foi possível aceitar a contra-proposta.');
+        } else {
+          Alert.alert('Erro', 'Não foi possível aceitar a contra-proposta.');
+        }
+      } finally {
+        setActionLoading(false);
+      }
+    };
+
+    const confirmMsg = `Deseja aceitar o valor de R$ ${proposal?.counterPrice?.toFixed(2)} proposto pelo cliente? O trabalho será confirmado.`;
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(confirmMsg)) {
+        await execute();
+      }
+    } else {
+      Alert.alert(
+        'Aceitar Contra-proposta',
+        confirmMsg,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Aceitar', onPress: execute }
+        ]
+      );
+    }
   };
 
   const handleRejectCounter = async () => {
     if (!activeProposalId || !user) return;
-    Alert.alert(
-      'Recusar Contra-proposta',
-      'Deseja recusar a contra-proposta do cliente?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Recusar',
-          style: 'destructive',
-          onPress: async () => {
-            setActionLoading(true);
-            try {
-              const res = await apiRequest<ProposalInfo>(`/api/Proposals/${activeProposalId}/reject-counter`, {
-                method: 'POST',
-                body: JSON.stringify({ providerUserId: user.id })
-              });
-              if (res.error) {
-                Alert.alert('Erro', res.error);
-              } else {
-                if (res.data) setLiveProposal(res.data);
-                Alert.alert('Contra-proposta recusada', 'A proposta retornou ao status pendente com o seu valor original.');
-              }
-            } catch (err) {
-              Alert.alert('Erro', 'Não foi possível recusar.');
-            } finally {
-              setActionLoading(false);
-            }
+
+    const execute = async () => {
+      setActionLoading(true);
+      try {
+        const res = await apiRequest<ProposalInfo>(`/api/Proposals/${activeProposalId}/reject-counter`, {
+          method: 'POST',
+          body: JSON.stringify({ providerUserId: user.id })
+        });
+        if (res.error) {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.alert(`Erro: ${res.error}`);
+          } else {
+            Alert.alert('Erro', res.error);
+          }
+        } else {
+          if (res.data) setLiveProposal(res.data);
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.alert('Contra-proposta recusada. A proposta retornou ao status pendente com o seu valor original.');
+          } else {
+            Alert.alert('Contra-proposta recusada', 'A proposta retornou ao status pendente com o seu valor original.');
           }
         }
-      ]
-    );
+      } catch (err) {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert('Não foi possível recusar.');
+        } else {
+          Alert.alert('Erro', 'Não foi possível recusar.');
+        }
+      } finally {
+        setActionLoading(false);
+      }
+    };
+
+    const confirmMsg = 'Deseja recusar a contra-proposta do cliente?';
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(confirmMsg)) {
+        await execute();
+      }
+    } else {
+      Alert.alert(
+        'Recusar Contra-proposta',
+        confirmMsg,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Recusar', style: 'destructive', onPress: execute }
+        ]
+      );
+    }
   };
 
   const isCountered = proposal?.status === 'CounterOffered';
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else if (effectiveServiceId) {
+      router.replace(`/provider/accepted/${effectiveServiceId}` as any);
+    } else {
+      router.replace('/provider/calls' as any);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -275,7 +349,7 @@ export default function ProviderChat() {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={handleBack}
             style={styles.backButton}
             activeOpacity={0.8}
           >
@@ -379,16 +453,16 @@ export default function ProviderChat() {
         contentContainerStyle={styles.messagesContent}
       >
         {chatLoading && (!messages || messages.length === 0) ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+          <View key="chat-loading" style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#0F766E" />
             <Text style={styles.loadingText}>Carregando mensagens...</Text>
           </View>
         ) : chatError ? (
-          <View style={styles.centerContainer}>
+          <View key="chat-error" style={styles.centerContainer}>
             <Text style={styles.errorText}>{chatError}</Text>
           </View>
         ) : (!messages || messages.length === 0) ? (
-          <View style={styles.centerContainer}>
+          <View key="chat-empty" style={styles.centerContainer}>
             <Text style={{ color: '#94A3B8', textAlign: 'center', fontSize: 14 }}>
               {isAccepted
                 ? 'Inicie a conversa! Envie uma mensagem para alinhar os detalhes da execução do chamado com o cliente.'
@@ -396,12 +470,23 @@ export default function ProviderChat() {
             </Text>
           </View>
         ) : (
-          messages.map((msg) => {
+          messages.map((msg, index) => {
             const isMe = msg.isFromProvider;
-            const timeFormatted = new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            let timeFormatted = '';
+            try {
+              if (msg.sentAt) {
+                const dateObj = new Date(msg.sentAt);
+                if (!isNaN(dateObj.getTime())) {
+                  timeFormatted = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+              }
+            } catch {
+              timeFormatted = '';
+            }
+
             return (
               <View
-                key={msg.id}
+                key={msg.id || `msg-${index}-${msg.sentAt}`}
                 style={[
                   styles.messageRow,
                   isMe ? styles.messageRowRight : styles.messageRowLeft
@@ -419,12 +504,14 @@ export default function ProviderChat() {
                   ]}>
                     {msg.content}
                   </Text>
-                  <Text style={[
-                    styles.messageTime,
-                    isMe ? styles.messageTimeMe : styles.messageTimeOther
-                  ]}>
-                    {timeFormatted}
-                  </Text>
+                  {timeFormatted ? (
+                    <Text style={[
+                      styles.messageTime,
+                      isMe ? styles.messageTimeMe : styles.messageTimeOther
+                    ]}>
+                      {timeFormatted}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             );

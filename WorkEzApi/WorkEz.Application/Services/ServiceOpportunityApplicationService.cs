@@ -1,3 +1,4 @@
+using System.Globalization;
 using WorkEz.Application.DTOs;
 using WorkEz.Domain.Common;
 using WorkEz.Domain.Entities;
@@ -26,12 +27,15 @@ public class ServiceOpportunityApplicationService(
             return Result<IEnumerable<OpportunityCallDto>>.Failure("Prestador não encontrado.", "PROVIDER_NOT_FOUND");
         }
 
-        // Propostas que este prestador já enviou
-        var alreadyProposed = (await proposalRepository.GetProposalsByProviderUserIdAsync(providerUserId))
+        // Propostas que este prestador já enviou (busca direta por ProviderId e por Provider.UserId)
+        var proposalsByProviderId = await proposalRepository.FindAsync(p => p.ProviderId == provider.Id);
+        var proposalsByUserId = await proposalRepository.GetProposalsByProviderUserIdAsync(providerUserId);
+        var alreadyProposed = proposalsByProviderId
+            .Concat(proposalsByUserId)
             .Select(p => p.ServiceId)
             .ToHashSet();
 
-        // Buscar serviços abertos ou em negociação
+        // Buscar serviços que ainda estão abertos ou em leilão (exclui Accepted, InProgress, Completed, Cancelled)
         var allOpenServices = await serviceRepository.FindAsync(s =>
             s.ServiceStatus == ServiceStatus.Open || s.ServiceStatus == ServiceStatus.UnderNegotiation);
 
@@ -55,15 +59,42 @@ public class ServiceOpportunityApplicationService(
             c => users.TryGetValue(c.UserId, out var u) ? u.Name : "Cliente"
         );
 
-        var resultList = filteredList.Select(s => new OpportunityCallDto(
-            Id: s.Id,
-            Category: string.IsNullOrWhiteSpace(s.Title) ? "Serviço" : s.Title,
-            Description: s.Description ?? string.Empty,
-            Status: s.ServiceStatus.ToString().ToLower(),
-            Date: (s.DesiredDate ?? s.CreatedAt).ToString("dd/MM/yyyy"),
-            ClientName: customerToUserMap.TryGetValue(s.CustomerId, out var name) ? name : "Cliente"
-        )).ToList();
+        var resultList = filteredList.Select(s =>
+        {
+            var targetDate = s.DesiredDate ?? s.CreatedAt;
+            var brDate = ToBrasiliaTime(targetDate);
+
+            return new OpportunityCallDto(
+                Id: s.Id,
+                Category: string.IsNullOrWhiteSpace(s.Title) ? "Serviço" : s.Title,
+                Description: s.Description ?? string.Empty,
+                Status: s.ServiceStatus.ToString().ToLower(),
+                Date: brDate.ToString("dd'/'MM'/'yyyy", CultureInfo.InvariantCulture),
+                ClientName: customerToUserMap.TryGetValue(s.CustomerId, out var name) ? name : "Cliente"
+            );
+        }).ToList();
 
         return Result<IEnumerable<OpportunityCallDto>>.Success(resultList);
+    }
+
+    private static DateTime ToBrasiliaTime(DateTime utcDate)
+    {
+        try
+        {
+            var tz = TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDate, DateTimeKind.Utc), tz);
+        }
+        catch
+        {
+            try
+            {
+                var tz = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDate, DateTimeKind.Utc), tz);
+            }
+            catch
+            {
+                return DateTime.SpecifyKind(utcDate, DateTimeKind.Utc).AddHours(-3);
+            }
+        }
     }
 }

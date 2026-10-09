@@ -260,11 +260,11 @@ export default function SignUp() {
         </View>
 
         {/* Erro da API */}
-        {apiError && (
+        {apiError ? (
           <View style={styles.apiErrorContainer}>
             <Text style={styles.apiErrorText}>{apiError}</Text>
           </View>
-        )}
+        ) : null}
 
         <View style={styles.footerContainer}>
           <Button variant="secondary" fullWidth onPress={handleSignUp} disabled={loading}>

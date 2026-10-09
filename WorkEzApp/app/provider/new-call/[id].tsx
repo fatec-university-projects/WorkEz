@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MapPin, FileText, Image as ImageIcon, X, Wrench, Timer, Star, User, Gavel, DollarSign, Clock } from 'lucide-react-native';
 import { Button } from '../../../components/Button';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView, TextInput, Platform } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
 import { apiRequest } from '../../../services/api';
 import { WorkEzTheme } from '../../../constants/theme';
@@ -43,15 +43,23 @@ export default function NewCall() {
       });
 
       if (res.error) {
-        Alert.alert('Erro ao enviar proposta', res.error);
+        Alert.alert('Aviso', res.error);
+        if (res.error.includes('já possui uma proposta')) {
+          router.replace('/provider/calls' as any);
+        }
       } else {
-        Alert.alert(
-          'Proposta Enviada!',
-          'Seu lance no leilão foi enviado com sucesso. O cliente poderá aceitar, enviar contra-proposta ou abrir chat.',
-          [
-            { text: 'Acompanhar', onPress: () => router.push('/provider/calls' as any) }
-          ]
-        );
+        if (Platform.OS === 'web') {
+          alert('Proposta enviada com sucesso! Seu lance está ativo no leilão.');
+          router.replace('/provider/calls' as any);
+        } else {
+          Alert.alert(
+            'Proposta Enviada!',
+            'Seu lance no leilão foi enviado com sucesso.',
+            [
+              { text: 'Acompanhar', onPress: () => router.replace('/provider/calls' as any) }
+            ]
+          );
+        }
       }
     } catch (err) {
       Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
@@ -106,8 +114,8 @@ export default function NewCall() {
               </Text>
               <View className="flex-row items-center gap-3 text-sm text-[#64748B] mt-1">
                 <View className="flex-row items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  Visualização prévia
+                  <MapPin className="w-4 h-4 text-[#64748B]" />
+                  <Text className="text-sm text-[#64748B]">Visualização prévia</Text>
                 </View>
               </View>
             </View>
@@ -217,11 +225,31 @@ export default function NewCall() {
                   fontSize: 14,
                   color: '#0F172A',
                 }}
-                placeholder="Ex: 2 a 3 horas"
+                placeholder="Ex: 2 horas, 1 dia, 3 dias"
                 placeholderTextColor="#94A3B8"
                 value={estimatedTime}
                 onChangeText={setEstimatedTime}
               />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                {['1 hora', '2 a 3 horas', '4 a 6 horas', '1 dia', '2 a 3 dias'].map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    onPress={() => setEstimatedTime(preset)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      backgroundColor: estimatedTime === preset ? '#EFF6FF' : '#F1F5F9',
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: estimatedTime === preset ? '#3B82F6' : '#E2E8F0',
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, color: estimatedTime === preset ? '#2563EB' : '#64748B', fontWeight: estimatedTime === preset ? '600' : '400' }}>
+                      {preset}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             <View>

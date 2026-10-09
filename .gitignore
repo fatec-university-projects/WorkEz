@@ -156,3 +156,7 @@ Desktop.ini
 .direnv/
 tmp/
 temp/
+
+# Vari�veis de ambiente locais
+WorkEzApp/.env
+.env

@@ -151,11 +151,11 @@ export default function Login() {
         </View>
 
         {/* Erro da API */}
-        {apiError && (
+        {apiError ? (
           <View style={styles.apiErrorContainer}>
             <Text style={styles.apiErrorText}>{apiError}</Text>
           </View>
-        )}
+        ) : null}
 
         <View style={styles.footerContainer}>
           <Button variant="secondary" fullWidth onPress={handleLogin} disabled={loading}>

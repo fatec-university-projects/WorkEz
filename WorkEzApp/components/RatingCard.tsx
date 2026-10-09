@@ -135,6 +135,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     ...WorkEzTheme.typography.xs,
-    color: WorkEzTheme.colors.primary,
+    color: '#0F766E',
+    fontWeight: '600',
   },
 });

@@ -173,19 +173,19 @@ export default function ClientHome() {
             <ActivityIndicator size="large" color="#2563EB" />
             <Text style={styles.loadingText}>Carregando serviços disponíveis...</Text>
           </View>
-        ) : error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : filteredCategories.length === 0 ? (
+        ) : error || filteredCategories.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>Nenhum serviço encontrado</Text>
+            <Text style={styles.emptyTitle}>Nenhuma categoria disponível</Text>
             <Text style={styles.emptySubtitle}>
-              Não encontramos resultados para "{searchQuery}".
+              {searchQuery
+                ? `Não encontramos categorias correspondentes a "${searchQuery}".`
+                : 'No momento não há categorias de serviços cadastradas.'}
             </Text>
-            <TouchableOpacity style={styles.clearFilterButton} onPress={() => setSearchQuery('')}>
-              <Text style={styles.clearFilterButtonText}>Limpar busca</Text>
-            </TouchableOpacity>
+            {searchQuery ? (
+              <TouchableOpacity style={styles.clearFilterButton} onPress={() => setSearchQuery('')}>
+                <Text style={styles.clearFilterButtonText}>Limpar busca</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : (
           <View style={styles.categoriesGrid}>

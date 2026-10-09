@@ -2,7 +2,9 @@ import { safeStorage as AsyncStorage } from './storage';
 
 const STORAGE_KEY_ACCESS = '@workez_access_token';
 const STORAGE_KEY_REFRESH = '@workez_refresh_token';
-const API_BASE_URL = 'https://workez-api.onrender.com';
+const PRODUCTION_API_URL = 'https://workez-api.onrender.com';
+// Defina EXPO_PUBLIC_API_URL no .env para usar a API local (ex.: http://localhost:5065).
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || PRODUCTION_API_URL).replace(/\/+$/, '');
 
 export function getWebSocketUrl(path: string): string {
   const base = API_BASE_URL.replace(/^http/, 'ws');

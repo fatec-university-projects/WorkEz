@@ -83,15 +83,15 @@ export default function RegistrationAnalysis() {
           </Text>
           <ul className="space-y-2 text-sm text-[#64748B]">
             <li className="flex-row items-start gap-2">
-              <Text className="text-[#26FFF5]">✓</Text>
+              <Text className="text-[#0F766E] font-bold">✓</Text>
               <Text>Baixe o app e configure suas notificações</Text>
             </li>
             <li className="flex-row items-start gap-2">
-              <Text className="text-[#26FFF5]">✓</Text>
+              <Text className="text-[#0F766E] font-bold">✓</Text>
               <Text>Prepare fotos dos seus melhores trabalhos</Text>
             </li>
             <li className="flex-row items-start gap-2">
-              <Text className="text-[#26FFF5]">✓</Text>
+              <Text className="text-[#0F766E] font-bold">✓</Text>
               <Text>Revise suas ferramentas e equipamentos</Text>
             </li>
           </ul>

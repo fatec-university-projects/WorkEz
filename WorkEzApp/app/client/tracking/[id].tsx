@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, CheckCircle, Circle, MessageCircle, Star, User, Gavel, Clock, CornerDownRight, X as XIcon, Check } from 'lucide-react-native';
 import { Button } from '../../../components/Button';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, TextInput, Platform } from 'react-native';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
 import { apiRequest, getWebSocketUrl } from '../../../services/api';
@@ -168,22 +168,65 @@ export default function ServiceTracking() {
     };
   }, [id, silentFetchProposals, silentFetchService]);
 
+  const formatEstimatedTime = (time: string | undefined | null) => {
+    if (!time) return '';
+    const trimmed = time.trim();
+    if (!trimmed) return '';
+    if (/^\d+([.,]\d+)?$/.test(trimmed)) {
+      return `${trimmed} hora(s)`;
+    }
+    return trimmed;
+  };
+
+  const formatDateTime = (dateStr: string | undefined | null) => {
+    if (!dateStr) return '-';
+    if (dateStr.includes('às')) return dateStr;
+
+    // Converte formato ISO ou timestamp para Horário de Brasília (GMT-3)
+    try {
+      // Se for ISO ou formato que Date reconhece
+      const parsed = new Date(dateStr);
+      if (!isNaN(parsed.getTime())) {
+        return new Intl.DateTimeFormat('pt-BR', {
+          timeZone: 'America/Sao_Paulo',
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(parsed).replace(', ', ' às ');
+      }
+    } catch {
+      // fallback
+    }
+
+    // Se já vier em dd-MM-yyyy HH:mm ou dd/MM/yyyy HH:mm
+    const parts = dateStr.match(/^(\d{2})[-/](\d{2})[-/](\d{4})\s+(\d{2}):(\d{2})/);
+    if (parts) {
+      return `${parts[1]}/${parts[2]}/${parts[3]} às ${parts[4]}:${parts[5]}`;
+    }
+
+    return dateStr;
+  };
+
   const getSteps = (status: string | undefined) => {
-    const statuses = ['open', 'accepted', 'on-the-way', 'in-progress', 'waiting-payment', 'completed'];
-    const normalizedStatus = status === 'undernegotiation' ? 'accepted' :
-                             status === 'ontheway' ? 'on-the-way' :
+    const statuses = ['open', 'undernegotiation', 'accepted', 'on-the-way', 'in-progress', 'waiting-payment', 'completed'];
+    const normalizedStatus = status === 'ontheway' ? 'on-the-way' :
                              status === 'inprogress' ? 'in-progress' :
                              status === 'waitingpayment' ? 'waiting-payment' :
                              status;
     const currentIndex = normalizedStatus ? statuses.indexOf(normalizedStatus) : 0;
 
     return [
-      { label: 'Aguardando aceitação', completed: currentIndex >= 0 },
-      { label: 'Chamado aceito', completed: currentIndex >= 1 },
-      { label: 'Profissional a caminho', completed: currentIndex >= 2 },
-      { label: 'Serviço em andamento', completed: currentIndex >= 3 },
-      { label: 'Aguardando pagamento', completed: currentIndex >= 4 },
-      { label: 'Concluído', completed: currentIndex >= 5 },
+      { 
+        label: normalizedStatus === 'undernegotiation' ? 'Propostas no leilão' : 'Aguardando propostas', 
+        completed: currentIndex >= 0 
+      },
+      { label: 'Chamado aceito', completed: currentIndex >= 2 },
+      { label: 'Profissional a caminho', completed: currentIndex >= 3 },
+      { label: 'Serviço em andamento', completed: currentIndex >= 4 },
+      { label: 'Aguardando pagamento', completed: currentIndex >= 5 },
+      { label: 'Concluído', completed: currentIndex >= 6 },
     ];
   };
 
@@ -230,69 +273,102 @@ export default function ServiceTracking() {
 
   const handleAcceptProposal = async (proposalId: string) => {
     if (!user) return;
-    Alert.alert(
-      'Aceitar Proposta',
-      'Deseja aceitar esta proposta? Ao aceitar, o agendamento será confirmado e as outras propostas serão recusadas.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            setActionLoadingId(proposalId);
-            try {
-              const res = await apiRequest('/api/Proposals/accept', {
-                method: 'POST',
-                body: JSON.stringify({ customerUserId: user.id, proposalId })
-              });
-              if (res.error) {
-                Alert.alert('Erro ao aceitar proposta', res.error);
-              } else {
-                Alert.alert('Sucesso!', 'Proposta aceita! O agendamento foi confirmado.');
-                silentFetchService();
-                silentFetchProposals();
-              }
-            } catch (err) {
-              Alert.alert('Erro', 'Não foi possível aceitar a proposta.');
-            } finally {
-              setActionLoadingId(null);
-            }
+
+    const execute = async () => {
+      setActionLoadingId(proposalId);
+      try {
+        const res = await apiRequest('/api/Proposals/accept', {
+          method: 'POST',
+          body: JSON.stringify({ customerUserId: user.id, proposalId })
+        });
+        if (res.error) {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.alert(`Erro ao aceitar proposta: ${res.error}`);
+          } else {
+            Alert.alert('Erro ao aceitar proposta', res.error);
           }
+        } else {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.alert('Proposta aceita! O agendamento foi confirmado.');
+          } else {
+            Alert.alert('Sucesso!', 'Proposta aceita! O agendamento foi confirmado.');
+          }
+          silentFetchService();
+          silentFetchProposals();
         }
-      ]
-    );
+      } catch (err) {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert('Não foi possível aceitar a proposta.');
+        } else {
+          Alert.alert('Erro', 'Não foi possível aceitar a proposta.');
+        }
+      } finally {
+        setActionLoadingId(null);
+      }
+    };
+
+    const confirmMsg = 'Deseja aceitar esta proposta? Ao aceitar, o agendamento será confirmado e as outras propostas serão recusadas.';
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(confirmMsg)) {
+        await execute();
+      }
+    } else {
+      Alert.alert(
+        'Aceitar Proposta',
+        confirmMsg,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Confirmar', onPress: execute }
+        ]
+      );
+    }
   };
 
   const handleRejectProposal = async (proposalId: string) => {
     if (!user) return;
-    Alert.alert(
-      'Recusar Proposta',
-      'Tem certeza que deseja recusar esta proposta?',
-      [
-        { text: 'Não', style: 'cancel' },
-        {
-          text: 'Sim, recusar',
-          style: 'destructive',
-          onPress: async () => {
-            setActionLoadingId(proposalId);
-            try {
-              const res = await apiRequest('/api/Proposals/reject', {
-                method: 'POST',
-                body: JSON.stringify({ customerUserId: user.id, proposalId })
-              });
-              if (res.error) {
-                Alert.alert('Erro ao recusar', res.error);
-              } else {
-                silentFetchProposals();
-              }
-            } catch (err) {
-              Alert.alert('Erro', 'Não foi possível recusar a proposta.');
-            } finally {
-              setActionLoadingId(null);
-            }
+
+    const execute = async () => {
+      setActionLoadingId(proposalId);
+      try {
+        const res = await apiRequest('/api/Proposals/reject', {
+          method: 'POST',
+          body: JSON.stringify({ customerUserId: user.id, proposalId })
+        });
+        if (res.error) {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.alert(`Erro ao recusar: ${res.error}`);
+          } else {
+            Alert.alert('Erro ao recusar', res.error);
           }
+        } else {
+          silentFetchProposals();
         }
-      ]
-    );
+      } catch (err) {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert('Não foi possível recusar a proposta.');
+        } else {
+          Alert.alert('Erro', 'Não foi possível recusar a proposta.');
+        }
+      } finally {
+        setActionLoadingId(null);
+      }
+    };
+
+    const confirmMsg = 'Tem certeza que deseja recusar esta proposta?';
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(confirmMsg)) {
+        await execute();
+      }
+    } else {
+      Alert.alert(
+        'Recusar Proposta',
+        confirmMsg,
+        [
+          { text: 'Não', style: 'cancel' },
+          { text: 'Sim, recusar', style: 'destructive', onPress: execute }
+        ]
+      );
+    }
   };
 
   const openCounterModal = (proposal: ProposalData) => {
@@ -340,7 +416,7 @@ export default function ServiceTracking() {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/client/services' as any))}
             style={styles.iconButton}
             activeOpacity={0.8}
           >
@@ -417,7 +493,7 @@ export default function ServiceTracking() {
                               </Text>
                               {proposal.estimatedTime && (
                                 <Text style={{ fontSize: 12, color: '#64748B' }}>
-                                  Estimativa: {proposal.estimatedTime}
+                                  Estimativa: {formatEstimatedTime(proposal.estimatedTime)}
                                 </Text>
                               )}
                             </View>
@@ -647,8 +723,9 @@ export default function ServiceTracking() {
                 <>
                   <View style={{ padding: 12, backgroundColor: '#EFF6FF', borderRadius: 12, borderWidth: 1, borderColor: '#BFDBFE', marginBottom: 16, alignItems: 'center' }}>
                     <Text style={{ color: '#1D4ED8', fontWeight: '600', fontSize: 15, textAlign: 'center' }}>
-                      {service?.status === 'open' && 'Aguardando profissionais aceitarem seu chamado...'}
-                      {(service?.status === 'accepted' || service?.status === 'undernegotiation') && 'Profissional aceitou seu chamado!'}
+                      {service?.status === 'open' && 'Aguardando propostas de profissionais...'}
+                      {service?.status === 'undernegotiation' && 'Proposta recebida no leilão! Analise as propostas e clique em "Aceitar" para fechar.'}
+                      {service?.status === 'accepted' && 'Proposta aceita! Aguardando o profissional iniciar o deslocamento.'}
                       {(service?.status === 'on-the-way' || service?.status === 'ontheway') && 'O profissional está a caminho do seu local!'}
                       {(service?.status === 'in-progress' || service?.status === 'inprogress') && 'Serviço em andamento...'}
                       {(service?.status === 'waiting-payment' || service?.status === 'waitingpayment') && 'Serviço concluído! Aguardando seu pagamento.'}
@@ -768,7 +845,7 @@ export default function ServiceTracking() {
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Horário de início</Text>
-                  <Text style={styles.detailValue}>{service?.startTime || '-'}</Text>
+                  <Text style={styles.detailValue}>{formatDateTime(service?.startTime)}</Text>
                 </View>
               </View>
             </View>
