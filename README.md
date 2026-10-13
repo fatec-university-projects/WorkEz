@@ -111,19 +111,19 @@ graph TB
         Postgres[("PostgreSQL (Neon DB) / In-Memory Db")]
     end
 
-    UI -->|REST HTTPS + JWT Bearer| WebUID
-    WSClient <-->|WebSockets (ws/tracking & ws/chat)| WebUID
-    UI -->|Upload de Imagens| LocalUploads
-    UI -.->|Fallback Imagens| ImgBB
-    UI -->|Busca de CEP| ViaCEP
+    UI -->|"REST HTTPS + JWT Bearer"| WebUID
+    WSClient <--> WebUID
+    UI -->|"Upload de Imagens"| LocalUploads
+    UI -.->|"Fallback Imagens"| ImgBB
+    UI -->|"Busca de CEP"| ViaCEP
 
     WebUID --> App
     WebUID --> Ioc
     App --> Domain
     App --> Data
     Data --> Postgres
-    WebUID -->|PIX Billing| Abacate
-    Abacate -->|Webhook de Confirmação| WebUID
+    WebUID -->|"PIX Billing"| Abacate
+    Abacate -->|"Webhook de Confirmação"| WebUID
 ```
 
 ### Backend (.NET 10 — Clean Architecture + DDD)
