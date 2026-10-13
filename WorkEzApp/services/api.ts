@@ -1,10 +1,33 @@
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { safeStorage as AsyncStorage } from './storage';
 
 const STORAGE_KEY_ACCESS = '@workez_access_token';
 const STORAGE_KEY_REFRESH = '@workez_refresh_token';
 const PRODUCTION_API_URL = 'https://workez-api.onrender.com';
-// Defina EXPO_PUBLIC_API_URL no .env para usar a API local (ex.: http://localhost:5065).
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || PRODUCTION_API_URL).replace(/\/+$/, '');
+
+function resolveApiBaseUrl(): string {
+  let url = (process.env.EXPO_PUBLIC_API_URL || PRODUCTION_API_URL).replace(/\/+$/, '');
+
+  // Se estiver em dispositivo móvel (físico ou emulador) e a URL configurada for localhost/127.0.0.1:
+  // Tenta resolver automaticamente para o IP da máquina host onde o Metro Bundler está rodando.
+  if (Platform.OS !== 'web' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest?.debuggerHost;
+    const hostIp = hostUri ? hostUri.split(':')[0] : null;
+
+    if (hostIp) {
+      url = url.replace('localhost', hostIp).replace('127.0.0.1', hostIp);
+    }
+  }
+
+  return url;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
+
+if (__DEV__) {
+  console.log(`[WorkEz API] Conectando a: ${API_BASE_URL}`);
+}
 
 export function getWebSocketUrl(path: string): string {
   const base = API_BASE_URL.replace(/^http/, 'ws');
@@ -30,7 +53,12 @@ export async function apiRequest<T>(
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
-    }).catch(() => null);
+    }).catch((fetchErr) => {
+      if (__DEV__) {
+        console.warn(`[WorkEz API] Falha ao conectar em ${API_BASE_URL}${endpoint}:`, fetchErr?.message || fetchErr);
+      }
+      return null;
+    });
 
     if (response && response.ok) {
       if (response.status === 204) {
