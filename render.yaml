@@ -3,7 +3,7 @@ services:
     name: workez-api
     plan: free
     runtime: docker
-    rootDir: api
+    rootDir: WorkEzApi
     dockerfilePath: ./Dockerfile
     dockerContext: .
     envVars:
@@ -27,3 +27,17 @@ services:
         value: "https://api.abacatepay.com/v1"
       - key: AbacatePay__WebhookSecret
         value: "wez_whsec_2026_WorkEz!"
+      - key: Smtp__Host
+        value: "smtp.resend.com"
+      - key: Smtp__Port
+        value: "587"
+      - key: Smtp__Username
+        value: "resend"
+      - key: Smtp__Password
+        value: "re_ZaBDzcmF_MpePYk6ZG3FyBzQ2zFJqxwBg"
+      - key: Smtp__FromEmail
+        value: "onboarding@resend.dev"
+      - key: Smtp__FromName
+        value: "WorkEz Plataforma"
+      - key: Smtp__EnableSsl
+        value: "true"

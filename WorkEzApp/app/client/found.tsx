@@ -26,8 +26,8 @@ export default function ProfessionalFound() {
           <View className="flex-row items-start gap-4 mb-6">
             <View className="relative">
               <Image
-                source="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop"
-                alt="Carlos Silva"
+                source={{ uri: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop' }}
+                accessibilityLabel="Carlos Silva"
                 className="w-20 h-20 rounded-full object-cover"
               />
               <View className="absolute -bottom-1 -right-1 bg-[#26FFF5] rounded-full p-1">

@@ -37,13 +37,7 @@ export default function WaitingPayment() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await refetch();
-        if (res && res.status === 'completed') {
-          clearInterval(interval);
-          Alert.alert('Sucesso', 'O pagamento foi confirmado!', [
-            { text: 'OK', onPress: () => router.replace('/provider') }
-          ]);
-        }
+        await refetch();
       } catch (err) {
         console.error('Error polling service status:', err);
       }
@@ -51,6 +45,15 @@ export default function WaitingPayment() {
 
     return () => clearInterval(interval);
   }, [id, refetch]);
+
+  // Redirect when payment is confirmed
+  useEffect(() => {
+    if (service?.status === 'completed') {
+      Alert.alert('Sucesso', 'O pagamento foi confirmado!', [
+        { text: 'OK', onPress: () => router.replace('/provider' as any) }
+      ]);
+    }
+  }, [service?.status, router]);
 
   if (loading) {
     return (

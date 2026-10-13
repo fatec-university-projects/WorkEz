@@ -2,7 +2,7 @@ import { safeStorage as AsyncStorage } from './storage';
 
 const STORAGE_KEY_ACCESS = '@workez_access_token';
 const STORAGE_KEY_REFRESH = '@workez_refresh_token';
-const API_BASE_URL = 'https://workez-api.onrender.com';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://workez-api.onrender.com';
 
 export async function apiRequest<T>(
   endpoint: string,

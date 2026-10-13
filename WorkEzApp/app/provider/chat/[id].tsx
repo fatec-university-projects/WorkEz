@@ -20,7 +20,6 @@ export default function ProviderChat() {
       <View className="flex-1"></View>
       <View className="bg-white p-4 border-t flex-row gap-2">
         <TextInput
-          type="text"
           value={message}
           onChangeText={setMessage}
           placeholder="Digite..."
