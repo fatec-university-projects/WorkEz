@@ -28,7 +28,7 @@ export default function ProfileChoice() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.content}>
         <Text style={styles.title}>
           Como você quer usar o WorkEz?
