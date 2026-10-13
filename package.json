@@ -1,0 +1,10 @@
+{
+  "name": "workez-root",
+  "private": true,
+  "scripts": {
+    "web": "npm --prefix WorkEzApp run web",
+    "test:e2e": "npm --prefix WorkEzApp run test:e2e",
+    "test:e2e:ui": "npm --prefix WorkEzApp run test:e2e:ui",
+    "app": "npm --prefix WorkEzApp start"
+  }
+}
