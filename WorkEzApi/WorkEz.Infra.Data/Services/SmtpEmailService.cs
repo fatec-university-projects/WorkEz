@@ -1,7 +1,8 @@
-using System.Net;
-using System.Net.Mail;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MimeKit;
 using WorkEz.Domain.Interfaces;
 using WorkEz.Domain.Services;
 
@@ -33,33 +34,38 @@ public class SmtpEmailService(IConfiguration configuration, ILogger<SmtpEmailSer
             return;
         }
 
-        var enableSslString = _configuration["Smtp:EnableSsl"];
-        bool enableSsl = bool.TryParse(enableSslString, out var ssl) ? ssl : true;
-
         try
         {
             int port = int.TryParse(smtpPortString, out var p) ? p : 587;
-            using var client = new SmtpClient(smtpHost, port)
-            {
-                Credentials = new NetworkCredential(smtpUser, smtpPass),
-                EnableSsl = enableSsl,
-                Timeout = 15000,
-                DeliveryMethod = SmtpDeliveryMethod.Network
-            };
 
-            var mailMessage = new MailMessage
-            {
-                From = new MailAddress(fromEmail, fromName),
-                Subject = subject,
-                Body = htmlBody,
-                IsBodyHtml = true,
-                SubjectEncoding = System.Text.Encoding.UTF8,
-                BodyEncoding = System.Text.Encoding.UTF8,
-                HeadersEncoding = System.Text.Encoding.UTF8
-            };
-            mailMessage.To.Add(toEmail);
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(fromName, fromEmail));
+            message.To.Add(new MailboxAddress(toEmail, toEmail));
+            message.Subject = subject;
 
-            await client.SendMailAsync(mailMessage, cancellationToken);
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = htmlBody
+            };
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using var client = new SmtpClient();
+            client.Timeout = 15000;
+
+            var secureSocketOptions = port == 465 
+                ? SecureSocketOptions.SslOnConnect 
+                : SecureSocketOptions.StartTlsWhenAvailable;
+
+            await client.ConnectAsync(smtpHost, port, secureSocketOptions, cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(smtpUser) && !string.IsNullOrWhiteSpace(smtpPass))
+            {
+                await client.AuthenticateAsync(smtpUser, smtpPass, cancellationToken);
+            }
+
+            await client.SendAsync(message, cancellationToken);
+            await client.DisconnectAsync(true, cancellationToken);
+
             _logger.LogInformation("✅ Email enviado com sucesso via SMTP ({Host}:{Port}) para {ToEmail} com o assunto '{Subject}'.", smtpHost, port, toEmail, subject);
         }
         catch (Exception ex)

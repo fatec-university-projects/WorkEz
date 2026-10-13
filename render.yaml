@@ -28,15 +28,15 @@ services:
       - key: AbacatePay__WebhookSecret
         value: "wez_whsec_2026_WorkEz!"
       - key: Smtp__Host
-        value: "smtp.resend.com"
+        value: "smtp-relay.brevo.com"
       - key: Smtp__Port
         value: "587"
       - key: Smtp__Username
-        value: "resend"
+        value: "bdeaf3001@smtp-brevo.com"
       - key: Smtp__Password
-        value: "re_ZaBDzcmF_MpePYk6ZG3FyBzQ2zFJqxwBg"
+        value: "xsmtpsib-26617cbbf783020fff087ebc739d2dbbf2c515d777fd1d5d8c6a400621633803-gQbZNpRUaZeso2h3"
       - key: Smtp__FromEmail
-        value: "onboarding@resend.dev"
+        value: "no.reply.workez@gmail.com"
       - key: Smtp__FromName
         value: "WorkEz Plataforma"
       - key: Smtp__EnableSsl
