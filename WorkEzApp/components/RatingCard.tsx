@@ -19,6 +19,26 @@ export function RatingCard({
   date,
   tags = [],
 }: RatingCardProps) {
+  let displayTags = tags && tags.length > 0 ? [...tags] : [];
+  let displayComment = (comment || '').trim();
+
+  // Extrai tags embutidas no formato [tag1, tag2] comentário
+  const bracketMatch = displayComment.match(/^\[(.*?)\]\s*(.*)$/s);
+  if (bracketMatch) {
+    const extractedTags = bracketMatch[1]
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    if (displayTags.length === 0) {
+      displayTags = extractedTags;
+    }
+    displayComment = bracketMatch[2].trim();
+  }
+
+  // Remove qualquer aspas residuais no início ou fim do comentário
+  displayComment = displayComment.replace(/^["'“”«»]+|["'“”«»]+$/g, '').trim();
+
   return (
     <View style={styles.cardContainer}>
       <View style={styles.contentRow}>
@@ -50,11 +70,9 @@ export function RatingCard({
             ))}
           </View>
 
-          <Text style={styles.commentText}>{comment}</Text>
-
-          {tags.length > 0 && (
+          {displayTags.length > 0 && (
             <View style={styles.tagsContainer}>
-              {tags.map((tag, index) => (
+              {displayTags.map((tag, index) => (
                 <View key={index} style={styles.tagBadge}>
                   <Text style={styles.tagText}>
                     {tag}
@@ -63,6 +81,10 @@ export function RatingCard({
               ))}
             </View>
           )}
+
+          {displayComment ? (
+            <Text style={styles.commentText}>{displayComment}</Text>
+          ) : null}
         </View>
       </View>
     </View>
@@ -119,23 +141,27 @@ const styles = StyleSheet.create({
   },
   commentText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
-    marginBottom: 12,
+    color: '#334155',
+    lineHeight: 20,
+    marginTop: 4,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
+    marginBottom: 8,
   },
   tagBadge: {
-    backgroundColor: 'rgba(38, 255, 245, 0.1)', // Primary with opacity
-    borderRadius: WorkEzTheme.borderRadius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   tagText: {
-    ...WorkEzTheme.typography.xs,
-    color: '#0F766E',
+    fontSize: 12,
+    color: '#1D4ED8',
     fontWeight: '600',
   },
 });
