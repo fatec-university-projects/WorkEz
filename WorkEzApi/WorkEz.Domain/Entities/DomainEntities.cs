@@ -73,7 +73,7 @@ public class ServiceProvider : BaseEntity
 {
     public Guid UserId { get; set; }
     public string? ProfessionalDescription { get; set; }
-    public decimal AverageRating { get; set; } = 5.0m;
+    public decimal AverageRating { get; set; } = 0.0m;
     public bool DocumentVerified { get; set; } = false;
     public int CompletedServicesCount { get; set; } = 0;
     public string AvailabilityStatus { get; set; } = "Available";
@@ -118,6 +118,8 @@ public class Proposal : BaseEntity
     public Guid ServiceId { get; set; }
     public Guid ProviderId { get; set; }
     public decimal ProposedPrice { get; set; }
+    public decimal? LaborPrice { get; set; }
+    public decimal? MaterialsPrice { get; set; }
     public string? Description { get; set; }
     public string? EstimatedTime { get; set; }
     public ProposalStatus ProposalStatus { get; set; } = ProposalStatus.Pending;
@@ -149,4 +151,19 @@ public class Appointment : BaseEntity
     public Proposal Proposal { get; set; } = null!;
     public Customer Customer { get; set; } = null!;
     public ServiceProvider Provider { get; set; } = null!;
+}
+
+public class Review : BaseEntity
+{
+    public Guid? AppointmentId { get; set; }
+    public Guid? ServiceId { get; set; }
+    public Guid ReviewerUserId { get; set; }
+    public Guid ReviewedUserId { get; set; }
+    public int Rating { get; set; }
+    public string? Comment { get; set; }
+
+    public Appointment? Appointment { get; set; }
+    public Service? Service { get; set; }
+    public User ReviewerUser { get; set; } = null!;
+    public User ReviewedUser { get; set; } = null!;
 }

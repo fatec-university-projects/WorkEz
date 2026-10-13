@@ -34,7 +34,7 @@ namespace WorkEz.Domain.Services
 
     public interface IProposalDomainService : IBaseService<Proposal>
     {
-        Task<Result<Proposal>> ProposePriceAsync(Guid providerUserId, Guid serviceId, decimal proposedPrice, string? description, string? estimatedTime);
+        Task<Result<Proposal>> ProposePriceAsync(Guid providerUserId, Guid serviceId, decimal proposedPrice, string? description, string? estimatedTime, decimal? laborPrice = null, decimal? materialsPrice = null);
         Task<Result<Proposal>> AcceptProposalAsync(Guid customerUserId, Guid proposalId);
         Task<Result> RejectProposalAsync(Guid customerUserId, Guid proposalId, string? reason);
         Task<IEnumerable<Proposal>> GetProposalsByServiceIdAsync(Guid serviceId);
@@ -68,7 +68,14 @@ namespace WorkEz.Domain.Services
         public async Task<IEnumerable<Proposal>> GetProposalsByProviderUserIdAsync(Guid providerUserId) =>
             await _proposalRepository.GetProposalsByProviderUserIdAsync(providerUserId);
 
-        public async Task<Result<Proposal>> ProposePriceAsync(Guid providerUserId, Guid serviceId, decimal proposedPrice, string? description, string? estimatedTime)
+        public async Task<Result<Proposal>> ProposePriceAsync(
+            Guid providerUserId, 
+            Guid serviceId, 
+            decimal proposedPrice, 
+            string? description, 
+            string? estimatedTime,
+            decimal? laborPrice = null,
+            decimal? materialsPrice = null)
         {
             var providers = await _providerRepository.FindAsync(p => p.UserId == providerUserId);
             var provider = providers.FirstOrDefault();
@@ -82,10 +89,18 @@ namespace WorkEz.Domain.Services
                 return Result<Proposal>.Failure($"Não é possível enviar propostas para um serviço com status '{service.ServiceStatus}'.", "INVALID_SERVICE_STATUS");
             }
 
+            decimal finalLabor = laborPrice ?? (proposedPrice - (materialsPrice ?? 0m));
+            if (finalLabor < 0) finalLabor = proposedPrice;
+            decimal finalMaterials = materialsPrice ?? 0m;
+            decimal totalProposed = finalLabor + finalMaterials;
+            if (totalProposed <= 0) totalProposed = proposedPrice;
+
             var existingProposal = await _proposalRepository.GetExistingProposalAsync(service.Id, provider.Id);
             if (existingProposal != null)
             {
-                existingProposal.ProposedPrice = proposedPrice;
+                existingProposal.ProposedPrice = totalProposed;
+                existingProposal.LaborPrice = finalLabor;
+                existingProposal.MaterialsPrice = finalMaterials;
                 existingProposal.Description = description;
                 existingProposal.EstimatedTime = estimatedTime;
                 existingProposal.Touch();
@@ -100,7 +115,9 @@ namespace WorkEz.Domain.Services
             {
                 ServiceId = service.Id,
                 ProviderId = provider.Id,
-                ProposedPrice = proposedPrice,
+                ProposedPrice = totalProposed,
+                LaborPrice = finalLabor,
+                MaterialsPrice = finalMaterials,
                 Description = description,
                 EstimatedTime = estimatedTime,
                 ProposalStatus = ProposalStatus.Pending

@@ -80,4 +80,14 @@ public class CustomersController(AppDbContext db) : ControllerBase
             customer.Notes
         ));
     }
+
+    /// <summary>
+    /// Retorna profissionais favoritados pelo cliente.
+    /// GET /api/Customers/{userId}/favorites
+    /// </summary>
+    [HttpGet("{userId:guid}/favorites")]
+    public IActionResult GetFavorites(Guid userId)
+    {
+        return Ok(Array.Empty<object>());
+    }
 }

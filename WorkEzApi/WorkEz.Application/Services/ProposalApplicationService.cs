@@ -39,7 +39,8 @@ public class ProposalApplicationService(IProposalDomainService proposalDomainSer
     {
         var result = await _proposalDomainService.ProposePriceAsync(
             request.ProviderUserId, request.ServiceId, request.ProposedPrice,
-            request.Description, request.EstimatedTime);
+            request.Description, request.EstimatedTime,
+            request.LaborPrice, request.MaterialsPrice);
         if (result.IsFailure) return Result<ProposalResponseDto>.Failure(result.Error, result.ErrorCode);
         return Result<ProposalResponseDto>.Success(MapToResponseDto(result.Value));
     }
@@ -158,7 +159,7 @@ public class ProposalApplicationService(IProposalDomainService proposalDomainSer
 
     private static ProposalResponseDto MapToResponseDto(Proposal proposal)
     {
-        var financialVo = PriceProposalVo.Create(proposal.ProposedPrice);
+        var financialVo = PriceProposalVo.Create(proposal.LaborPrice, proposal.MaterialsPrice, proposal.ProposedPrice);
         var providerName = proposal.Provider?.User?.Name ?? "Prestador";
         return new ProposalResponseDto(
             Id: proposal.Id,
@@ -174,7 +175,9 @@ public class ProposalApplicationService(IProposalDomainService proposalDomainSer
             CreatedAt: proposal.CreatedAt,
             CounterPrice: proposal.CounterPrice,
             CounterDescription: proposal.CounterDescription,
-            CounterOfferedAt: proposal.CounterOfferedAt
+            CounterOfferedAt: proposal.CounterOfferedAt,
+            LaborPrice: financialVo.LaborAmount,
+            MaterialsPrice: financialVo.MaterialsAmount
         );
     }
 

@@ -272,7 +272,7 @@ public class PortfolioApplicationServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal(0, result.Value!.CompletedServices);
         Assert.Equal(0.0, result.Value.AcceptanceRate);
-        Assert.Equal(5.0m, result.Value.AverageRating);
+        Assert.Equal(0.0m, result.Value.AverageRating);
         Assert.Equal(0.0, result.Value.GrowthRate);
         Assert.Equal("neutral", result.Value.TrendType);
         Assert.Equal("Sem atividades recentes", result.Value.PerformanceTitle);
@@ -476,5 +476,8 @@ public class PortfolioApplicationServiceTests
             var removed = provider.Portfolio.Remove(imageUrl);
             return Task.FromResult(removed);
         }
+
+        public Task<List<(Guid Id, string Name)>> GetSpecialtiesAsync(Guid providerId) =>
+            Task.FromResult(new List<(Guid Id, string Name)>());
     }
 }

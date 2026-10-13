@@ -24,11 +24,11 @@ public record ServiceProviderProfileDto(
     int CompletedServicesCount,
     bool DocumentVerified,
     List<string> Portfolio,
-    List<CategoryDto> Specialties,
+    List<ProviderCategoryDto> Specialties,
     ReviewStatsDto ReviewStats
 );
 
-public record CategoryDto(Guid Id, string Name);
+public record ProviderCategoryDto(Guid Id, string Name);
 
 public record ReviewStatsDto(decimal Average, int Total, int PositivePercentage);
 
@@ -123,7 +123,10 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
         if (provider is null)
             return Result<ServiceProviderProfileDto>.Failure("Prestador não encontrado.", "PROVIDER_NOT_FOUND");
 
-        return Result<ServiceProviderProfileDto>.Success(MapToProfileDto(provider));
+        var specialties = await _providerRepository.GetSpecialtiesAsync(provider.Id);
+        var specDtos = specialties.Select(s => new ProviderCategoryDto(s.Id, s.Name)).ToList();
+
+        return Result<ServiceProviderProfileDto>.Success(MapToProfileDto(provider, specDtos));
     }
 
     public async Task<Result<ServiceProviderProfileDto>> GetProviderByIdAsync(Guid providerId)
@@ -132,7 +135,10 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
         if (provider is null)
             return Result<ServiceProviderProfileDto>.Failure("Prestador não encontrado.", "PROVIDER_NOT_FOUND");
 
-        return Result<ServiceProviderProfileDto>.Success(MapToProfileDto(provider));
+        var specialties = await _providerRepository.GetSpecialtiesAsync(provider.Id);
+        var specDtos = specialties.Select(s => new ProviderCategoryDto(s.Id, s.Name)).ToList();
+
+        return Result<ServiceProviderProfileDto>.Success(MapToProfileDto(provider, specDtos));
     }
 
     public async Task<Result<ServiceProviderProfileDto>> UpdateProviderAsync(Guid providerId, string? professionalDescription)
@@ -146,7 +152,10 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
         _providerRepository.Update(provider);
         await _providerRepository.SaveChangesAsync();
 
-        return Result<ServiceProviderProfileDto>.Success(MapToProfileDto(provider));
+        var specialties = await _providerRepository.GetSpecialtiesAsync(provider.Id);
+        var specDtos = specialties.Select(s => new ProviderCategoryDto(s.Id, s.Name)).ToList();
+
+        return Result<ServiceProviderProfileDto>.Success(MapToProfileDto(provider, specDtos));
     }
 
     public async Task<Result<ProviderWeeklySummaryDto>> GetWeeklySummaryByUserIdAsync(Guid userId, DateTime? referenceDate = null)
@@ -264,9 +273,13 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
 
     // ─── Mapping ─────────────────────────────────────────────────────────────
 
-    private static ServiceProviderProfileDto MapToProfileDto(ServiceProvider provider)
+    private static ServiceProviderProfileDto MapToProfileDto(ServiceProvider provider, List<ProviderCategoryDto>? specialties = null)
     {
         var user = provider.User;
+
+        var completedCount = (provider.Appointments != null && provider.Appointments.Count > 0)
+            ? provider.Appointments.Count(a => a.AppointmentStatus == Domain.Enums.AppointmentStatus.Completed)
+            : provider.CompletedServicesCount;
 
         return new ServiceProviderProfileDto(
             Id: provider.Id,
@@ -277,14 +290,14 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
             Photo: user?.ProfilePicture,
             ProfessionalDescription: provider.ProfessionalDescription,
             AverageRating: provider.AverageRating,
-            CompletedServicesCount: provider.Appointments?.Count(a => a.AppointmentStatus == Domain.Enums.AppointmentStatus.Completed) ?? 0,
+            CompletedServicesCount: completedCount,
             DocumentVerified: user?.DocumentNumber != null,
             Portfolio: provider.Portfolio,
-            Specialties: [],
+            Specialties: specialties ?? [],
             ReviewStats: new ReviewStatsDto(
                 Average: provider.AverageRating,
-                Total: 0,
-                PositivePercentage: 100
+                Total: completedCount,
+                PositivePercentage: provider.AverageRating > 0 ? (int)Math.Round((provider.AverageRating / 5.0m) * 100) : 0
             )
         );
     }

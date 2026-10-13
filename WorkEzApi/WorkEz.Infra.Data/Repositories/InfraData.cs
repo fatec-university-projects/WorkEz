@@ -20,6 +20,7 @@ namespace WorkEz.Infra.Data.Context
         public DbSet<Appointment> Appointments => Set<Appointment>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
         public DbSet<Address> Addresses => Set<Address>();
+        public DbSet<Review> Reviews => Set<Review>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -29,12 +30,13 @@ namespace WorkEz.Infra.Data.Context
             modelBuilder.Entity<Category>(e => { e.HasKey(c => c.Id); e.Ignore(c => c.CreatedAt); e.Ignore(c => c.UpdatedAt); });
             modelBuilder.Entity<ProviderCategory>(e => { e.HasKey(pc => pc.Id); e.Ignore(pc => pc.CreatedAt); e.Ignore(pc => pc.UpdatedAt); e.HasOne(pc => pc.Category).WithMany().HasForeignKey(pc => pc.CategoryId); });
             modelBuilder.Entity<Customer>(e => { e.HasKey(c => c.Id); e.Ignore(c => c.CreatedAt); e.Ignore(c => c.UpdatedAt); e.HasOne(c => c.User).WithOne(u => u.Customer).HasForeignKey<Customer>(c => c.UserId); });
-            modelBuilder.Entity<ServiceProvider>(e => { e.HasKey(sp => sp.Id); e.Ignore(sp => sp.CreatedAt); e.Ignore(sp => sp.UpdatedAt); e.Ignore(sp => sp.CategoryIds); e.Ignore(sp => sp.Portfolio); e.HasOne(sp => sp.User).WithOne(u => u.ServiceProvider).HasForeignKey<ServiceProvider>(sp => sp.UserId); });
+            modelBuilder.Entity<ServiceProvider>(e => { e.HasKey(sp => sp.Id); e.Ignore(sp => sp.CreatedAt); e.Ignore(sp => sp.UpdatedAt); e.Ignore(sp => sp.CategoryIds); e.HasOne(sp => sp.User).WithOne(u => u.ServiceProvider).HasForeignKey<ServiceProvider>(sp => sp.UserId); });
             modelBuilder.Entity<Service>(e => { e.HasKey(s => s.Id); e.Property(s => s.Title).IsRequired().HasMaxLength(300); e.Property(s => s.ServiceStatus).HasConversion<string>(); e.HasOne(s => s.Customer).WithMany(c => c.Services).HasForeignKey(s => s.CustomerId).OnDelete(DeleteBehavior.Restrict); });
-            modelBuilder.Entity<Proposal>(e => { e.HasKey(p => p.Id); e.Property(p => p.ProposedPrice).HasPrecision(10, 2).IsRequired(); e.Property(p => p.CounterPrice).HasPrecision(10, 2); e.Property(p => p.ProposalStatus).HasConversion<string>(); e.HasOne(p => p.Service).WithMany(s => s.Proposals).HasForeignKey(p => p.ServiceId).OnDelete(DeleteBehavior.Cascade); e.HasOne(p => p.Provider).WithMany(sp => sp.Proposals).HasForeignKey(p => p.ProviderId).OnDelete(DeleteBehavior.Restrict); });
+            modelBuilder.Entity<Proposal>(e => { e.HasKey(p => p.Id); e.Property(p => p.ProposedPrice).HasPrecision(10, 2).IsRequired(); e.Property(p => p.LaborPrice).HasPrecision(10, 2); e.Property(p => p.MaterialsPrice).HasPrecision(10, 2); e.Property(p => p.CounterPrice).HasPrecision(10, 2); e.Property(p => p.ProposalStatus).HasConversion<string>(); e.HasOne(p => p.Service).WithMany(s => s.Proposals).HasForeignKey(p => p.ServiceId).OnDelete(DeleteBehavior.Cascade); e.HasOne(p => p.Provider).WithMany(sp => sp.Proposals).HasForeignKey(p => p.ProviderId).OnDelete(DeleteBehavior.Restrict); });
             modelBuilder.Entity<Appointment>(e => { e.HasKey(a => a.Id); e.Property(a => a.FinalPrice).HasPrecision(10, 2).IsRequired(); e.Property(a => a.AppointmentStatus).HasConversion<string>(); e.HasOne(a => a.Service).WithOne(s => s.Appointment).HasForeignKey<Appointment>(a => a.ServiceId).OnDelete(DeleteBehavior.Restrict); e.HasOne(a => a.Proposal).WithOne(p => p.Appointment).HasForeignKey<Appointment>(a => a.ProposalId).OnDelete(DeleteBehavior.Restrict); e.HasOne(a => a.Provider).WithMany(sp => sp.Appointments).HasForeignKey(a => a.ProviderId).OnDelete(DeleteBehavior.Restrict); });
             modelBuilder.Entity<RefreshToken>(e => { e.HasKey(t => t.Id); e.Ignore(t => t.UpdatedAt); e.Property(t => t.Token).IsRequired().HasMaxLength(500); e.HasIndex(t => t.Token).IsUnique(); e.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade); });
             modelBuilder.Entity<ChatMessage>(e => { e.HasKey(m => m.Id); e.Property(m => m.Content).IsRequired().HasMaxLength(2000); e.HasIndex(m => m.ProposalId); e.HasIndex(m => m.ServiceId); });
+            modelBuilder.Entity<Review>(e => { e.HasKey(r => r.Id); e.Property(r => r.Rating).IsRequired(); e.Property(r => r.Comment).HasMaxLength(1000); e.HasOne(r => r.ReviewerUser).WithMany().HasForeignKey(r => r.ReviewerUserId).OnDelete(DeleteBehavior.Restrict); e.HasOne(r => r.ReviewedUser).WithMany().HasForeignKey(r => r.ReviewedUserId).OnDelete(DeleteBehavior.Restrict); e.HasOne(r => r.Appointment).WithMany().HasForeignKey(r => r.AppointmentId).OnDelete(DeleteBehavior.SetNull); e.HasOne(r => r.Service).WithMany().HasForeignKey(r => r.ServiceId).OnDelete(DeleteBehavior.SetNull); });
         }
     }
 }
@@ -137,6 +139,18 @@ namespace WorkEz.Infra.Data.Repositories
             DbSet.Update(provider);
             await Context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<List<(Guid Id, string Name)>> GetSpecialtiesAsync(Guid providerId)
+        {
+            var list = await Context.ProviderCategories
+                .AsNoTracking()
+                .Where(pc => pc.ProviderId == providerId && pc.Status == "Active")
+                .Include(pc => pc.Category)
+                .Select(pc => new { pc.Category.Id, pc.Category.Name })
+                .ToListAsync();
+
+            return list.Select(x => (x.Id, x.Name)).ToList();
         }
     }
 

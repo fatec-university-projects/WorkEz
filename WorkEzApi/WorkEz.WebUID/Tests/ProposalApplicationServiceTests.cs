@@ -123,6 +123,45 @@ public class ProposalApplicationServiceTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public async Task ProposePriceAsync_WithLaborAndMaterials_PlatformFeeShouldApplyOnlyToLabor()
+    {
+        var providerUser = new User { Id = Guid.NewGuid(), Name = "Eletricista Pro" };
+        var provider = new ServiceProviderEntity { Id = Guid.NewGuid(), UserId = providerUser.Id, User = providerUser };
+        await _providerRepository.AddAsync(provider);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            Title = "Troca de Fiação",
+            ServiceStatus = ServiceStatus.Open
+        };
+        await _serviceRepository.AddAsync(service);
+
+        var appService = CreateService();
+        var request = new ProposePriceRequest(
+            ProviderUserId: providerUser.Id,
+            ServiceId: service.Id,
+            ProposedPrice: 300m,
+            Description: "Serviço completo com cabos inclusos",
+            EstimatedTime: "3 horas",
+            LaborPrice: 200m,
+            MaterialsPrice: 100m
+        );
+
+        var result = await appService.ProposePriceAsync(request);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal(300m, result.Value.ProposedPrice);
+        Assert.Equal(200m, result.Value.LaborPrice);
+        Assert.Equal(100m, result.Value.MaterialsPrice);
+        // Taxa de 15% deve incidir apenas sobre os 200m de mão de obra = 30m (e não sobre os 300m = 45m)
+        Assert.Equal(30m, result.Value.EstimatedPlatformFee);
+        // Ganho líquido: 300m - 30m = 270m
+        Assert.Equal(270m, result.Value.NetProviderEarnings);
+    }
+
     // ── Fakes ────────────────────────────────────────────────────────────────
 
     private class FakeChatMessageRepository : IChatMessageRepository

@@ -143,7 +143,7 @@ public class ChatApplicationService(
 
     private static ProposalResponseDto MapProposalToDto(Proposal proposal)
     {
-        var financialVo = PriceProposalVo.Create(proposal.ProposedPrice);
+        var financialVo = PriceProposalVo.Create(proposal.LaborPrice, proposal.MaterialsPrice, proposal.ProposedPrice);
         var providerName = proposal.Provider?.User?.Name ?? "Prestador";
         return new ProposalResponseDto(
             Id: proposal.Id,
@@ -159,7 +159,9 @@ public class ChatApplicationService(
             CreatedAt: proposal.CreatedAt,
             CounterPrice: proposal.CounterPrice,
             CounterDescription: proposal.CounterDescription,
-            CounterOfferedAt: proposal.CounterOfferedAt
+            CounterOfferedAt: proposal.CounterOfferedAt,
+            LaborPrice: financialVo.LaborAmount,
+            MaterialsPrice: financialVo.MaterialsAmount
         );
     }
 }

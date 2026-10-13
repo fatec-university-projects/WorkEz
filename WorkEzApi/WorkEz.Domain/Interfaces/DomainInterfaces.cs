@@ -39,6 +39,7 @@ public interface IServiceProviderRepository : IBaseRepository<ServiceProvider>
     Task<List<string>> GetPortfolioAsync(Guid providerId);
     Task<bool> AddPortfolioImageAsync(Guid providerId, string imageUrl);
     Task<bool> RemovePortfolioImageAsync(Guid providerId, string imageUrl);
+    Task<List<(Guid Id, string Name)>> GetSpecialtiesAsync(Guid providerId);
 }
 
 public interface IAppointmentRepository : IBaseRepository<Appointment>

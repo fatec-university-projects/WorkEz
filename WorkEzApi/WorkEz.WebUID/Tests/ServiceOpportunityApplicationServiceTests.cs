@@ -275,6 +275,7 @@ public class ServiceOpportunityApplicationServiceTests
         public Task<List<string>> GetPortfolioAsync(Guid providerId) => Task.FromResult(new List<string>());
         public Task<bool> AddPortfolioImageAsync(Guid providerId, string imageUrl) => Task.FromResult(true);
         public Task<bool> RemovePortfolioImageAsync(Guid providerId, string imageUrl) => Task.FromResult(true);
+        public Task<List<(Guid Id, string Name)>> GetSpecialtiesAsync(Guid providerId) => Task.FromResult(new List<(Guid Id, string Name)>());
     }
 
     private class FakeProposalRepository : IProposalRepository

@@ -35,7 +35,8 @@ public class CreateServiceRequest
 public class ServicesController(
     IServiceOpportunityApplicationService opportunityService,
     AppDbContext db,
-    ITrackingNotificationService? trackingNotification = null) : ControllerBase
+    ITrackingNotificationService? trackingNotification = null,
+    IChatNotificationService? chatNotification = null) : ControllerBase
 {
     /// <summary>
     /// Retorna chamados em aberto para o prestador.
@@ -127,11 +128,17 @@ public class ServicesController(
             await db.SaveChangesAsync();
         }
 
+        var categoryId = request.CategoryId;
+        if (!categoryId.HasValue || categoryId.Value == Guid.Empty)
+        {
+            categoryId = await db.Categories.Select(c => (Guid?)c.Id).FirstOrDefaultAsync();
+        }
+
         var service = new Service
         {
             Id = Guid.NewGuid(),
             CustomerId = customerId,
-            CategoryId = request.CategoryId ?? Guid.Empty,
+            CategoryId = categoryId ?? Guid.Empty,
             Title = string.IsNullOrWhiteSpace(request.Title) ? "Chamado de Serviço" : request.Title,
             Description = request.Description,
             ImageUrl = request.ImageUrl,
@@ -213,6 +220,7 @@ public class ServicesController(
             professional = new
             {
                 id = activeProvider.Id,
+                userId = activeProvider.UserId,
                 name = activeProvider.User?.Name ?? "Profissional",
                 photo = activeProvider.User?.ProfilePicture ?? "",
                 rating = activeProvider.AverageRating
@@ -224,6 +232,8 @@ public class ServicesController(
         return Ok(new
         {
             id = service.Id,
+            appointmentId = service.Appointment?.Id,
+            providerUserId = activeProvider?.UserId,
             category = string.IsNullOrWhiteSpace(service.Title) ? "Serviço" : service.Title,
             description = service.Description,
             address = "Endereço cadastrado",
@@ -263,6 +273,7 @@ public class ServicesController(
     /// Atualiza status de um chamado (ex: cancelamento).
     /// </summary>
     [HttpPut("{id:guid}/status")]
+    [HttpPatch("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromQuery] bool? status)
     {
         var service = await db.Services.FindAsync(id);
@@ -278,6 +289,10 @@ public class ServicesController(
             if (trackingNotification != null)
             {
                 await trackingNotification.NotifyServiceUpdateAsync(id, "status_changed", new { status = "cancelled" });
+            }
+            if (chatNotification != null)
+            {
+                await chatNotification.NotifyChatUpdateAsync(Guid.Empty, id, "service_status_changed", new { status = "cancelled" });
             }
         }
 
@@ -309,6 +324,10 @@ public class ServicesController(
         {
             await trackingNotification.NotifyServiceUpdateAsync(id, "status_changed", new { status = "on-the-way" });
         }
+        if (chatNotification != null)
+        {
+            await chatNotification.NotifyChatUpdateAsync(Guid.Empty, id, "service_status_changed", new { status = "on-the-way" });
+        }
 
         return Ok(new { id = service.Id, status = "on-the-way" });
     }
@@ -337,6 +356,10 @@ public class ServicesController(
         if (trackingNotification != null)
         {
             await trackingNotification.NotifyServiceUpdateAsync(id, "status_changed", new { status = "in-progress" });
+        }
+        if (chatNotification != null)
+        {
+            await chatNotification.NotifyChatUpdateAsync(Guid.Empty, id, "service_status_changed", new { status = "in-progress" });
         }
 
         return Ok(new { id = service.Id, status = "in-progress" });
@@ -371,6 +394,10 @@ public class ServicesController(
         if (trackingNotification != null)
         {
             await trackingNotification.NotifyServiceUpdateAsync(id, "status_changed", new { status = "completed" });
+        }
+        if (chatNotification != null)
+        {
+            await chatNotification.NotifyChatUpdateAsync(Guid.Empty, id, "service_status_changed", new { status = "completed" });
         }
 
         return Ok(new { id = service.Id, status = "completed" });
