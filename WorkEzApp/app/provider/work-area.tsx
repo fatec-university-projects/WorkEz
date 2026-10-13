@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
 import { apiRequest } from '../../services/api';
 import { WorkEzTheme } from '../../constants/theme';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 interface Category {
   id: string;
@@ -93,31 +94,23 @@ export default function WorkArea() {
   const isLoading = categoriesLoading || providerLoading;
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#FFFFFF' }} contentContainerStyle={{ flexGrow: 1 }}>
-      <View className="p-6">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors align-self-start"
-        >
-          <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
-        </TouchableOpacity>
-
-        <Text className="text-3xl font-bold text-[#0F172A] mt-6 mb-2">
-          Área de atuação
-        </Text>
-        <Text className="text-[#64748B] mb-6">
-          Conte-nos sobre suas especialidades e sua profissão
-        </Text>
-
-        {isLoading ? (
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      <ScreenHeader
+        title="Área de atuação"
+        subtitle="Conte-nos sobre suas especialidades"
+        showBack
+      />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
+        <View className="p-6">
+          {isLoading ? (
           <View style={{ padding: 48, alignItems: 'center' }}>
             <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
             <Text style={{ marginTop: 16, color: '#64748B' }}>Carregando especialidades...</Text>
           </View>
         ) : (
-          <View className="space-y-6">
+          <View style={{ gap: 20 }}>
             <View>
-              <Text className="block text-sm font-semibold text-[#0F172A] mb-3">
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#0F172A', marginBottom: 12 }}>
                 Categorias que você atende (Selecione todas que aplicam)
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
@@ -149,8 +142,8 @@ export default function WorkArea() {
               </View>
             </View>
 
-            <View style={{ marginTop: 20 }}>
-              <Text className="block text-sm font-semibold text-[#0F172A] mb-2">
+            <View style={{ marginTop: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#0F172A', marginBottom: 8 }}>
                 Anos de experiência
               </Text>
               <Input
@@ -161,8 +154,8 @@ export default function WorkArea() {
               />
             </View>
 
-            <View style={{ marginTop: 20 }}>
-              <Text className="block text-sm font-semibold text-[#0F172A] mb-2">
+            <View style={{ marginTop: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#0F172A', marginBottom: 8 }}>
                 Descrição profissional
               </Text>
               <TextInput
@@ -200,5 +193,6 @@ export default function WorkArea() {
         )}
       </View>
     </ScrollView>
-  );
+  </View>
+);
 }

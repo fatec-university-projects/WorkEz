@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Camera, User, Mail, Phone, Save, FileText } from 'lucide-react-native';
+import { ArrowLeft, Camera, User, Mail, Phone, Save, FileText, Clock, Check } from 'lucide-react-native';
 import {
   View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator, Image, Alert, TextInput
@@ -14,6 +14,8 @@ import { authService } from '../../services/authService';
 import { imageService } from '../../services/imageService';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ProviderProfile {
   id: string;
@@ -23,10 +25,12 @@ interface ProviderProfile {
   phone?: string;
   professionalDescription?: string;
   categories?: { id: string; name: string }[];
+  specialties?: { id: string; name: string }[];
 }
 
 export default function ProviderEditProfile() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, refreshUser } = useAuth();
 
   const { data: profile, loading: loadingProfile, error: profileError } = useFetch<ProviderProfile>(
@@ -45,15 +49,37 @@ export default function ProviderEditProfile() {
   const { data: allCategories, loading: loadingCategories } = useFetch<any[]>('/api/Categories');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
+  const [experience, setExperience] = useState('');
+
   useEffect(() => {
     if (profile) {
       setName(profile.name || user?.name || '');
       setEmail(profile.email || user?.email || '');
       setPhone(profile.phone || '');
       setPhoto(profile.photo || '');
-      setDescription(profile.professionalDescription || '');
-      if (profile.categories) {
-        setSelectedCategories(profile.categories.map(c => c.id));
+
+      const rawDesc = profile.professionalDescription || '';
+      const expMatch = rawDesc.match(/\[(?:Experiência|Experiencia):\s*([^\]]+)\]/i);
+      let expVal = '';
+      if (expMatch) {
+        expVal = expMatch[1].replace(/\D/g, '') || expMatch[1].replace(/anos?/i, '').trim();
+      }
+      setExperience(expVal);
+      setDescription(rawDesc.replace(/\[(?:Experiência|Experiencia):\s*[^\]]+\]/gi, '').trim());
+
+      const currentSpecialties = profile.specialties || profile.categories || [];
+      if (currentSpecialties.length > 0) {
+        setSelectedCategories(currentSpecialties.map((c: any) => c.id || c.Id));
+      }
+
+      if (profile.id) {
+        apiRequest<any[]>(`/api/ProviderCategories/by-provider/${profile.id}/categories`)
+          .then((res) => {
+            if (res.data && res.data.length > 0) {
+              setSelectedCategories(res.data.map((c: any) => c.id || c.Id));
+            }
+          })
+          .catch(() => {});
       }
     } else if (user) {
       setName(user.name);
@@ -63,8 +89,9 @@ export default function ProviderEditProfile() {
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories(prev => {
-      if (prev.includes(categoryId)) {
-        return prev.filter(id => id !== categoryId);
+      const exists = prev.some(id => id.toLowerCase() === categoryId.toLowerCase());
+      if (exists) {
+        return prev.filter(id => id.toLowerCase() !== categoryId.toLowerCase());
       } else {
         return [...prev, categoryId];
       }
@@ -95,14 +122,15 @@ export default function ProviderEditProfile() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const selectedUri = result.assets[0].uri;
+      const asset = result.assets[0];
       setUploading(true);
 
       try {
-        const imageUrl = await imageService.uploadImage(selectedUri);
+        const imageUrl = await imageService.uploadImage(asset.uri, asset.base64);
         setPhoto(imageUrl);
       } catch (err) {
         console.error(err);
@@ -149,10 +177,14 @@ export default function ProviderEditProfile() {
 
       // 2. Update Provider Description details
       if (profile) {
+        const finalDesc = experience.trim()
+          ? `[Experiência: ${experience.trim()} ${parseInt(experience.trim()) === 1 ? 'ano' : 'anos'}] ${description.trim()}`.trim()
+          : description.trim();
+
         const providerPayload = {
           id: profile.id,
           userId: user?.id,
-          professionalDescription: description.trim()
+          professionalDescription: finalDesc
         };
 
         const providerResponse = await apiRequest<any>(`/api/ServiceProviders/${profile.id}`, {
@@ -180,9 +212,12 @@ export default function ProviderEditProfile() {
       }
 
       // Update local credentials cache
+      const savedPic = userResponse.data?.profilePicture || userPayload.profilePicture || null;
       await authService.updateLocalProfile({
         name: userPayload.name,
-        email: userPayload.email
+        email: userPayload.email,
+        photo: savedPic,
+        profilePicture: savedPic
       });
       await refreshUser();
 
@@ -202,20 +237,15 @@ export default function ProviderEditProfile() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Dados pessoais</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Dados pessoais" showBack />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 110 + (insets.bottom > 0 ? insets.bottom : 20) }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {loadingProfile ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
@@ -299,6 +329,20 @@ export default function ProviderEditProfile() {
             </View>
 
             <View style={styles.inputContainer}>
+              <Text style={styles.label}>Experiência (anos)</Text>
+              <View style={styles.inputWrapper}>
+                <Clock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+                <Input
+                  placeholder="Ex: 5"
+                  value={experience}
+                  onChangeText={setExperience}
+                  keyboardType="numeric"
+                  style={styles.inputWithIcon}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputContainer}>
               <Text style={styles.label}>Descrição / Biografia</Text>
               <View style={styles.inputWrapper}>
                 <FileText size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIconDescription} />
@@ -322,7 +366,9 @@ export default function ProviderEditProfile() {
               ) : (
                 <View style={styles.categoriesContainer}>
                   {allCategories?.map((cat) => {
-                    const isSelected = selectedCategories.includes(cat.id);
+                    const isSelected = selectedCategories.some(
+                      (id) => id && cat?.id && id.toLowerCase() === cat.id.toLowerCase()
+                    );
                     return (
                       <TouchableOpacity
                         key={cat.id}
@@ -333,6 +379,9 @@ export default function ProviderEditProfile() {
                           isSelected && styles.categoryTagSelected
                         ]}
                       >
+                        {isSelected && (
+                          <Check size={14} color="#1D4ED8" style={{ marginRight: 6 }} />
+                        )}
                         <Text
                           style={[
                             styles.categoryTagText,
@@ -350,16 +399,16 @@ export default function ProviderEditProfile() {
 
             <View style={styles.saveBtn}>
               <Button
-                variant="secondary"
+                variant="primary"
                 fullWidth
                 onPress={handleSave}
                 disabled={saving || uploading}
               >
                 {saving ? (
-                  <ActivityIndicator color="#2563EB" />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
-                    <Save size={20} color="#2563EB" />
+                    <Save size={20} color="#FFFFFF" />
                     <Text style={styles.saveBtnText}>Salvar Alterações</Text>
                   </>
                 )}
@@ -514,10 +563,8 @@ const styles = StyleSheet.create({
     minHeight: 100,
   },
   saveBtnText: {
-    display: 'flex',
-    alignItems: 'center',
-    color: '#2563EB',
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontWeight: '700',
     fontSize: 16,
   },
   categoriesContainer: {
@@ -527,6 +574,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   categoryTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: '#F1F5F9',

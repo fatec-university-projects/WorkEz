@@ -6,6 +6,7 @@ import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
 import { apiRequest } from '../../services/api';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { Gavel, MessageCircle, Clock, CornerDownRight, Check, X as XIcon } from 'lucide-react-native';
 
 const formatEstimatedTime = (time: string | undefined | null) => {
@@ -31,6 +32,8 @@ interface ProposalItem {
   id: string;
   serviceId: string;
   proposedPrice: number;
+  laborPrice?: number;
+  materialsPrice?: number;
   description?: string;
   estimatedTime?: string;
   status: string;
@@ -192,9 +195,7 @@ export default function ProviderCalls() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chamados & Propostas</Text>
-      </View>
+      <ScreenHeader title="Chamados & Propostas" />
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
@@ -290,6 +291,19 @@ export default function ProviderCalls() {
                           </Text>
                         </View>
                       </View>
+
+                      {/* Detalhamento de Mão de Obra e Materiais */}
+                      {proposal.materialsPrice && proposal.materialsPrice > 0 ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                          <Text style={{ fontSize: 12, color: '#64748B' }}>
+                            Mão de obra: R$ {(proposal.laborPrice || (proposal.proposedPrice - proposal.materialsPrice)).toFixed(2).replace('.', ',')}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: '#CBD5E1' }}>•</Text>
+                          <Text style={{ fontSize: 12, color: '#16A34A', fontWeight: '500' }}>
+                            Materiais: R$ {proposal.materialsPrice.toFixed(2).replace('.', ',')}
+                          </Text>
+                        </View>
+                      ) : null}
 
                       {proposal.estimatedTime && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>

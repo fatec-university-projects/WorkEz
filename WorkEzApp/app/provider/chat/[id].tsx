@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Send, AlertCircle, User, Check, X, CornerDownRight, CheckCircle, MessageCircle } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -28,6 +29,7 @@ interface ChatMessage {
 
 export default function ProviderChat() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id, serviceId: queryServiceId } = useLocalSearchParams<{ id: string; serviceId?: string }>();
   const { user } = useAuth();
   const [messageText, setMessageText] = useState('');
@@ -37,6 +39,7 @@ export default function ProviderChat() {
   const [chatLoading, setChatLoading] = useState(true);
   const [chatError, setChatError] = useState<string | null>(null);
   const [liveProposal, setLiveProposal] = useState<ProposalInfo | null>(null);
+  const [liveServiceStatus, setLiveServiceStatus] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // 1. Tenta buscar diretamente a proposta
@@ -54,22 +57,43 @@ export default function ProviderChat() {
   const activeProposalId = proposal?.id || (id as string);
 
   // 3. Busca o status do serviço
-  const effectiveServiceId = queryServiceId || proposal?.serviceId;
-  const { data: service } = useFetch<any>(
+  const effectiveServiceId = queryServiceId || proposal?.serviceId || (proposal as any)?.ServiceId;
+  const { data: service, refetch: refetchService } = useFetch<any>(
     effectiveServiceId ? `/api/Services/${effectiveServiceId}` : null
   );
 
-  const isCompleted = service?.status === 'completed';
-  const isCancelled = service?.status === 'cancelled';
-  const isAccepted = service?.status === 'accepted' ||
-                     service?.status === 'on-the-way' ||
-                     service?.status === 'ontheway' ||
-                     service?.status === 'in-progress' ||
-                     service?.status === 'inprogress' ||
-                     service?.status === 'waiting-payment' ||
-                     service?.status === 'waitingpayment' ||
-                     proposal?.status?.toLowerCase() === 'accepted';
+  useFocusEffect(
+    useCallback(() => {
+      if (effectiveServiceId) {
+        refetchService();
+      }
+    }, [effectiveServiceId, refetchService])
+  );
+
+  const currentStatus = (liveServiceStatus || service?.status || service?.serviceStatus || '').toLowerCase();
+  const isCompleted = currentStatus === 'completed';
+  const isCancelled = currentStatus === 'cancelled';
+  const isWaitingPayment = currentStatus === 'waiting-payment' || currentStatus === 'waitingpayment';
+  const isInProgress = currentStatus === 'in-progress' || currentStatus === 'inprogress';
+  const isOnTheWay = currentStatus === 'on-the-way' || currentStatus === 'ontheway';
+  const isAccepted = !isCompleted && !isCancelled && (
+    currentStatus === 'accepted' ||
+    isInProgress ||
+    isOnTheWay ||
+    isWaitingPayment ||
+    proposal?.status?.toLowerCase() === 'accepted'
+  );
   const isFinished = isCompleted || isCancelled;
+
+  const getHeaderStatusText = () => {
+    if (isCompleted) return 'Serviço concluído';
+    if (isCancelled) return 'Serviço cancelado';
+    if (isWaitingPayment) return 'Aguardando pagamento';
+    if (isInProgress) return 'Chamado em execução';
+    if (isOnTheWay) return 'A caminho do local';
+    if (isAccepted) return 'Chamado aceito';
+    return `Seu Lance: R$ ${proposal?.proposedPrice ? proposal.proposedPrice.toFixed(2).replace('.', ',') : '...'}`;
+  };
 
   // 4. Carga inicial de mensagens (sem loop de polling)
   useEffect(() => {
@@ -145,6 +169,9 @@ export default function ProviderChat() {
               });
             } else if (data.eventType === 'proposal_updated' && data.payload) {
               setLiveProposal(data.payload as ProposalInfo);
+            } else if ((data.eventType === 'service_status_changed' || data.eventType === 'status_changed') && data.payload?.status) {
+              setLiveServiceStatus(data.payload.status);
+              refetchService();
             }
           } catch (e) {
             console.log('[WebSocket Provider Chat] erro ao processar mensagem', e);
@@ -346,7 +373,7 @@ export default function ProviderChat() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 14 }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={handleBack}
@@ -360,10 +387,13 @@ export default function ProviderChat() {
           </View>
           <View style={styles.headerInfo}>
             <Text style={styles.clientName}>{service?.clientName || 'Cliente (Solicitante)'}</Text>
-            <Text style={styles.statusText}>
-              {isAccepted
-                ? 'Chamado em execução'
-                : `Seu Lance: R$ ${proposal?.proposedPrice ? proposal.proposedPrice.toFixed(2).replace('.', ',') : '...'}`}
+            <Text style={[
+              styles.statusText,
+              isCompleted && { color: '#059669', fontWeight: '600' },
+              isCancelled && { color: '#DC2626', fontWeight: '600' },
+              isInProgress && { color: '#2563EB', fontWeight: '600' },
+            ]}>
+              {getHeaderStatusText()}
             </Text>
           </View>
         </View>
@@ -520,7 +550,7 @@ export default function ProviderChat() {
       </ScrollView>
 
       {/* Footer / Input */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : (Platform.OS === 'ios' ? 24 : 14) }]}>
         <View style={styles.inputRow}>
           <TextInput
             value={messageText}
@@ -581,8 +611,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   clientName: {
-    ...WorkEzTheme.typography.base,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    fontSize: 18,
+    fontWeight: '700',
     color: '#0F172A',
   },
   statusText: {

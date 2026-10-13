@@ -15,6 +15,7 @@ import {
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
 import { apiRequest } from '../../../services/api';
+import { ScreenHeader } from '../../../components/ScreenHeader';
 
 export default function InformValue() {
   const router = useRouter();
@@ -86,21 +87,12 @@ export default function InformValue() {
   return (
     <View style={styles.container}>
       {/* Top Header */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={handleBack}
-            style={styles.backButton}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={22} color="#0F172A" />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Informar Valor Final</Text>
-            <Text style={styles.headerSubtitle}>Conclusão do atendimento</Text>
-          </View>
-        </View>
-      </View>
+      <ScreenHeader
+        title="Informar Valor Final"
+        subtitle="Conclusão do atendimento"
+        showBack
+        onBack={handleBack}
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Card do Chamado */}

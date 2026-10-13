@@ -2,6 +2,8 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, User, CreditCard, FileText, MapPin, Bell, HelpCircle, ChevronRight } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
+import { ScreenHeader } from '../../components/ScreenHeader';
+
 export default function ProviderSettings() {
   const router = useRouter();
 
@@ -16,12 +18,7 @@ export default function ProviderSettings() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} activeOpacity={0.8}>
-          <ArrowLeft size={24} color="#0F172A" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Configurações</Text>
-      </View>
+      <ScreenHeader title="Configurações" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>

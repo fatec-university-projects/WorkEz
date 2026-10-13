@@ -10,6 +10,7 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, Touchable
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 interface Transaction {
   date: string;
@@ -108,22 +109,17 @@ export default function Wallet() {
   }, [services]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => (router.canGoBack() ? router.back() : router.push('/provider'))}
-          style={styles.backButton}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          activeOpacity={0.7}
-        >
-          <ArrowLeft size={22} color={WorkEzTheme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Minha Carteira</Text>
-        <View style={styles.verifiedBadge}>
-          <ShieldCheck size={14} color="#10B981" />
-          <Text style={styles.verifiedBadgeText}>PIX Ativo</Text>
-        </View>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader
+        title="Minha Carteira"
+        rightElement={
+          <View style={styles.verifiedBadge}>
+            <ShieldCheck size={14} color="#10B981" />
+            <Text style={styles.verifiedBadgeText}>PIX Ativo</Text>
+          </View>
+        }
+      />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
       <View style={styles.content}>
         {loading ? (
@@ -254,7 +250,8 @@ export default function Wallet() {
         )}
       </View>
     </ScrollView>
-  );
+  </View>
+);
 }
 
 const styles = StyleSheet.create({

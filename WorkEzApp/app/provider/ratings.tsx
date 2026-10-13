@@ -1,20 +1,21 @@
-import { useMemo } from 'react';
-import { useRouter } from 'expo-router';
+import { useMemo, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Star } from 'lucide-react-native';
 import { RatingCard } from '../../components/RatingCard';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 interface Rating {
   id: string;
   clientName: string;
-  clientPhoto: string;
+  clientPhoto?: string;
   rating: number;
   comment: string;
   date: string;
-  tags: string[];
+  tags?: string[];
 }
 
 interface RatingsData {
@@ -27,8 +28,16 @@ export default function ReceivedRatings() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const { data: rawReviews, loading, error } = useFetch<any[]>(
+  const { data: rawReviews, loading, error, refetch } = useFetch<any[]>(
     user ? `/api/Reviews/by-user/${user.id}` : null
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        refetch();
+      }
+    }, [user, refetch])
   );
 
   const ratingsData: RatingsData | null = useMemo(() => {
@@ -38,29 +47,25 @@ export default function ReceivedRatings() {
     const sum = rawReviews.reduce((acc, curr) => acc + (curr.rating || 0), 0);
     const average = total > 0 ? sum / total : 0;
 
-    const mockNames = ['Mariana Souza', 'Lucas Ferreira', 'Beatriz Santos', 'Guilherme Silva', 'Fernanda Lima'];
-    const mockPhotos = [
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop'
-    ];
-    const mockTags = ['Pontual', 'Educado', 'Organizado', 'Recomendo'];
-
-    const ratings = rawReviews.map((rev, index) => {
-      const name = mockNames[index % mockNames.length];
-      const photo = mockPhotos[index % mockPhotos.length];
-      const tag = mockTags[index % mockTags.length];
+    const ratings: Rating[] = rawReviews.map((rev, index) => {
+      let formattedDate = 'Recentemente';
+      if (rev.createdAt) {
+        try {
+          const d = new Date(rev.createdAt);
+          if (!isNaN(d.getTime())) {
+            formattedDate = d.toLocaleDateString('pt-BR');
+          }
+        } catch {}
+      }
 
       return {
         id: rev.id || String(index),
-        clientName: name,
-        clientPhoto: photo,
+        clientName: rev.clientName || 'Cliente',
+        clientPhoto: rev.clientPhoto || undefined,
         rating: rev.rating || 0,
         comment: rev.comment || 'Nenhum comentário deixado.',
-        date: 'Recentemente',
-        tags: [tag]
+        date: formattedDate,
+        tags: rev.tags || []
       };
     });
 
@@ -73,18 +78,7 @@ export default function ReceivedRatings() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Avaliações</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Avaliações" showBack />
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (

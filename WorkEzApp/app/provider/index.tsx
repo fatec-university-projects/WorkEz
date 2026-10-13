@@ -6,6 +6,7 @@ import {
   ActivityIndicator, TouchableOpacity
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
@@ -22,6 +23,7 @@ interface WeeklySummary {
 
 export default function ProviderHome() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const { data: rawProvider, refetch: refetchProvider } = useFetch<any>(
@@ -51,7 +53,7 @@ export default function ProviderHome() {
       return {
         monthlyEarnings: 0,
         availableBalance: 0,
-        averageRating: rawProvider?.averageRating ?? 5.0,
+        averageRating: rawProvider?.averageRating ?? 0.0,
         completedCount: 0,
         weekCompleted: 0,
         acceptanceRate: 0,
@@ -81,7 +83,7 @@ export default function ProviderHome() {
     return {
       monthlyEarnings,
       availableBalance,
-      averageRating: rawProvider?.averageRating ?? 5.0,
+      averageRating: rawProvider?.averageRating ?? 0.0,
       completedCount,
       weekCompleted,
       acceptanceRate,
@@ -134,7 +136,7 @@ export default function ProviderHome() {
         colors={['#06B6D4', '#2563EB']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 16 : 44 }]}
       >
         <Text style={styles.greetingText}>
           Olá, {user?.name?.split(' ')[0] || 'Prestador'}! 👋

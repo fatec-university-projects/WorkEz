@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { 
   ArrowLeft, 
@@ -12,7 +12,9 @@ import {
   CheckCircle2, 
   AlertCircle,
   FileText,
-  BadgeDollarSign
+  BadgeDollarSign,
+  Wrench,
+  Play
 } from 'lucide-react-native';
 import { 
   View, 
@@ -26,7 +28,9 @@ import {
 } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
 import { WorkEzTheme } from '../../../constants/theme';
-import { apiRequest } from '../../../services/api';
+import { apiRequest, getWebSocketUrl } from '../../../services/api';
+import { ScreenHeader } from '../../../components/ScreenHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ServiceDetail {
   id: string;
@@ -45,7 +49,8 @@ interface ServiceDetail {
 export default function AcceptedService() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [starting, setStarting] = useState(false);
+  const insets = useSafeAreaInsets();
+  const [actionLoading, setActionLoading] = useState(false);
 
   const { data: service, loading, error, refetch } = useFetch<ServiceDetail>(
     id ? `/api/Services/${id}` : null
@@ -58,6 +63,57 @@ export default function AcceptedService() {
       }
     }, [id, refetch])
   );
+
+  // Conexão WebSocket em tempo real para sincronizar status instantaneamente
+  useEffect(() => {
+    if (!id) return;
+
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: any = null;
+    let isMounted = true;
+
+    function connect() {
+      try {
+        const wsUrl = getWebSocketUrl(`/ws/tracking?serviceId=${id}`);
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log('[Provider Accepted WS] Conectado em tempo real ao chamado:', id);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('[Provider Accepted WS] Atualização recebida:', data.eventType);
+            if (isMounted) {
+              refetch();
+            }
+          } catch (e) {
+            console.warn('[Provider Accepted WS] Erro ao processar socket:', e);
+          }
+        };
+
+        ws.onclose = () => {
+          if (isMounted) {
+            reconnectTimeout = setTimeout(connect, 4000);
+          }
+        };
+      } catch (e) {
+        console.warn('[Provider Accepted WS] Erro ao conectar socket:', e);
+      }
+    }
+
+    connect();
+
+    return () => {
+      isMounted = false;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
+    };
+  }, [id, refetch]);
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -75,9 +131,19 @@ export default function AcceptedService() {
     } as any);
   };
 
+  // Status normalizado
+  const currentStatus = (service?.status || '').toLowerCase();
+  const isAccepted = currentStatus === 'accepted';
+  const isOnTheWay = currentStatus === 'on-the-way' || currentStatus === 'ontheway';
+  const isInProgress = currentStatus === 'in-progress' || currentStatus === 'inprogress';
+  const isWaitingPayment = currentStatus === 'waiting-payment' || currentStatus === 'waitingpayment';
+  const isCompleted = currentStatus === 'completed';
+  const isCancelled = currentStatus === 'cancelled';
+
+  // Transições de Ações
   const handleStartDisplacement = async () => {
     if (!id) return;
-    setStarting(true);
+    setActionLoading(true);
     try {
       const res = await apiRequest<{ id: string; status: string }>(`/api/Services/${id}/start-displacement`, {
         method: 'POST'
@@ -90,7 +156,7 @@ export default function AcceptedService() {
           Alert.alert('Erro', res.error);
         }
       } else {
-        router.push(`/provider/in-progress/${id}` as any);
+        refetch();
       }
     } catch (err: any) {
       const msg = err?.message || 'Não foi possível se conectar ao servidor.';
@@ -100,11 +166,88 @@ export default function AcceptedService() {
         Alert.alert('Erro', msg);
       }
     } finally {
-      setStarting(false);
+      setActionLoading(false);
     }
   };
 
-  if (loading) {
+  const handleStartService = async () => {
+    if (!id) return;
+    setActionLoading(true);
+    try {
+      const res = await apiRequest<{ id: string; status: string }>(`/api/Services/${id}/start`, {
+        method: 'POST'
+      });
+
+      if (res.error) {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert(`Erro: ${res.error}`);
+        } else {
+          Alert.alert('Erro', res.error);
+        }
+      } else {
+        refetch();
+      }
+    } catch (err: any) {
+      const msg = err?.message || 'Não foi possível se conectar ao servidor.';
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert(`Erro: ${msg}`);
+      } else {
+        Alert.alert('Erro', msg);
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCompleteService = async () => {
+    if (!id) return;
+
+    const execute = async () => {
+      setActionLoading(true);
+      try {
+        const res = await apiRequest<{ id: string; status: string }>(`/api/Services/${id}/complete`, {
+          method: 'POST'
+        });
+
+        if (res.error) {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.alert(`Erro: ${res.error}`);
+          } else {
+            Alert.alert('Erro', res.error);
+          }
+        } else {
+          refetch();
+        }
+      } catch (err: any) {
+        const msg = err?.message || 'Não foi possível se conectar ao servidor.';
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert(`Erro: ${msg}`);
+        } else {
+          Alert.alert('Erro', msg);
+        }
+      } finally {
+        setActionLoading(false);
+      }
+    };
+
+    const confirmMsg = 'Deseja confirmar a conclusão deste serviço? O chamado será finalizado com sucesso.';
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(confirmMsg)) {
+        await execute();
+      }
+    } else {
+      Alert.alert(
+        'Concluir Chamado',
+        confirmMsg,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Confirmar', onPress: execute }
+        ]
+      );
+    }
+  };
+
+  if (loading && !service) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
@@ -130,40 +273,148 @@ export default function AcceptedService() {
     ? `R$ ${Number(service.price).toFixed(2).replace('.', ',')}`
     : 'A combinar';
 
+  // Configurações do Header
+  const getHeaderProps = () => {
+    if (isCancelled) {
+      return {
+        title: 'Chamado Cancelado',
+        subtitle: 'Este chamado foi cancelado',
+        badge: 'Cancelado',
+        badgeStyle: styles.badgeDanger,
+        badgeTextStyle: styles.badgeDangerText
+      };
+    }
+    if (isCompleted) {
+      return {
+        title: 'Serviço Concluído',
+        subtitle: 'Chamado finalizado com sucesso',
+        badge: 'Concluído',
+        badgeStyle: styles.badgeSuccess,
+        badgeTextStyle: styles.badgeSuccessText
+      };
+    }
+    if (isWaitingPayment) {
+      return {
+        title: 'Aguardando Pagamento',
+        subtitle: 'Serviço finalizado, aguardando liberação do cliente',
+        badge: 'Pagamento',
+        badgeStyle: styles.badgeWarning,
+        badgeTextStyle: styles.badgeWarningText
+      };
+    }
+    if (isInProgress) {
+      return {
+        title: 'Serviço em Execução',
+        subtitle: 'Trabalho em andamento no local',
+        badge: 'Em Execução',
+        badgeStyle: styles.badgePrimary,
+        badgeTextStyle: styles.badgePrimaryText
+      };
+    }
+    if (isOnTheWay) {
+      return {
+        title: 'A Caminho do Local',
+        subtitle: 'Deslocamento até o cliente em andamento',
+        badge: 'A Caminho',
+        badgeStyle: styles.badgePrimary,
+        badgeTextStyle: styles.badgePrimaryText
+      };
+    }
+    return {
+      title: 'Chamado Aceito',
+      subtitle: 'Aguardando início do deslocamento',
+      badge: 'Aceito',
+      badgeStyle: styles.badgeSuccess,
+      badgeTextStyle: styles.badgeSuccessText
+    };
+  };
+
+  const headerProps = getHeaderProps();
+
   return (
     <View style={styles.container}>
       {/* Top Header */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity 
-            onPress={handleBack} 
-            style={styles.backButton}
-            accessibilityLabel="Voltar"
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={22} color="#0F172A" />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Chamado Aceito</Text>
-            <Text style={styles.headerSubtitle}>Aguardando início do deslocamento</Text>
+      <ScreenHeader
+        title={headerProps.title}
+        subtitle={headerProps.subtitle}
+        showBack
+        onBack={handleBack}
+        rightElement={
+          <View style={headerProps.badgeStyle}>
+            <Text style={headerProps.badgeTextStyle}>{headerProps.badge}</Text>
           </View>
-          <View style={styles.badgeSuccess}>
-            <Text style={styles.badgeSuccessText}>Aceito</Text>
-          </View>
-        </View>
-      </View>
+        }
+      />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Banner de status */}
-        <View style={styles.statusBanner}>
-          <CheckCircle2 size={22} color="#16A34A" style={{ marginTop: 2 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.statusBannerTitle}>Proposta Aceita!</Text>
-            <Text style={styles.statusBannerText}>
-              O cliente confirmou a sua proposta. Quando estiver pronto para ir até o endereço, clique no botão abaixo para avisar que está a caminho.
-            </Text>
+      <ScrollView 
+        contentContainerStyle={[
+          styles.scrollContent, 
+          { paddingBottom: 120 + (insets.bottom > 0 ? insets.bottom : (Platform.OS === 'ios' ? 24 : 16)) }
+        ]} 
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Banner de status contextual */}
+        {isCancelled ? (
+          <View style={[styles.statusBanner, styles.bannerDanger]}>
+            <AlertCircle size={22} color="#DC2626" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.statusBannerTitle, { color: '#991B1B' }]}>Chamado Cancelado</Text>
+              <Text style={[styles.statusBannerText, { color: '#B91C1C' }]}>
+                Este chamado foi cancelado e nenhuma ação adicional é necessária.
+              </Text>
+            </View>
           </View>
-        </View>
+        ) : isCompleted ? (
+          <View style={[styles.statusBanner, styles.bannerSuccess]}>
+            <CheckCircle2 size={22} color="#16A34A" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.statusBannerTitle}>Serviço Concluído com Sucesso!</Text>
+              <Text style={styles.statusBannerText}>
+                O serviço foi finalizado e faturado. O valor acordado foi liberado na sua carteira.
+              </Text>
+            </View>
+          </View>
+        ) : isWaitingPayment ? (
+          <View style={[styles.statusBanner, styles.bannerWarning]}>
+            <Clock size={22} color="#D97706" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.statusBannerTitle, { color: '#B45309' }]}>Aguardando Pagamento do Cliente</Text>
+              <Text style={[styles.statusBannerText, { color: '#92400E' }]}>
+                Você marcou o serviço como finalizado. O cliente foi notificado para liberar o pagamento.
+              </Text>
+            </View>
+          </View>
+        ) : isInProgress ? (
+          <View style={[styles.statusBanner, styles.bannerPrimary]}>
+            <Wrench size={22} color="#2563EB" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.statusBannerTitle, { color: '#1E40AF' }]}>Serviço em Andamento no Local</Text>
+              <Text style={[styles.statusBannerText, { color: '#1D4ED8' }]}>
+                Você está executando as atividades acordadas. Ao finalizar os trabalhos, clique no botão abaixo para concluir o serviço.
+              </Text>
+            </View>
+          </View>
+        ) : isOnTheWay ? (
+          <View style={[styles.statusBanner, styles.bannerPrimary]}>
+            <Navigation size={22} color="#2563EB" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.statusBannerTitle, { color: '#1E40AF' }]}>Você está a Caminho!</Text>
+              <Text style={[styles.statusBannerText, { color: '#1D4ED8' }]}>
+                O cliente já foi avisado de que você saiu. Assim que chegar ao endereço, clique abaixo para iniciar a execução do serviço.
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.statusBanner}>
+            <CheckCircle2 size={22} color="#16A34A" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.statusBannerTitle}>Proposta Aceita!</Text>
+              <Text style={styles.statusBannerText}>
+                O cliente confirmou a sua proposta. Quando estiver pronto para ir até o endereço, clique no botão abaixo para avisar que está a caminho.
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Card do Serviço & Valor */}
         <View style={styles.card}>
@@ -253,10 +504,11 @@ export default function AcceptedService() {
           </View>
         </View>
 
-        {/* Linha do Tempo / Próximos Passos */}
+        {/* Linha do Tempo / Próximos Passos Dinâmicos */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Etapas do Chamado</Text>
           
+          {/* Etapa 1: Chamado Aceito */}
           <View style={styles.timelineItem}>
             <View style={[styles.timelineDot, styles.timelineDotDone]}>
               <CheckCircle2 size={16} color="#FFFFFF" />
@@ -267,57 +519,220 @@ export default function AcceptedService() {
             </View>
           </View>
 
-          <View style={styles.timelineConnector} />
+          <View style={[
+            styles.timelineConnector, 
+            (isOnTheWay || isInProgress || isWaitingPayment || isCompleted) && styles.timelineConnectorDone
+          ]} />
 
+          {/* Etapa 2: Iniciar Deslocamento */}
           <View style={styles.timelineItem}>
-            <View style={[styles.timelineDot, styles.timelineDotActive]}>
-              <Navigation size={14} color="#FFFFFF" />
+            <View style={[
+              styles.timelineDot,
+              (isInProgress || isWaitingPayment || isCompleted) 
+                ? styles.timelineDotDone 
+                : isOnTheWay 
+                ? styles.timelineDotActive 
+                : isAccepted 
+                ? styles.timelineDotActive 
+                : styles.timelineDotPending
+            ]}>
+              {(isInProgress || isWaitingPayment || isCompleted) ? (
+                <CheckCircle2 size={16} color="#FFFFFF" />
+              ) : (
+                <Navigation size={14} color="#FFFFFF" />
+              )}
             </View>
             <View style={styles.timelineBody}>
-              <Text style={styles.timelineTitleActive}>2. Iniciar Deslocamento (Próximo passo)</Text>
-              <Text style={styles.timelineDesc}>Avise o cliente quando você sair para o local.</Text>
+              <Text style={
+                (isInProgress || isWaitingPayment || isCompleted)
+                  ? styles.timelineTitleDone
+                  : isOnTheWay
+                  ? styles.timelineTitleActive
+                  : isAccepted
+                  ? styles.timelineTitleActive
+                  : styles.timelineTitlePending
+              }>
+                {isOnTheWay 
+                  ? '2. A Caminho do Local' 
+                  : (isInProgress || isWaitingPayment || isCompleted)
+                  ? '2. Deslocamento Realizado'
+                  : '2. Iniciar Deslocamento (Próximo passo)'}
+              </Text>
+              <Text style={styles.timelineDesc}>
+                {isOnTheWay 
+                  ? 'Deslocamento até o cliente em andamento.'
+                  : (isInProgress || isWaitingPayment || isCompleted)
+                  ? 'Chegada ao local confirmada.'
+                  : 'Avise o cliente quando você sair para o local.'}
+              </Text>
             </View>
           </View>
 
-          <View style={styles.timelineConnector} />
+          <View style={[
+            styles.timelineConnector, 
+            (isInProgress || isWaitingPayment || isCompleted) && styles.timelineConnectorDone
+          ]} />
 
+          {/* Etapa 3: Execução do Serviço */}
           <View style={styles.timelineItem}>
-            <View style={[styles.timelineDot, styles.timelineDotPending]} />
+            <View style={[
+              styles.timelineDot,
+              (isWaitingPayment || isCompleted)
+                ? styles.timelineDotDone
+                : isInProgress
+                ? styles.timelineDotActive
+                : styles.timelineDotPending
+            ]}>
+              {(isWaitingPayment || isCompleted) ? (
+                <CheckCircle2 size={16} color="#FFFFFF" />
+              ) : isInProgress ? (
+                <Wrench size={14} color="#FFFFFF" />
+              ) : null}
+            </View>
             <View style={styles.timelineBody}>
-              <Text style={styles.timelineTitlePending}>3. Execução do Serviço</Text>
-              <Text style={styles.timelineDesc}>Realização do serviço no endereço.</Text>
+              <Text style={
+                (isWaitingPayment || isCompleted)
+                  ? styles.timelineTitleDone
+                  : isInProgress
+                  ? styles.timelineTitleActive
+                  : styles.timelineTitlePending
+              }>
+                {isInProgress 
+                  ? '3. Execução do Serviço (Em andamento)'
+                  : (isWaitingPayment || isCompleted)
+                  ? '3. Execução Concluída'
+                  : isOnTheWay
+                  ? '3. Iniciar Execução (Próximo passo)'
+                  : '3. Execução do Serviço'}
+              </Text>
+              <Text style={styles.timelineDesc}>
+                {isInProgress 
+                  ? 'Trabalho sendo realizado no endereço do cliente.'
+                  : (isWaitingPayment || isCompleted)
+                  ? 'Serviço realizado e finalizado com sucesso.'
+                  : 'Realização do serviço no endereço.'}
+              </Text>
             </View>
           </View>
 
-          <View style={styles.timelineConnector} />
+          <View style={[
+            styles.timelineConnector, 
+            (isCompleted) && styles.timelineConnectorDone
+          ]} />
 
+          {/* Etapa 4: Finalização e Pagamento */}
           <View style={styles.timelineItem}>
-            <View style={[styles.timelineDot, styles.timelineDotPending]} />
+            <View style={[
+              styles.timelineDot,
+              isCompleted
+                ? styles.timelineDotDone
+                : isWaitingPayment
+                ? styles.timelineDotActive
+                : styles.timelineDotPending
+            ]}>
+              {isCompleted ? (
+                <CheckCircle2 size={16} color="#FFFFFF" />
+              ) : isWaitingPayment ? (
+                <Clock size={14} color="#FFFFFF" />
+              ) : null}
+            </View>
             <View style={styles.timelineBody}>
-              <Text style={styles.timelineTitlePending}>4. Finalização e Pagamento</Text>
-              <Text style={styles.timelineDesc}>Liberação do pagamento acordado.</Text>
+              <Text style={
+                isCompleted
+                  ? styles.timelineTitleDone
+                  : isWaitingPayment
+                  ? styles.timelineTitleActive
+                  : styles.timelineTitlePending
+              }>
+                {isCompleted 
+                  ? '4. Finalizado e Pago' 
+                  : isWaitingPayment 
+                  ? '4. Aguardando Pagamento' 
+                  : isInProgress
+                  ? '4. Finalização e Pagamento (Próximo passo)'
+                  : '4. Finalização e Pagamento'}
+              </Text>
+              <Text style={styles.timelineDesc}>
+                {isCompleted 
+                  ? 'Pagamento liberado e chamado finalizado.' 
+                  : isWaitingPayment 
+                  ? 'Aguardando o cliente liberar o pagamento.' 
+                  : 'Liberação do pagamento acordado.'}
+              </Text>
             </View>
           </View>
         </View>
       </ScrollView>
 
-      {/* Barra Inferior com Ação Primária */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.primaryActionBtn, starting && styles.btnDisabled]}
-          onPress={handleStartDisplacement}
-          disabled={starting}
-          activeOpacity={0.85}
-        >
-          {starting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <Navigation size={20} color="#FFFFFF" />
-              <Text style={styles.primaryActionText}>Iniciar Deslocamento</Text>
-            </>
-          )}
-        </TouchableOpacity>
+      {/* Barra Inferior com Ação Primária Contextual */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : (Platform.OS === 'ios' ? 28 : 16) }]}>
+        {isAccepted ? (
+          <TouchableOpacity
+            style={[styles.primaryActionBtn, actionLoading && styles.btnDisabled]}
+            onPress={handleStartDisplacement}
+            disabled={actionLoading}
+            activeOpacity={0.85}
+          >
+            {actionLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Navigation size={20} color="#FFFFFF" />
+                <Text style={styles.primaryActionText}>Iniciar Deslocamento</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : isOnTheWay ? (
+          <TouchableOpacity
+            style={[styles.primaryActionBtn, actionLoading && styles.btnDisabled]}
+            onPress={handleStartService}
+            disabled={actionLoading}
+            activeOpacity={0.85}
+          >
+            {actionLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Play size={20} color="#FFFFFF" />
+                <Text style={styles.primaryActionText}>Iniciar Execução do Serviço</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : isInProgress ? (
+          <TouchableOpacity
+            style={[styles.primaryActionBtn, { backgroundColor: '#16A34A' }, actionLoading && styles.btnDisabled]}
+            onPress={handleCompleteService}
+            disabled={actionLoading}
+            activeOpacity={0.85}
+          >
+            {actionLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <CheckCircle2 size={20} color="#FFFFFF" />
+                <Text style={styles.primaryActionText}>Finalizar Serviço</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : isWaitingPayment ? (
+          <TouchableOpacity
+            style={[styles.primaryActionBtn, { backgroundColor: '#475569' }]}
+            onPress={() => router.replace('/provider/calls' as any)}
+            activeOpacity={0.85}
+          >
+            <Clock size={20} color="#FFFFFF" />
+            <Text style={styles.primaryActionText}>Aguardando Pagamento • Ver Meus Chamados</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.primaryActionBtn, { backgroundColor: '#2563EB' }]}
+            onPress={() => router.replace('/provider/calls' as any)}
+            activeOpacity={0.85}
+          >
+            <CheckCircle2 size={20} color="#FFFFFF" />
+            <Text style={styles.primaryActionText}>Voltar para Meus Chamados</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -353,37 +768,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
-  header: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 1,
-  },
   badgeSuccess: {
     backgroundColor: 'rgba(22, 163, 74, 0.12)',
     paddingHorizontal: 12,
@@ -397,9 +781,48 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 12,
   },
+  badgePrimary: {
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.25)',
+  },
+  badgePrimaryText: {
+    color: '#1D4ED8',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  badgeWarning: {
+    backgroundColor: 'rgba(217, 119, 6, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.25)',
+  },
+  badgeWarningText: {
+    color: '#B45309',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  badgeDanger: {
+    backgroundColor: 'rgba(220, 38, 38, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.25)',
+  },
+  badgeDangerText: {
+    color: '#B91C1C',
+    fontWeight: '700',
+    fontSize: 12,
+  },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 110,
     maxWidth: 800,
     width: '100%',
     alignSelf: 'center',
@@ -414,6 +837,23 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     gap: 12,
+    marginBottom: 16,
+  },
+  bannerSuccess: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  bannerPrimary: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  bannerWarning: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  bannerDanger: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
   },
   statusBannerTitle: {
     fontSize: 15,
@@ -437,6 +877,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 1,
+    marginBottom: 16,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -633,6 +1074,9 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     marginVertical: 2,
   },
+  timelineConnectorDone: {
+    backgroundColor: '#16A34A',
+  },
   timelineBody: {
     flex: 1,
   },
@@ -655,6 +1099,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     marginTop: 2,
+    lineHeight: 17,
   },
   footer: {
     position: 'absolute',
@@ -668,6 +1113,8 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 28 : 16,
     alignItems: 'center',
+    zIndex: 100,
+    elevation: 10,
   },
   primaryActionBtn: {
     flexDirection: 'row',

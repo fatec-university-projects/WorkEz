@@ -6,13 +6,14 @@ import {
 } from 'lucide-react-native';
 import {
   View, Text, TouchableOpacity, Image, StyleSheet,
-  ScrollView, ActivityIndicator, Alert, Modal, Dimensions
+  ScrollView, ActivityIndicator, Alert, Modal, Dimensions, Platform
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiRequest } from '../../services/api';
 import { imageService } from '../../services/imageService';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMG_SIZE = (SCREEN_WIDTH - 48 - 12) / 2; // 2 cols, padding + gap
@@ -64,13 +65,15 @@ export default function Portfolio() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.85,
+      base64: true,
     });
 
     if (result.canceled || !result.assets?.[0]?.uri) return;
 
     setUploading(true);
     try {
-      const imageUrl = await imageService.uploadImage(result.assets[0].uri);
+      const asset = result.assets[0];
+      const imageUrl = await imageService.uploadImage(asset.uri, asset.base64);
 
       const apiResult = await apiRequest<string[]>(
         `/api/ServiceProviders/${user!.id}/portfolio`,
@@ -92,6 +95,13 @@ export default function Portfolio() {
   // ─── Delete ─────────────────────────────────────────────────────────────────
 
   const handleDelete = (imageUrl: string) => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Tem certeza que deseja remover esta imagem do portfólio?')) {
+        confirmDelete(imageUrl);
+      }
+      return;
+    }
+
     Alert.alert(
       'Remover imagem',
       'Tem certeza que deseja remover esta imagem do portfólio?',
@@ -129,22 +139,11 @@ export default function Portfolio() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={22} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <View style={styles.headerTextBlock}>
-            <Text style={styles.headerTitle}>Portfólio</Text>
-            <Text style={styles.headerSub}>{images.length} {images.length === 1 ? 'trabalho' : 'trabalhos'}</Text>
-          </View>
-        </View>
-      </View>
+      <ScreenHeader
+        title="Portfólio"
+        subtitle={`${images.length} ${images.length === 1 ? 'trabalho' : 'trabalhos'}`}
+        showBack
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
@@ -362,16 +361,20 @@ const styles = StyleSheet.create({
     height: IMG_SIZE,
     borderRadius: WorkEzTheme.borderRadius.xl,
     overflow: 'hidden',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   image: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   deletingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -468,8 +471,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   modalImage: {
-    width: SCREEN_WIDTH - 40,
-    height: SCREEN_WIDTH - 40,
+    width: '100%',
+    height: '80%',
+    resizeMode: 'contain',
     borderRadius: WorkEzTheme.borderRadius.xl,
   },
   modalDeleteBtn: {
