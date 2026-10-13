@@ -45,7 +45,7 @@ export default function ProviderSettings() {
             return (
               <TouchableOpacity
                 key={i}
-                onPress={() => !isDisabled && router.push(item.path)}
+                onPress={() => !isDisabled && router.push(item.path as any)}
                 disabled={isDisabled}
                 style={{ opacity: isDisabled ? 0.4 : 1 }}
                 className="w-full flex-row items-center gap-3 px-6 py-4 border-b last:border-0"

@@ -1,0 +1,15 @@
+## .NET Build Outputs
+[Bb]in/
+[Oo]bj/
+[Ll]ogs/
+*.user
+*.suo
+.vs/
+
+## Node / Frontend
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+tsc-errors.txt

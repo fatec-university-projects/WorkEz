@@ -18,14 +18,17 @@ public class ProposalsController(IProposalApplicationService proposalApplication
     /// Envia proposta de preço do prestador.
     /// </summary>
     [HttpPost("propose")]
-    [ProducesResponseType(typeof(ProposalResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProposalResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ProposePrice([FromBody] ProposePriceRequest request)
     {
         var result = await _proposalApplicationService.ProposePriceAsync(request);
-        return result.IsSuccess 
-            ? Ok(result.Value) 
-            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+        if (result.IsFailure)
+        {
+            return BadRequest(new { error = result.Error, message = result.Error, code = result.ErrorCode });
+        }
+
+        return CreatedAtAction(nameof(GetByServiceId), new { serviceId = result.Value.ServiceId }, result.Value);
     }
 
     /// <summary>
@@ -37,9 +40,12 @@ public class ProposalsController(IProposalApplicationService proposalApplication
     public async Task<IActionResult> AcceptProposal([FromBody] AcceptProposalRequest request)
     {
         var result = await _proposalApplicationService.AcceptProposalAsync(request);
-        return result.IsSuccess 
-            ? Ok(result.Value) 
-            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+        if (result.IsFailure)
+        {
+            return BadRequest(new { error = result.Error, message = result.Error, code = result.ErrorCode });
+        }
+
+        return Ok(result.Value);
     }
 
     /// <summary>
@@ -51,19 +57,23 @@ public class ProposalsController(IProposalApplicationService proposalApplication
     public async Task<IActionResult> RejectProposal([FromBody] RejectProposalRequest request)
     {
         var result = await _proposalApplicationService.RejectProposalAsync(request);
-        return result.IsSuccess 
-            ? Ok(new { message = "Proposta recusada com sucesso." }) 
-            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+        if (result.IsFailure)
+        {
+            return BadRequest(new { error = result.Error, message = result.Error, code = result.ErrorCode });
+        }
+
+        return Ok(new { message = "Proposta recusada com sucesso." });
     }
 
     /// <summary>
     /// Consulta propostas por ID do serviço.
     /// </summary>
-    [HttpGet("by-service/{serviceId}")]
+    [HttpGet("service/{serviceId:guid}")]
+    [HttpGet("by-service/{serviceId:guid}")]
     [ProducesResponseType(typeof(IEnumerable<ProposalResponseDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetProposalsByService(Guid serviceId)
+    public async Task<IActionResult> GetByServiceId(Guid serviceId)
     {
-        var list = await _proposalApplicationService.GetProposalsByServiceIdAsync(serviceId);
-        return Ok(list);
+        var proposals = await _proposalApplicationService.GetProposalsByServiceIdAsync(serviceId);
+        return Ok(proposals);
     }
 }

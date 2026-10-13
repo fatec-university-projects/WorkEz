@@ -19,7 +19,7 @@ interface ServiceData {
   category: string;
   address: string;
   startTime: string;
-  status: 'open' | 'accepted' | 'on-the-way' | 'in-progress' | 'waiting-payment' | 'completed' | 'cancelled';
+  status: 'open' | 'accepted' | 'on-the-way' | 'ontheway' | 'under-negotiation' | 'undernegotiation' | 'in-progress' | 'inprogress' | 'waiting-payment' | 'waitingpayment' | 'completed' | 'cancelled';
   professional: Professional | null;
 }
 

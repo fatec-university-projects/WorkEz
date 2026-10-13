@@ -10,7 +10,7 @@ interface Call {
   id: string;
   category: string;
   description: string;
-  status: 'pending' | 'in-progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'in-progress' | 'inprogress' | 'on-the-way' | 'ontheway' | 'waiting-payment' | 'waitingpayment' | 'completed' | 'cancelled';
   date: string;
   clientName: string;
 }

@@ -18,6 +18,7 @@ public class ProposalDomainServiceTests
     private readonly FakeProviderRepository _providerRepository = new();
     private readonly FakeCustomerRepository _customerRepository = new();
     private readonly BaseMessageBroker _messageBroker = new();
+    private readonly FakeEmailService _emailService = new();
 
     [Fact]
     public async Task ProposePriceAsync_Success_ShouldCreateProposalAndMoveServiceToUnderNegotiation()
@@ -29,7 +30,7 @@ public class ProposalDomainServiceTests
         await _providerRepository.AddAsync(provider);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker, _emailService);
 
         var result = await serviceDomain.ProposePriceAsync(provider.UserId, service.Id, 200.00m, "Troca de torneira", "2 horas");
 
@@ -38,6 +39,7 @@ public class ProposalDomainServiceTests
         Assert.Equal(200.00m, result.Value.ProposedPrice);
         Assert.Equal(ServiceStatus.UnderNegotiation, service.ServiceStatus);
         Assert.Single(_proposalRepository.Proposals);
+        Assert.True(_emailService.EmailSentCount > 0);
     }
 
     [Fact]
@@ -50,7 +52,7 @@ public class ProposalDomainServiceTests
         await _providerRepository.AddAsync(provider);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker, _emailService);
 
         var result = await serviceDomain.ProposePriceAsync(provider.UserId, service.Id, 150.00m, "Tentativa em serviço concluído", "1h");
 
@@ -73,7 +75,7 @@ public class ProposalDomainServiceTests
         await _proposalRepository.AddAsync(proposal);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker, _emailService);
 
         var result = await serviceDomain.AcceptProposalAsync(customerUser.Id, proposal.Id);
 
@@ -96,7 +98,7 @@ public class ProposalDomainServiceTests
         await _proposalRepository.AddAsync(proposal);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker, _emailService);
 
         var result = await serviceDomain.RejectProposalAsync(customerUser.Id, proposal.Id, "Preço elevado");
 
@@ -105,6 +107,18 @@ public class ProposalDomainServiceTests
         Assert.Equal(ServiceStatus.Open, service.ServiceStatus);
     }
 
+    private class FakeEmailService : IEmailService
+    {
+        public int EmailSentCount { get; private set; }
+        public Task SendEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken cancellationToken = default) { EmailSentCount++; return Task.CompletedTask; }
+        public Task SendProposalNotificationAsync(string clientEmail, string clientName, string providerName, string serviceTitle, decimal proposedPrice, string? description, CancellationToken cancellationToken = default) { EmailSentCount++; return Task.CompletedTask; }
+        public Task SendProposalAcceptedNotificationAsync(string providerEmail, string providerName, string clientName, string serviceTitle, decimal agreedPrice, string confirmationCode, CancellationToken cancellationToken = default) { EmailSentCount++; return Task.CompletedTask; }
+        public Task SendProposalRejectedNotificationAsync(string providerEmail, string providerName, string serviceTitle, string? reason, CancellationToken cancellationToken = default) { EmailSentCount++; return Task.CompletedTask; }
+        public Task SendOrderStatusUpdatedNotificationAsync(string recipientEmail, string recipientName, string serviceTitle, string oldStatus, string newStatus, string? observations = null, CancellationToken cancellationToken = default) { EmailSentCount++; return Task.CompletedTask; }
+        public Task SendProviderAcceptedNotificationAsync(string clientEmail, string clientName, string providerName, string serviceTitle, decimal agreedPrice, DateTime? scheduledDate, CancellationToken cancellationToken = default) { EmailSentCount++; return Task.CompletedTask; }
+        public Task SendPaymentCompletedNotificationAsync(string recipientEmail, string recipientName, string serviceTitle, decimal amount, string paymentMethod, string transactionId, CancellationToken cancellationToken = default) { EmailSentCount++; return Task.CompletedTask; }
+        public Task SendWelcomeNotificationAsync(string userEmail, string userName, string userRole, CancellationToken cancellationToken = default) { EmailSentCount++; return Task.CompletedTask; }
+    }
     private class FakeProposalRepository : IProposalRepository
     {
         public List<Proposal> Proposals { get; } = [];
