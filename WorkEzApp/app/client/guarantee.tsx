@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ShieldCheck, CreditCard, MessageCircle, Scale } from 'lucide-react-native';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 export default function PlatformGuarantee() {
   const router = useRouter();
@@ -30,19 +31,7 @@ export default function PlatformGuarantee() {
 
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
-          </TouchableOpacity>
-          <Text className="text-xl font-semibold text-[#0F172A]">
-            Garantia da plataforma
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title="Garantia da plataforma" showBack />
 
       <View className="p-6 space-y-6">
         <View className="bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] rounded-2xl p-6 text-white text-center">

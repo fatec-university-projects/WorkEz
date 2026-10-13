@@ -5,6 +5,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import { WorkEzTheme } from '../../constants/theme';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../contexts/AuthContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 interface Service {
   id: string;
@@ -64,9 +65,7 @@ export default function MyServices() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Meus serviços</Text>
-      </View>
+      <ScreenHeader title="Meus serviços" />
 
       <View style={styles.tabsContainer}>
         <View style={styles.tabsRow}>

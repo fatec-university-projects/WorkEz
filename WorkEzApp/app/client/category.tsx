@@ -18,6 +18,7 @@ import {
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { useFetch } from '../../hooks/useFetch';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 interface Category {
   id: string;
@@ -77,20 +78,7 @@ export default function SelectCategory() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Selecione o serviço
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title="Selecione o serviço" showBack />
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (

@@ -3,24 +3,14 @@ import { ArrowLeft, ShieldCheck, CreditCard, QrCode, Lock } from 'lucide-react-n
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { Button } from '../../components/Button';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 export default function PaymentMethods() {
   const router = useRouter();
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Formas de pagamento</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Formas de pagamento" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Safe banner */}

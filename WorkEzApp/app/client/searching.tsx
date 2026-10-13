@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Loader2, ShieldCheck, Star, Clock } from 'lucide-react-native';
 import { View, Text, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
 import { apiRequest } from '../../services/api';
@@ -9,6 +10,7 @@ import { WorkEzTheme } from '../../constants/theme';
 
 export default function SearchingProfessional() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const {
@@ -108,7 +110,7 @@ export default function SearchingProfessional() {
   }, [customer]);
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between">
+    <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: insets.top > 0 ? insets.top + 12 : 20, paddingBottom: insets.bottom > 0 ? insets.bottom + 12 : 20, justifyContent: 'space-between' }}>
       <View className="flex-1 flex flex-col items-center justify-center p-8">
         <View className="w-24 h-24 bg-[#2563EB]/10 rounded-full flex-row items-center justify-center mb-6 relative">
           <Loader2 className="w-12 h-12 text-[#2563EB] animate-spin" />

@@ -7,6 +7,7 @@ import { useFetch } from '../../../hooks/useFetch';
 import { paymentService } from '../../../services/paymentService';
 import { WorkEzTheme } from '../../../constants/theme';
 import * as WebBrowser from 'expo-web-browser';
+import { ScreenHeader } from '../../../components/ScreenHeader';
 
 export default function Payment() {
   const router = useRouter();
@@ -113,18 +114,9 @@ export default function Payment() {
   const priceVal = service.price || 150.00;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.iconButton}
-          >
-            <ArrowLeft size={24} color="#0F172A" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Pagamento</Text>
-        </View>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Pagamento" showBack />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
 
       <View style={styles.content}>
         {/* Service summary */}
@@ -213,7 +205,8 @@ export default function Payment() {
         </Button>
       </View>
     </ScrollView>
-  );
+  </View>
+);
 }
 
 const styles = StyleSheet.create({

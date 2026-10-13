@@ -4,6 +4,8 @@ import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIn
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
@@ -18,6 +20,7 @@ interface CustomerProfile {
 
 export default function ClientProfile() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
 
   const { data: profile, loading, error, refetch } = useFetch<CustomerProfile>(
@@ -45,10 +48,16 @@ export default function ClientProfile() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Perfil</Text>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Perfil" />
+      <ScrollView 
+        style={{ flex: 1 }} 
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 110 + (insets.bottom > 0 ? insets.bottom : 20) }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
 
       <View style={styles.content}>
         <View style={styles.profileCard}>
@@ -58,9 +67,9 @@ export default function ClientProfile() {
             </View>
           ) : (
             <View style={styles.profileRow}>
-              {profile?.photo ? (
+              {(profile?.photo || user?.photo || user?.profilePicture) ? (
                 <Image
-                  source={{ uri: profile.photo }}
+                  source={{ uri: (profile?.photo || user?.photo || user?.profilePicture)! }}
                   style={styles.avatar}
                 />
               ) : (
@@ -109,7 +118,8 @@ export default function ClientProfile() {
         </TouchableOpacity>
       </View>
     </ScrollView>
-  );
+  </View>
+);
 }
 
 const styles = StyleSheet.create({

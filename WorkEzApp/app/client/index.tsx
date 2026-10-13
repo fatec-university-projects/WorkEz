@@ -33,6 +33,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../constants/theme';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../contexts/AuthContext';
@@ -98,6 +99,7 @@ function getCategoryConfig(name: string): CategoryUI {
 
 export default function ClientHome() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'popular' | 'urgent'>('all');
@@ -121,7 +123,7 @@ export default function ClientHome() {
         colors={['#1E3A8A', '#2563EB', '#3B82F6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.headerBackground}
+        style={[styles.headerBackground, { paddingTop: insets.top > 0 ? insets.top + 16 : 48 }]}
       >
         <View style={styles.headerTopRow}>
           <View style={styles.headerUserCol}>

@@ -4,6 +4,7 @@ import { Button } from '../../components/Button';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../constants/theme';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 export default function ConfirmCall() {
   const router = useRouter();
@@ -39,20 +40,7 @@ export default function ConfirmCall() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Confirmar chamado
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title="Confirmar chamado" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.summaryCard}>

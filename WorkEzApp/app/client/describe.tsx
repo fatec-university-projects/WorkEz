@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../constants/theme';
 import { API_BASE_URL, apiRequest } from '../../services/api';
 import { imageService } from '../../services/imageService';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 export default function DescribeService() {
   const router = useRouter();
@@ -76,14 +77,15 @@ export default function DescribeService() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
+      base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const selectedUri = result.assets[0].uri;
+      const asset = result.assets[0];
       setUploading(true);
 
       try {
-        const imageUrl = await imageService.uploadImage(selectedUri);
+        const imageUrl = await imageService.uploadImage(asset.uri, asset.base64);
         setImages(prev => [...prev, imageUrl]);
         alert('Imagem enviada com sucesso!');
       } catch (err) {
@@ -101,20 +103,7 @@ export default function DescribeService() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Descreva o serviço
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title="Descreva o serviço" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Categoria */}

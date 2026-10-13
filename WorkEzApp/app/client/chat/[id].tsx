@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Send, AlertCircle, User, CheckCircle, MessageCircle } from 'lucide-react-native';
-import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { ArrowLeft, Send, AlertCircle, User, CheckCircle, MessageCircle, ChevronRight } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -10,6 +11,8 @@ import { apiRequest, getWebSocketUrl } from '../../../services/api';
 interface ProposalInfo {
   id: string;
   serviceId?: string;
+  providerId?: string;
+  providerUserId?: string;
   providerName: string;
   proposedPrice: number;
   status: string;
@@ -27,6 +30,7 @@ interface ChatMessage {
 
 export default function ClientChat() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id, serviceId: queryServiceId } = useLocalSearchParams<{ id: string; serviceId?: string }>();
   const { user } = useAuth();
   const [messageText, setMessageText] = useState('');
@@ -35,6 +39,7 @@ export default function ClientChat() {
   const [chatLoading, setChatLoading] = useState(true);
   const [chatError, setChatError] = useState<string | null>(null);
   const [liveProposal, setLiveProposal] = useState<ProposalInfo | null>(null);
+  const [liveServiceStatus, setLiveServiceStatus] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // 1. Tenta buscar a proposta diretamente pelo id
@@ -52,23 +57,44 @@ export default function ClientChat() {
   const activeProposalId = proposal?.id || (id as string);
 
   // 3. Busca os dados do serviço para acompanhar o ciclo de vida
-  const effectiveServiceId = queryServiceId || proposal?.serviceId;
-  const { data: service } = useFetch<any>(
+  const effectiveServiceId = queryServiceId || proposal?.serviceId || (proposal as any)?.ServiceId;
+  const { data: service, refetch: refetchService } = useFetch<any>(
     effectiveServiceId ? `/api/Services/${effectiveServiceId}` : null
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (effectiveServiceId) {
+        refetchService();
+      }
+    }, [effectiveServiceId, refetchService])
+  );
+
   // Status do serviço e término
-  const isCompleted = service?.status === 'completed';
-  const isCancelled = service?.status === 'cancelled';
-  const isAccepted = service?.status === 'accepted' ||
-                     service?.status === 'on-the-way' ||
-                     service?.status === 'ontheway' ||
-                     service?.status === 'in-progress' ||
-                     service?.status === 'inprogress' ||
-                     service?.status === 'waiting-payment' ||
-                     service?.status === 'waitingpayment' ||
-                     proposal?.status?.toLowerCase() === 'accepted';
+  const currentStatus = (liveServiceStatus || service?.status || service?.serviceStatus || '').toLowerCase();
+  const isCompleted = currentStatus === 'completed';
+  const isCancelled = currentStatus === 'cancelled';
+  const isWaitingPayment = currentStatus === 'waiting-payment' || currentStatus === 'waitingpayment';
+  const isInProgress = currentStatus === 'in-progress' || currentStatus === 'inprogress';
+  const isOnTheWay = currentStatus === 'on-the-way' || currentStatus === 'ontheway';
+  const isAccepted = !isCompleted && !isCancelled && (
+    currentStatus === 'accepted' ||
+    isInProgress ||
+    isOnTheWay ||
+    isWaitingPayment ||
+    proposal?.status?.toLowerCase() === 'accepted'
+  );
   const isFinished = isCompleted || isCancelled;
+
+  const getHeaderStatusText = () => {
+    if (isCompleted) return 'Serviço concluído';
+    if (isCancelled) return 'Serviço cancelado';
+    if (isWaitingPayment) return 'Aguardando pagamento';
+    if (isInProgress) return 'Chamado em andamento';
+    if (isOnTheWay) return 'Profissional a caminho';
+    if (isAccepted) return 'Chamado aceito';
+    return `Lance: R$ ${proposal?.proposedPrice ? proposal.proposedPrice.toFixed(2).replace('.', ',') : '...'}${proposal?.counterPrice ? ` • Contra-oferta: R$ ${proposal.counterPrice.toFixed(2).replace('.', ',')}` : ''}`;
+  };
 
   // 4. Carga inicial de mensagens (sem loop de polling)
   useEffect(() => {
@@ -146,6 +172,9 @@ export default function ClientChat() {
               });
             } else if (data.eventType === 'proposal_updated' && data.payload) {
               setLiveProposal(data.payload as ProposalInfo);
+            } else if ((data.eventType === 'service_status_changed' || data.eventType === 'status_changed') && data.payload?.status) {
+              setLiveServiceStatus(data.payload.status);
+              refetchService();
             }
           } catch (e) {
             console.log('[WebSocket Client Chat] erro ao processar mensagem', e);
@@ -228,6 +257,23 @@ export default function ClientChat() {
     }
   };
 
+  const targetProviderId =
+    proposal?.providerId ||
+    (proposal as any)?.ProviderId ||
+    service?.professional?.id ||
+    service?.providerUserId ||
+    (service as any)?.providerUserId ||
+    (service?.professional as any)?.userId;
+
+  const handleOpenProviderProfile = () => {
+    if (targetProviderId) {
+      router.push({
+        pathname: '/client/professional/[id]',
+        params: { id: targetProviderId, serviceId: effectiveServiceId }
+      } as any);
+    }
+  };
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -240,7 +286,7 @@ export default function ClientChat() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 14 }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={handleBack}
@@ -249,17 +295,44 @@ export default function ClientChat() {
           >
             <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
           </TouchableOpacity>
-          <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
-            <User size={20} color={WorkEzTheme.colors.textSecondary} />
-          </View>
-          <View style={styles.headerInfo}>
-            <Text style={styles.professionalName}>{proposal?.providerName || service?.professional?.name || 'Prestador de Serviço'}</Text>
-            <Text style={styles.statusText}>
-              {isAccepted
-                ? 'Chamado em andamento'
-                : `Lance: R$ ${proposal?.proposedPrice ? proposal.proposedPrice.toFixed(2).replace('.', ',') : '...'}${proposal?.counterPrice ? ` • Contra-oferta: R$ ${proposal.counterPrice.toFixed(2).replace('.', ',')}` : ''}`}
-            </Text>
-          </View>
+
+          <TouchableOpacity
+            style={styles.headerProfileClickable}
+            onPress={handleOpenProviderProfile}
+            activeOpacity={0.7}
+            disabled={!targetProviderId}
+          >
+            {service?.professional?.photo ? (
+              <Image source={{ uri: service.professional.photo }} style={styles.avatarImg} />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
+                <User size={20} color={WorkEzTheme.colors.textSecondary} />
+              </View>
+            )}
+            <View style={styles.headerInfo}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.professionalName} numberOfLines={1}>
+                  {proposal?.providerName || service?.professional?.name || 'Prestador de Serviço'}
+                </Text>
+                {targetProviderId ? (
+                  <View style={styles.viewProfilePill}>
+                    <Text style={styles.viewProfilePillText}>Ver perfil ›</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={[
+                styles.statusText,
+                isCompleted && { color: '#059669', fontWeight: '600' },
+                isCancelled && { color: '#DC2626', fontWeight: '600' },
+                isInProgress && { color: '#2563EB', fontWeight: '600' },
+              ]}>
+                {getHeaderStatusText()}
+              </Text>
+            </View>
+            {targetProviderId ? (
+              <ChevronRight size={18} color="#94A3B8" />
+            ) : null}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -374,7 +447,7 @@ export default function ClientChat() {
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : (Platform.OS === 'ios' ? 24 : 14) }]}>
         <View style={styles.inputRow}>
           <TextInput
             value={messageText}
@@ -426,19 +499,43 @@ const styles = StyleSheet.create({
     backgroundColor: WorkEzTheme.colors.backgroundAlt,
     borderRadius: WorkEzTheme.borderRadius.lg,
   },
+  headerProfileClickable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
     resizeMode: 'cover',
   },
+  avatarImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
   headerInfo: {
     flex: 1,
   },
   professionalName: {
-    ...WorkEzTheme.typography.base,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    fontSize: 16,
+    fontWeight: '700',
     color: WorkEzTheme.colors.text,
+  },
+  viewProfilePill: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  viewProfilePillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2563EB',
   },
   statusText: {
     ...WorkEzTheme.typography.sm,

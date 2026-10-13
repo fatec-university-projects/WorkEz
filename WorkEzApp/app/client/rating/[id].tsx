@@ -1,12 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Star, User } from 'lucide-react-native';
 import { Button } from '../../../components/Button';
-import { View, Text, TouchableOpacity, Image, TextInput, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Image, TextInput, ActivityIndicator, Alert, ScrollView, Platform } from 'react-native';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useFetch } from '../../../hooks/useFetch';
 import { apiRequest } from '../../../services/api';
 import { WorkEzTheme } from '../../../constants/theme';
+import { ScreenHeader } from '../../../components/ScreenHeader';
 
 export default function Rating() {
   const router = useRouter();
@@ -26,12 +27,33 @@ export default function Rating() {
     id ? `/api/Services/${id}` : null
   );
 
+  const { data: existingReview, refetch: refetchReview } = useFetch<any>(
+    id ? `/api/Reviews/by-service/${id}` : null
+  );
+
+  useEffect(() => {
+    if (existingReview) {
+      if (existingReview.rating) setRating(existingReview.rating);
+      if (existingReview.comment) {
+        const match = existingReview.comment.match(/^\[(.*?)\]\s*(.*)$/);
+        if (match) {
+          const parsedTags = match[1].split(',').map((t: string) => t.trim());
+          setSelectedTags(parsedTags);
+          setComment(match[2] === 'Serviço avaliado pelo cliente.' ? '' : match[2]);
+        } else {
+          setComment(existingReview.comment === 'Serviço avaliado pelo cliente.' ? '' : existingReview.comment);
+        }
+      }
+    }
+  }, [existingReview]);
+
   useFocusEffect(
     useCallback(() => {
       if (id) {
         refetch();
+        refetchReview();
       }
-    }, [id, refetch])
+    }, [id, refetch, refetchReview])
   );
 
   const tags = [
@@ -52,7 +74,11 @@ export default function Rating() {
   const handleSendRating = async () => {
     if (!id || !customer || !service) return;
     if (rating === 0) {
-      Alert.alert('Avaliação necessária', 'Por favor, selecione pelo menos 1 estrela.');
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert('Por favor, selecione pelo menos 1 estrela.');
+      } else {
+        Alert.alert('Avaliação necessária', 'Por favor, selecione pelo menos 1 estrela.');
+      }
       return;
     }
 
@@ -64,8 +90,9 @@ export default function Rating() {
 
     try {
       const reviewPayload = {
+        serviceId: id,
         appointmentId: service.appointmentId,
-        reviewedUserId: service.providerUserId,
+        reviewedUserId: service.providerUserId || service.professional?.userId || service.professional?.id,
         rating: rating,
         comment: fullComment || 'Serviço avaliado pelo cliente.'
       };
@@ -76,15 +103,39 @@ export default function Rating() {
       });
 
       if (res.error) {
-        Alert.alert('Erro ao enviar avaliação', res.error);
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert(res.error);
+        } else {
+          Alert.alert('Erro ao enviar avaliação', res.error);
+        }
       } else {
-        Alert.alert('Obrigado!', 'Sua avaliação foi enviada com sucesso.', [
-          { text: 'OK', onPress: () => router.push('/client' as any) }
-        ]);
+        const isUpdate = res.data?.isUpdate || !!existingReview;
+        const msg = isUpdate ? 'Sua avaliação foi atualizada com sucesso.' : 'Sua avaliação foi enviada com sucesso.';
+
+        const navigateBack = () => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace(`/client/tracking/${id}` as any);
+          }
+        };
+
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert(msg);
+          navigateBack();
+        } else {
+          Alert.alert('Obrigado!', msg, [
+            { text: 'OK', onPress: navigateBack }
+          ]);
+        }
       }
     } catch (err) {
       console.error(err);
-      Alert.alert('Erro', 'Não foi possível se conectar ao servidor.');
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert('Não foi possível se conectar ao servidor.');
+      } else {
+        Alert.alert('Erro', 'Não foi possível se conectar ao servidor.');
+      }
     } finally {
       setSending(false);
     }
@@ -104,26 +155,19 @@ export default function Rating() {
         <Text style={{ color: WorkEzTheme.colors.danger, textAlign: 'center', marginBottom: 16 }}>
           {error || 'Não foi possível carregar as informações do serviço.'}
         </Text>
-        <Button onPress={() => router.back()}>Voltar</Button>
+        <Button onPress={() => (router.canGoBack() ? router.back() : router.replace(`/client/tracking/${id}` as any))}>Voltar</Button>
       </View>
     );
   }
 
   return (
-    <ScrollView style={{ backgroundColor: '#F8FAFC' }} contentContainerStyle={{ flexGrow: 1 }}>
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="p-2 bg-[#F1F5F9] rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
-          </TouchableOpacity>
-          <Text className="text-xl font-semibold text-[#0F172A]">
-            Avaliar profissional
-          </Text>
-        </View>
-      </View>
+    <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <ScreenHeader
+        title={existingReview ? 'Editar avaliação' : 'Avaliar profissional'}
+        showBack
+        onBack={() => (router.canGoBack() ? router.back() : router.replace(`/client/tracking/${id}` as any))}
+      />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
 
       <View className="p-6 space-y-6">
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0] items-center">
@@ -152,6 +196,8 @@ export default function Rating() {
             {[1, 2, 3, 4, 5].map((star) => (
               <TouchableOpacity
                 key={star}
+                accessibilityRole="button"
+                accessibilityLabel={`Avaliar com ${star} estrelas`}
                 onPress={() => setRating(star)}
                 style={{ padding: 4 }}
               >
@@ -212,9 +258,10 @@ export default function Rating() {
           onPress={handleSendRating}
           disabled={rating === 0 || sending}
         >
-          {sending ? <ActivityIndicator color="#FFF" /> : 'Enviar avaliação'}
+          {sending ? <ActivityIndicator color="#FFF" /> : (existingReview ? 'Salvar avaliação' : 'Enviar avaliação')}
         </Button>
       </View>
     </ScrollView>
-  );
+  </View>
+);
 }
