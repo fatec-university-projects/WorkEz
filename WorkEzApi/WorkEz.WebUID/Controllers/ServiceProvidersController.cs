@@ -126,6 +126,35 @@ public class ServiceProvidersController(IPortfolioApplicationService portfolioSe
             ? Ok(result.Value!.Images)
             : BadRequest(new { message = result.Error, code = result.ErrorCode });
     }
+
+    // ─── GeoLocalization Endpoints ───────────────────────────────────────────
+
+    /// <summary>
+    /// Atualiza as coordenadas geográficas (Latitude e Longitude) e raio de atendimento (em km) do prestador.
+    /// </summary>
+    [HttpPut("{providerId:guid}/location")]
+    [ProducesResponseType(typeof(ServiceProviderProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateLocation(Guid providerId, [FromBody] WorkEz.Application.DTOs.UpdateProviderLocationRequest request)
+    {
+        var result = await _portfolioService.UpdateLocationAsync(providerId, request.Latitude, request.Longitude, request.ServiceRadiusKm);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+    }
+
+    /// <summary>
+    /// Busca prestadores de serviços próximos a um ponto geográfico com cálculo de distância (Haversine).
+    /// </summary>
+    [HttpGet("nearby")]
+    [ProducesResponseType(typeof(IEnumerable<WorkEz.Application.DTOs.NearbyProviderDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetNearby([FromQuery] double lat, [FromQuery] double lng, [FromQuery] double? radiusKm = null)
+    {
+        var result = await _portfolioService.GetNearbyProvidersAsync(lat, lng, radiusKm);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+    }
 }
 
 // ─── Request Models ───────────────────────────────────────────────────────────

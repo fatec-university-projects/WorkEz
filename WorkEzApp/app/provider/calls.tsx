@@ -26,6 +26,8 @@ interface Call {
   status: 'pending' | 'open' | 'accepted' | 'on-the-way' | 'ontheway' | 'in-progress' | 'inprogress' | 'waiting-payment' | 'waitingpayment' | 'completed' | 'cancelled';
   date: string;
   clientName: string;
+  distanceKm?: number;
+  estimatedDurationMinutes?: number;
 }
 
 interface ProposalItem {
@@ -396,6 +398,8 @@ export default function ProviderCalls() {
                 status={call.status}
                 date={call.date}
                 professional={call.clientName}
+                distanceKm={call.distanceKm}
+                estimatedDurationMinutes={call.estimatedDurationMinutes}
                 onClick={() => {
                   if (activeTab === 'opportunities') {
                     router.push(`/provider/new-call/${call.id}` as any);

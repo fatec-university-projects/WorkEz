@@ -77,6 +77,9 @@ public class ServiceProvider : BaseEntity
     public bool DocumentVerified { get; set; } = false;
     public int CompletedServicesCount { get; set; } = 0;
     public string AvailabilityStatus { get; set; } = "Available";
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public double ServiceRadiusKm { get; set; } = 15.0;
 
     public User User { get; set; } = null!;
     public ICollection<Proposal> Proposals { get; set; } = [];
@@ -102,6 +105,9 @@ public class Service : BaseEntity
 {
     public Guid CustomerId { get; set; }
     public Guid CategoryId { get; set; }
+    public Guid? AddressId { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? ImageUrl { get; set; }
@@ -109,6 +115,7 @@ public class Service : BaseEntity
     public ServiceStatus ServiceStatus { get; set; } = ServiceStatus.Open;
 
     public Customer Customer { get; set; } = null!;
+    public Address? Address { get; set; }
     public ICollection<Proposal> Proposals { get; set; } = [];
     public Appointment? Appointment { get; set; }
 }

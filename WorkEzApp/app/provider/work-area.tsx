@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, MapPin, Navigation } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
+import { useLocation } from '../../hooks/useLocation';
 import { apiRequest } from '../../services/api';
 import { WorkEzTheme } from '../../constants/theme';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { RadiusMapPreview } from '../../components/RadiusMapPreview';
 
 interface Category {
   id: string;
@@ -19,6 +21,7 @@ interface Category {
 export default function WorkArea() {
   const router = useRouter();
   const { user } = useAuth();
+  const { coordinates: gpsCoords, refreshLocation, loading: gpsLoading } = useLocation();
 
   const { data: dbCategories, loading: categoriesLoading } = useFetch<Category[]>('/api/Categories');
   const { data: provider, loading: providerLoading } = useFetch<any>(
@@ -28,7 +31,24 @@ export default function WorkArea() {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [experience, setExperience] = useState('');
   const [description, setDescription] = useState('');
+  const [serviceRadiusKm, setServiceRadiusKm] = useState(15);
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (provider) {
+      if (provider.serviceRadiusKm) setServiceRadiusKm(provider.serviceRadiusKm);
+      if (provider.latitude && provider.longitude) {
+        setCoords({ latitude: provider.latitude, longitude: provider.longitude });
+      }
+    }
+  }, [provider]);
+
+  useEffect(() => {
+    if (!coords && gpsCoords) {
+      setCoords(gpsCoords);
+    }
+  }, [gpsCoords, coords]);
 
   const toggleCategory = (catId: string) => {
     setSelectedCategoryIds(prev =>
@@ -80,6 +100,17 @@ export default function WorkArea() {
         setSubmitting(false);
         return;
       }
+
+      // 3. Update Provider GeoLocation & Radius
+      const targetCoords = coords || gpsCoords || { latitude: -23.55052, longitude: -46.633308 };
+      await apiRequest(`/api/ServiceProviders/${provider.id}/location`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          latitude: targetCoords.latitude,
+          longitude: targetCoords.longitude,
+          serviceRadiusKm: serviceRadiusKm,
+        }),
+      });
 
       // Success: Redirect directly to provider dashboard to view services
       router.push('/provider' as any);
@@ -177,6 +208,68 @@ export default function WorkArea() {
                   fontSize: 16,
                   color: '#0F172A',
                 }}
+              />
+            </View>
+
+            {/* ─── Raio de Atendimento & Localização Base ─── */}
+            <View style={{ marginTop: 12 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#0F172A' }}>
+                  Raio de atendimento no mapa
+                </Text>
+                <TouchableOpacity
+                  onPress={async () => {
+                    const loc = await refreshLocation();
+                    if (loc) setCoords(loc);
+                  }}
+                  disabled={gpsLoading}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                >
+                  <Navigation size={14} color="#2563EB" />
+                  <Text style={{ fontSize: 12, color: '#2563EB', fontWeight: '600' }}>
+                    {gpsLoading ? 'Localizando...' : 'Usar GPS Atual'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 12 }}>
+                Defina até que distância da sua base você deseja receber oportunidades de chamados:
+              </Text>
+
+              {/* Seletor de Raio em KM */}
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                {[5, 10, 15, 20, 30].map((km) => (
+                  <TouchableOpacity
+                    key={km}
+                    onPress={() => setServiceRadiusKm(km)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      borderWidth: 2,
+                      borderColor: serviceRadiusKm === km ? '#2563EB' : '#E2E8F0',
+                      backgroundColor: serviceRadiusKm === km ? '#2563EB' : '#FFFFFF',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontWeight: '700',
+                        fontSize: 13,
+                        color: serviceRadiusKm === km ? '#FFFFFF' : '#475569',
+                      }}
+                    >
+                      {km} km
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Radar Visualizador Interativo */}
+              <RadiusMapPreview
+                radiusKm={serviceRadiusKm}
+                latitude={coords?.latitude}
+                longitude={coords?.longitude}
               />
             </View>
 

@@ -17,7 +17,8 @@ public class ServiceOpportunityApplicationService(
     IServiceProviderRepository providerRepository,
     IProposalRepository proposalRepository,
     IBaseRepository<Customer> customerRepository,
-    IBaseRepository<User> userRepository) : IServiceOpportunityApplicationService
+    IBaseRepository<User> userRepository,
+    IBaseRepository<Address>? addressRepository = null) : IServiceOpportunityApplicationService
 {
     public async Task<Result<IEnumerable<OpportunityCallDto>>> GetOpportunitiesAsync(Guid providerUserId)
     {
@@ -43,14 +44,12 @@ public class ServiceOpportunityApplicationService(
         // Se tiver áreas, filtra apenas pelas dele.
         var hasCategories = provider.CategoryIds != null && provider.CategoryIds.Count > 0;
 
-        var filtered = allOpenServices
+        var categoryFiltered = allOpenServices
             .Where(s => !alreadyProposed.Contains(s.Id))
             .Where(s => !hasCategories || provider.CategoryIds!.Contains(s.CategoryId))
-            .OrderByDescending(s => s.CreatedAt);
+            .ToList();
 
-        var filteredList = filtered.ToList();
-        var customerIds = filteredList.Select(s => s.CustomerId).Distinct().ToList();
-
+        var customerIds = categoryFiltered.Select(s => s.CustomerId).Distinct().ToList();
         var customers = (await customerRepository.FindAsync(c => customerIds.Contains(c.Id))).ToList();
         var userIds = customers.Select(c => c.UserId).Distinct().ToList();
         var users = (await userRepository.FindAsync(u => userIds.Contains(u.Id))).ToDictionary(u => u.Id);
@@ -59,20 +58,83 @@ public class ServiceOpportunityApplicationService(
             c => users.TryGetValue(c.UserId, out var u) ? u.Name : "Cliente"
         );
 
-        var resultList = filteredList.Select(s =>
+        var customerUserToCustomerMap = customers.ToDictionary(c => c.Id, c => c.UserId);
+
+        // Carregar endereços para obter coordenadas dos chamados caso não estejam no próprio Service
+        Dictionary<Guid, Address> userAddressMap = [];
+        if (addressRepository != null && userIds.Count > 0)
         {
+            var addresses = await addressRepository.FindAsync(a => userIds.Contains(a.UserId));
+            userAddressMap = addresses
+                .GroupBy(a => a.UserId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.CreatedAt).First());
+        }
+
+        var providerHasLocation = provider.Latitude.HasValue && provider.Longitude.HasValue;
+        var providerRadius = provider.ServiceRadiusKm > 0 ? provider.ServiceRadiusKm : 15.0;
+
+        var items = new List<(OpportunityCallDto Dto, double? Distance)>();
+
+        foreach (var s in categoryFiltered)
+        {
+            double? sLat = s.Latitude;
+            double? sLon = s.Longitude;
+
+            // Se o serviço não tem coordenadas diretamente, buscar do endereço do cliente
+            if ((!sLat.HasValue || !sLon.HasValue) && customerUserToCustomerMap.TryGetValue(s.CustomerId, out var cUserId))
+            {
+                if (userAddressMap.TryGetValue(cUserId, out var addr) && addr.Latitude.HasValue && addr.Longitude.HasValue)
+                {
+                    sLat = addr.Latitude;
+                    sLon = addr.Longitude;
+                }
+            }
+
+            double? distanceKm = null;
+            int? estimatedTravelMin = null;
+
+            if (providerHasLocation && sLat.HasValue && sLon.HasValue)
+            {
+                distanceKm = GeoLocationUtils.CalculateDistanceKm(
+                    provider.Latitude!.Value,
+                    provider.Longitude!.Value,
+                    sLat.Value,
+                    sLon.Value
+                );
+
+                // Filtro por raio geográfico: se o chamado estiver fora do raio de atuação, desconsiderar
+                if (distanceKm > providerRadius)
+                {
+                    continue;
+                }
+
+                estimatedTravelMin = GeoLocationUtils.EstimateTravelMinutes(distanceKm.Value);
+            }
+
             var targetDate = s.DesiredDate ?? s.CreatedAt;
             var brDate = ToBrasiliaTime(targetDate);
 
-            return new OpportunityCallDto(
+            var dto = new OpportunityCallDto(
                 Id: s.Id,
                 Category: string.IsNullOrWhiteSpace(s.Title) ? "Serviço" : s.Title,
                 Description: s.Description ?? string.Empty,
                 Status: s.ServiceStatus.ToString().ToLower(),
                 Date: brDate.ToString("dd'/'MM'/'yyyy", CultureInfo.InvariantCulture),
-                ClientName: customerToUserMap.TryGetValue(s.CustomerId, out var name) ? name : "Cliente"
+                ClientName: customerToUserMap.TryGetValue(s.CustomerId, out var name) ? name : "Cliente",
+                DistanceKm: distanceKm,
+                EstimatedDurationMinutes: estimatedTravelMin,
+                Latitude: sLat,
+                Longitude: sLon
             );
-        }).ToList();
+
+            items.Add((dto, distanceKm));
+        }
+
+        // Se houver distância calculada, priorizar por proximidade geográfica; caso contrário por data de criação
+        var resultList = items
+            .OrderBy(x => x.Distance ?? double.MaxValue)
+            .Select(x => x.Dto)
+            .ToList();
 
         return Result<IEnumerable<OpportunityCallDto>>.Success(resultList);
     }

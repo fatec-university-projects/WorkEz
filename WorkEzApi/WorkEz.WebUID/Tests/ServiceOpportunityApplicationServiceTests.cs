@@ -242,6 +242,67 @@ public class ServiceOpportunityApplicationServiceTests
         Assert.Matches(@"^\d{2}/\d{2}/\d{4}$", item.Date);
     }
 
+    [Fact]
+    public async Task GetOpportunitiesAsync_WithProviderLocation_ShouldFilterByRadiusAndCalculateDistance()
+    {
+        var user = new User { Id = Guid.NewGuid(), Name = "Prestador Paulista" };
+        // Prestador na Av. Paulista (-23.5615, -46.6559) com raio de 5 km
+        var provider = new ServiceProviderEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Latitude = -23.5615,
+            Longitude = -46.6559,
+            ServiceRadiusKm = 5.0
+        };
+        await _userRepository.AddAsync(user);
+        await _providerRepository.AddAsync(provider);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente SP" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id };
+        await _userRepository.AddAsync(customerUser);
+        await _customerRepository.AddAsync(customer);
+
+        // Chamado 1: Perto (Ibirapuera, ~2.9 km) - deve ser retornado
+        var sNear = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Title = "Serviço Próximo",
+            ServiceStatus = ServiceStatus.Open,
+            Latitude = -23.5874,
+            Longitude = -46.6576,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        // Chamado 2: Longe (Guarulhos, ~20 km) - deve ser filtrado fora
+        var sFar = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Title = "Serviço Fora do Raio",
+            ServiceStatus = ServiceStatus.Open,
+            Latitude = -23.4538,
+            Longitude = -46.5333,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _serviceRepository.AddAsync(sNear);
+        await _serviceRepository.AddAsync(sFar);
+
+        var appService = CreateService();
+        var result = await appService.GetOpportunitiesAsync(provider.UserId);
+
+        Assert.True(result.IsSuccess);
+        var list = result.Value.ToList();
+
+        Assert.Single(list);
+        Assert.Equal(sNear.Id, list[0].Id);
+        Assert.NotNull(list[0].DistanceKm);
+        Assert.InRange(list[0].DistanceKm!.Value, 2.5, 3.5);
+        Assert.NotNull(list[0].EstimatedDurationMinutes);
+    }
+
     // ─── Fake Repositories ───────────────────────────────────────────────────
 
     private class FakeServiceRepository : IServiceRepository

@@ -40,6 +40,7 @@ import { useFetch } from '../../../hooks/useFetch';
 import { apiRequest, getWebSocketUrl } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
+import { LiveTrackingMap } from '../../../components/LiveTrackingMap';
 
 interface Professional {
   id: string;
@@ -667,6 +668,17 @@ export default function ServiceTracking() {
               </Text>
             </View>
           </View>
+        )}
+
+        {/* Mapa com trajeto em tempo real e polyline do deslocamento do prestador */}
+        {(isOnTheWay || isInProgress || isAccepted) && (
+          <LiveTrackingMap
+            providerName={acceptedProposal?.providerName || service.professional?.name || 'Profissional WorkEz'}
+            status={currentStatus}
+            clientAddress={service.address || 'Endereço de Atendimento'}
+            distanceKm={3.2}
+            estimatedMinutes={isOnTheWay ? 12 : 5}
+          />
         )}
 
         {/* Card do Serviço & Valor padronizado */}

@@ -1,3 +1,4 @@
+using WorkEz.Application.DTOs;
 using WorkEz.Domain.Common;
 using WorkEz.Domain.Entities;
 using WorkEz.Domain.Interfaces;
@@ -25,7 +26,10 @@ public record ServiceProviderProfileDto(
     bool DocumentVerified,
     List<string> Portfolio,
     List<ProviderCategoryDto> Specialties,
-    ReviewStatsDto ReviewStats
+    ReviewStatsDto ReviewStats,
+    double? Latitude = null,
+    double? Longitude = null,
+    double ServiceRadiusKm = 15.0
 );
 
 public record ProviderCategoryDto(Guid Id, string Name);
@@ -53,6 +57,8 @@ public interface IPortfolioApplicationService
     Task<Result<ServiceProviderProfileDto>> GetProviderByUserIdAsync(Guid userId);
     Task<Result<ServiceProviderProfileDto>> GetProviderByIdAsync(Guid providerId);
     Task<Result<ServiceProviderProfileDto>> UpdateProviderAsync(Guid providerId, string? professionalDescription);
+    Task<Result<ServiceProviderProfileDto>> UpdateLocationAsync(Guid providerId, double latitude, double longitude, double serviceRadiusKm);
+    Task<Result<IEnumerable<NearbyProviderDto>>> GetNearbyProvidersAsync(double latitude, double longitude, double? radiusKm = null);
     Task<Result<ProviderWeeklySummaryDto>> GetWeeklySummaryByUserIdAsync(Guid userId, DateTime? referenceDate = null);
     Task<Result<ProviderWeeklySummaryDto>> GetWeeklySummaryByProviderIdAsync(Guid providerId, DateTime? referenceDate = null);
 }
@@ -156,6 +162,70 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
         var specDtos = specialties.Select(s => new ProviderCategoryDto(s.Id, s.Name)).ToList();
 
         return Result<ServiceProviderProfileDto>.Success(MapToProfileDto(provider, specDtos));
+    }
+
+    public async Task<Result<ServiceProviderProfileDto>> UpdateLocationAsync(Guid providerId, double latitude, double longitude, double serviceRadiusKm)
+    {
+        var provider = await _providerRepository.GetByIdWithUserAsync(providerId);
+        if (provider is null)
+            return Result<ServiceProviderProfileDto>.Failure("Prestador não encontrado.", "PROVIDER_NOT_FOUND");
+
+        provider.Latitude = latitude;
+        provider.Longitude = longitude;
+        provider.ServiceRadiusKm = serviceRadiusKm > 0 ? serviceRadiusKm : 15.0;
+        provider.Touch();
+
+        _providerRepository.Update(provider);
+        await _providerRepository.SaveChangesAsync();
+
+        var specialties = await _providerRepository.GetSpecialtiesAsync(provider.Id);
+        var specDtos = specialties.Select(s => new ProviderCategoryDto(s.Id, s.Name)).ToList();
+
+        return Result<ServiceProviderProfileDto>.Success(MapToProfileDto(provider, specDtos));
+    }
+
+    public async Task<Result<IEnumerable<NearbyProviderDto>>> GetNearbyProvidersAsync(double latitude, double longitude, double? radiusKm = null)
+    {
+        var allProviders = await _providerRepository.GetAllAsync();
+        var providersWithCoords = allProviders
+            .Where(p => p.Latitude.HasValue && p.Longitude.HasValue)
+            .ToList();
+
+        var nearbyList = new List<NearbyProviderDto>();
+
+        foreach (var p in providersWithCoords)
+        {
+            var providerWithUser = await _providerRepository.GetByIdWithUserAsync(p.Id);
+            if (providerWithUser == null) continue;
+
+            var dist = Domain.Common.GeoLocationUtils.CalculateDistanceKm(latitude, longitude, p.Latitude!.Value, p.Longitude!.Value);
+            var effectiveRadius = radiusKm.HasValue && radiusKm.Value > 0 ? radiusKm.Value : p.ServiceRadiusKm;
+
+            if (dist <= effectiveRadius)
+            {
+                var specialties = await _providerRepository.GetSpecialtiesAsync(p.Id);
+                var travelMin = Domain.Common.GeoLocationUtils.EstimateTravelMinutes(dist);
+
+                nearbyList.Add(new NearbyProviderDto(
+                    ProviderId: p.Id,
+                    UserId: providerWithUser.UserId,
+                    Name: providerWithUser.User?.Name ?? "Profissional",
+                    Photo: providerWithUser.User?.ProfilePicture,
+                    ProfessionalDescription: p.ProfessionalDescription,
+                    AverageRating: p.AverageRating,
+                    CompletedServicesCount: p.CompletedServicesCount,
+                    DistanceKm: dist,
+                    EstimatedTravelMinutes: travelMin,
+                    Latitude: p.Latitude,
+                    Longitude: p.Longitude,
+                    ServiceRadiusKm: p.ServiceRadiusKm,
+                    Specialties: specialties.Select(s => s.Name).ToList()
+                ));
+            }
+        }
+
+        var ordered = nearbyList.OrderBy(p => p.DistanceKm).ToList();
+        return Result<IEnumerable<NearbyProviderDto>>.Success(ordered);
     }
 
     public async Task<Result<ProviderWeeklySummaryDto>> GetWeeklySummaryByUserIdAsync(Guid userId, DateTime? referenceDate = null)
@@ -298,7 +368,10 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
                 Average: provider.AverageRating,
                 Total: completedCount,
                 PositivePercentage: provider.AverageRating > 0 ? (int)Math.Round((provider.AverageRating / 5.0m) * 100) : 0
-            )
+            ),
+            Latitude: provider.Latitude,
+            Longitude: provider.Longitude,
+            ServiceRadiusKm: provider.ServiceRadiusKm
         );
     }
 }

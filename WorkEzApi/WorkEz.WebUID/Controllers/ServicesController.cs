@@ -19,6 +19,8 @@ public class CreateAddressDto
     public string? City { get; set; }
     public string? State { get; set; }
     public string? AddressType { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 }
 
 public class CreateServiceRequest
@@ -109,6 +111,10 @@ public class ServicesController(
         if (customer == null)
             return NotFound(new { message = "Cliente não encontrado." });
 
+        Guid? createdAddressId = null;
+        double? lat = null;
+        double? lon = null;
+
         if (request.Address != null && !string.IsNullOrWhiteSpace(request.Address.Street))
         {
             var address = new Address
@@ -122,10 +128,16 @@ public class ServicesController(
                 City = request.Address.City ?? "",
                 State = request.Address.State ?? "",
                 ZipCode = request.Address.ZipCode ?? "",
-                AddressType = request.Address.AddressType ?? "Home"
+                AddressType = request.Address.AddressType ?? "Home",
+                Latitude = request.Address.Latitude,
+                Longitude = request.Address.Longitude
             };
             db.Addresses.Add(address);
             await db.SaveChangesAsync();
+
+            createdAddressId = address.Id;
+            lat = address.Latitude;
+            lon = address.Longitude;
         }
 
         var categoryId = request.CategoryId;
@@ -139,6 +151,9 @@ public class ServicesController(
             Id = Guid.NewGuid(),
             CustomerId = customerId,
             CategoryId = categoryId ?? Guid.Empty,
+            AddressId = createdAddressId,
+            Latitude = lat,
+            Longitude = lon,
             Title = string.IsNullOrWhiteSpace(request.Title) ? "Chamado de Serviço" : request.Title,
             Description = request.Description,
             ImageUrl = request.ImageUrl,
