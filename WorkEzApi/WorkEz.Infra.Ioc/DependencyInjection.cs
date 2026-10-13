@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using WorkEz.Application.Services;
+using WorkEz.Domain.Entities;
 using WorkEz.Domain.Interfaces;
 using WorkEz.Domain.Services;
 using WorkEz.Infra.Data.Context;
@@ -44,7 +45,6 @@ public static class DependencyInjection
 
         services.AddScoped<IPaymentDomainService, PaymentDomainService>();
         services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
-
         return services;
     }
 }

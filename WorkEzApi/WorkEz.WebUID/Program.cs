@@ -6,8 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Injeção de dependência da Clean Architecture (Domínio, Infraestrutura, Aplicação, E-mails e Eventos)
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Configuração de Controllers com suporte a Enums serializados como String
-builder.Services.AddControllers()
+// Configuração de Controllers e Views MVC com suporte a Enums serializados como String
+builder.Services.AddControllersWithViews()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -30,15 +30,27 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-app.UseCors("AllowAll");
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
+}
 
 // Habilita Swagger para exploração interativa das rotas
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+
+app.UseCors("AllowAll");
+
 app.UseRouting();
 app.UseAuthorization();
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapControllers();
 

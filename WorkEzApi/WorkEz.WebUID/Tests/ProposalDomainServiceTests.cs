@@ -119,7 +119,6 @@ public class ProposalDomainServiceTests
         public Task SendPaymentCompletedNotificationAsync(string recipientEmail, string recipientName, string serviceTitle, decimal amount, string paymentMethod, string transactionId, CancellationToken cancellationToken = default) { EmailSentCount++; return Task.CompletedTask; }
         public Task SendWelcomeNotificationAsync(string userEmail, string userName, string userRole, CancellationToken cancellationToken = default) { EmailSentCount++; return Task.CompletedTask; }
     }
-
     private class FakeProposalRepository : IProposalRepository
     {
         public List<Proposal> Proposals { get; } = [];

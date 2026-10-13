@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-api",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/WorkEzApi/WorkEz.slnx"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run-api",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/WorkEzApi/WorkEz.WebUID/WorkEz.WebUID.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run-app",
+      "command": "npx",
+      "type": "process",
+      "args": ["expo", "start"],
+      "options": {
+        "cwd": "${workspaceFolder}/WorkEzApp"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
