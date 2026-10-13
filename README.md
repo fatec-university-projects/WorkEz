@@ -6,6 +6,7 @@
   <img src="https://img.shields.io/badge/React_Native-0.81-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React Native" />
   <img src="https://img.shields.io/badge/Expo-54.0-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo" />
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Playwright-E2E_Tests-45ba4b?style=for-the-badge&logo=playwright&logoColor=white" alt="Playwright" />
   <img src="https://img.shields.io/badge/PostgreSQL-Neon_DB-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/TailwindCSS-NativeWind_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="NativeWind" />
   <img src="https://img.shields.io/badge/Docker-Supported-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
@@ -20,18 +21,22 @@
 - [Principais Funcionalidades](#-principais-funcionalidades)
 - [Arquitetura do Sistema](#-arquitetura-do-sistema)
   - [Backend (.NET 10 — Clean Architecture + DDD)](#backend-net-10--clean-architecture--ddd)
-  - [Frontend Mobile (React Native + Expo)](#frontend-mobile-react-native--expo)
+  - [Frontend Mobile & Web (React Native + Expo)](#frontend-mobile--web-react-native--expo)
 - [Ciclo de Vida do Chamado (State Machine)](#-ciclo-de-vida-do-chamado-state-machine)
 - [Comunicação em Tempo Real (WebSockets)](#-comunicação-em-tempo-real-websockets)
-- [Integração de Pagamentos (AbacatePay PIX)](#-integração-de-pagamentos-abacatepay-pix)
+- [Integração de Pagamentos e Modelo de Taxa Justa](#-integração-de-pagamentos-e-modelo-de-taxa-justa)
 - [Estrutura do Repositório](#-estrutura-do-repositório)
 - [Catálogo de Endpoints (API REST)](#-catálogo-de-endpoints-api-rest)
-- [Mapeamento de Rotas do App Mobile](#-mapeamento-de-rotas-do-app-mobile)
+- [Mapeamento de Rotas do App](#-mapeamento-de-rotas-do-app)
 - [Pré-requisitos](#-pré-requisitos)
 - [Como Rodar o Projeto](#-como-rodar-o-projeto)
-  - [Opção 1: VS Code (F5 — Depuração Unificada)](#opção-1-vs-code-f5--depuração-unificada)
-  - [Opção 2: Scripts Rápidos PowerShell](#opção-2-scripts-rápidos-powershell)
-  - [Opção 3: Manualmente pelo Terminal](#opção-3-manualmente-pelo-terminal)
+  - [Opção 1: Scripts da Raiz (npm / Node)](#opção-1-scripts-da-raiz-npm--node)
+  - [Opção 2: VS Code (F5 — Depuração Unificada)](#opção-2-vs-code-f5--depuração-unificada)
+  - [Opção 3: Scripts Rápidos PowerShell](#opção-3-scripts-rápidos-powershell)
+  - [Opção 4: Manualmente pelo Terminal](#opção-4-manualmente-pelo-terminal)
+- [🧪 Testes Automatizados (Unitários e E2E)](#-testes-automatizados-unitários-e-e2e)
+  - [Testes Unitários (.NET)](#1-testes-unitários-backend-net-10)
+  - [Testes End-to-End (Playwright)](#2-testes-end-to-end-playwright-workezapp)
 - [Configuração de Variáveis de Ambiente](#-configuração-de-variáveis-de-ambiente)
 - [Deploy e Infraestrutura](#-deploy-e-infraestrutura)
 - [Licença e Autoria](#-licença-e-autoria)
@@ -42,32 +47,34 @@
 
 O **WorkEz** é uma plataforma completa para intermediação e contratação de serviços residenciais e profissionais (encanadores, eletricistas, diaristas, técnicos, montadores, entre outros). A aplicação une **Clientes** que necessitam de auxílio prático a **Prestadores de Serviço** qualificados e avaliados, garantindo segurança, transparência e controle de ponta a ponta:
 
-1. **Agilidade no Atendimento**: Mecanismo de abertura de chamado em poucos passos ("Chamar Agora"), com fotos e geolocalização.
-2. **Rastreabilidade em Tempo Real**: WebSocket nativo para acompanhamento do deslocamento do prestador no mapa.
-3. **Chat Integrado**: Canal de comunicação bidirecional direto entre cliente e prestador por chamado/proposta.
-4. **Pagamento Seguro com PIX**: Integração com gateway AbacatePay, cálculo automatizado de comissão da plataforma (15%) e carteira financeira para o prestador.
-5. **Avaliações e Confiabilidade**: Sistema de reputação pós-atendimento com estrelas e comentários.
+1. **Agilidade no Atendimento**: Mecanismo de abertura de chamado em poucos passos ("Chamar Agora"), com fotos locais ou na nuvem e geolocalização.
+2. **Leilão Transparente de Propostas**: O prestador discrimina custos entre **Mão de Obra** e **Materiais**, permitindo ao cliente comparar ofertas detalhadas.
+3. **Rastreabilidade em Tempo Real**: WebSocket nativo para acompanhamento do deslocamento do prestador no mapa.
+4. **Chat Integrado**: Canal de comunicação bidirecional direto entre cliente e prestador por chamado/proposta.
+5. **Pagamento Seguro com PIX e Taxa Justa**: Cobrança via gateway AbacatePay com retenção de comissão de 15% **exclusivamente sobre o serviço/mão de obra** (materiais 100% repassados ao prestador).
+6. **Sistema Completo de Avaliações**: Notas (1 a 5 estrelas), tags de qualidade e comentários auditáveis após a conclusão do serviço.
 
 ---
 
 ## ✨ Principais Funcionalidades
 
 ### 👤 Para o Cliente (Customer)
-- **Autenticação Segura**: Criação de conta, login com JWT, persistência com auto-refresh token.
+- **Autenticação Segura**: Criação de conta, login unificado com JWT, persistência com auto-refresh token.
 - **Catálogo de Categorias**: Busca de serviços por segmento profissional.
-- **Abertura de Chamados ("Chamar Agora")**: Descrição detalhada do problema, upload de imagens via ImgBB e preenchimento de endereço com busca automática por CEP (ViaCEP).
-- **Acompanhamento ao Vivo (Tracking)**: Notificação de status (Pendente → Aceito → A Caminho → Em Execução → Concluído) e mapa em tempo real.
-- **Chat em Tempo Real**: Troca de mensagens instantâneas com o profissional.
-- **Checkout com PIX**: Geração de QR Code e código Copia-e-Cola direto no app, com sincronização automática do status.
-- **Histórico e Avaliações**: Histórico completo de chamados e avaliação detalhada do prestador.
+- **Abertura de Chamados ("Chamar Agora")**: Descrição detalhada do problema, upload de imagens (servidor local ou ImgBB) e busca de endereço por CEP (ViaCEP).
+- **Comparação e Aceite de Propostas**: Análise de propostas de múltiplos prestadores discriminando valores de serviço e peças.
+- **Acompanhamento ao Vivo (Tracking)**: Notificação e mapa em tempo real via WebSocket (`Pendente` → `Aceito` → `A Caminho` → `Em Execução` → `Aguardando Pagamento` → `Concluído`).
+- **Chat em Tempo Real**: Troca instantânea de mensagens com o profissional.
+- **Checkout com PIX**: Geração de QR Code e código Copia-e-Cola direto no app, com confirmação via webhook e polling.
+- **Avaliações Reais**: Envio de notas de 1 a 5 estrelas com comentários e tags de recomendação para o profissional.
 
 ### 🛠️ Para o Prestador de Serviços (ServiceProvider)
-- **Onboarding Profissional**: Cadastro, seleção de categorias de atuação, biografia e portfólio de serviços realizados.
-- **Mural de Oportunidades**: Visualização de chamados abertos compatíveis com suas categorias e região.
-- **Aceite de Chamados**: Aceite instantâneo ou negociação via contra-proposta.
-- **Controle de Execução**: Atualização das etapas de atendimento (*Iniciar Deslocamento* ➔ *Iniciar Serviço* ➔ *Concluir com Valor Final*).
-- **Carteira Digital (Wallet)**: Extrato de ganhos líquidos, retenção automática da taxa de serviço (15%) e saldo disponível.
-- **Gestão de Perfil**: Edição de dados, fotos de portfólio e histórico de notas recebidas.
+- **Onboarding e Perfil Profissional**: Cadastro com foto de perfil, anos de experiência, biografia, especialidades e galeria de portfólio.
+- **Mural de Oportunidades**: Visualização de chamados abertos compatíveis com suas áreas de atuação.
+- **Envio de Propostas e Leilão**: Formulação de propostas discriminando Mão de Obra e Materiais, com cálculo em tempo real do ganho líquido e da taxa da plataforma.
+- **Controle Unificado de Atendimento**: Gestão direta do ciclo de atendimento (*Iniciar Deslocamento* ➔ *Iniciar Serviço* ➔ *Concluir Serviço*).
+- **Carteira Digital (Wallet)**: Extrato transparente de recebimentos, histórico de chamados e saldo acumulado.
+- **Gestão de Reputação**: Painel de avaliações recebidas com notas médias e depoimentos de clientes.
 
 ---
 
@@ -75,14 +82,19 @@ O **WorkEz** é uma plataforma completa para intermediação e contratação de 
 
 ```mermaid
 graph TB
-    subgraph Frontend["Frontend Mobile (WorkEzApp)"]
-        UI["React Native (Expo 54)<br/>Expo Router + NativeWind"]
-        AuthCtx["AuthContext (AsyncStorage)"]
+    subgraph Frontend["Frontend (WorkEzApp)"]
+        UI["React Native (Expo 54)<br/>Expo Router + NativeWind + Web"]
+        AuthCtx["AuthContext (AsyncStorage + Profile Sync)"]
         WSClient["WebSocket Client<br/>(Tracking & Chat)"]
+        E2E["Playwright E2E Suite<br/>(6 fluxos ponta a ponta)"]
+    end
+
+    subgraph StorageUploads["Armazenamento & Uploads"]
+        LocalUploads["API Local /wwwroot/uploads<br/>(Multipart & Base64)"]
+        ImgBB["ImgBB API<br/>(Fallback Remoto)"]
     end
 
     subgraph ExternalServices["Serviços Externos"]
-        ImgBB["ImgBB API<br/>(Hospedagem de Imagens)"]
         ViaCEP["ViaCEP API<br/>(Lookup de Endereços)"]
         Abacate["AbacatePay Gateway<br/>(Cobrança PIX / Webhooks)"]
     end
@@ -101,7 +113,8 @@ graph TB
 
     UI -->|REST HTTPS + JWT Bearer| WebUID
     WSClient <-->|WebSockets (ws/tracking & ws/chat)| WebUID
-    UI -->|Upload Direto| ImgBB
+    UI -->|Upload de Imagens| LocalUploads
+    UI -.->|Fallback Imagens| ImgBB
     UI -->|Busca de CEP| ViaCEP
 
     WebUID --> App
@@ -117,19 +130,19 @@ graph TB
 
 A API do backend foi estruturada seguindo rigorosamente os princípios de **Clean Architecture** e **Domain-Driven Design (DDD)**, dividida em projetos desacoplados dentro da solução [`WorkEz.slnx`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.slnx):
 
-- **[`WorkEz.Domain`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.Domain)**: Núcleo do negócio. Contém as entidades centrais (`User`, `Customer`, `ServiceProvider`, `Service`, `Proposal`, `Appointment`, `ChatMessage`, `Category`, `Address`), enums de status e contratos de interfaces de repositórios e serviços de domínio. Livre de dependências externas de infraestrutura.
-- **[`WorkEz.Application`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.Application)**: Camada de orquestração e casos de uso. Contém DTOs, regras de negócio aplicadas, serviços de aplicação (`ServiceOpportunityApplicationService`, `ProposalApplicationService`, `ChatApplicationService`, `PortfolioApplicationService`).
-- **[`WorkEz.Infra.Data`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.Infra.Data)**: Implementação de acesso a dados. `AppDbContext` baseado em Entity Framework Core 10 com suporte nativo a **PostgreSQL (Npgsql)** e fallback transparente para banco de dados **In-Memory** para desenvolvimento/testes rápidos, além da camada de repositórios e message brokers.
-- **[`WorkEz.Infra.Ioc`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.Infra.Ioc)**: Contêiner de inversão de controle (IoC). Centraliza o registro de dependências, resolução de repositórios e configuração condicional do banco de dados.
-- **[`WorkEz.WebUID`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.WebUID)**: Ponto de entrada web. ASP.NET Core Web API, controllers REST, autenticação JWT Bearer com refresh tokens, gerenciadores de WebSockets (`TrackingWebSocketManager`, `ChatWebSocketManager`), middlewares de CORS e Swagger UI.
+- **[`WorkEz.Domain`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.Domain)**: Núcleo do negócio. Entidades centrais (`User`, `Customer`, `ServiceProvider`, `Service`, `Proposal`, `Appointment`, `Review`, `ChatMessage`, `Category`, `Address`), enums e contratos de repositórios.
+- **[`WorkEz.Application`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.Application)**: Camada de orquestração e casos de uso (`ServiceOpportunityApplicationService`, `ProposalApplicationService`, `ChatApplicationService`, `PortfolioApplicationService`), cálculo da taxa justa da plataforma e DTOs.
+- **[`WorkEz.Infra.Data`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.Infra.Data)**: `AppDbContext` em Entity Framework Core 10 com suporte nativo a **PostgreSQL (Npgsql)** e fallback transparente para banco **In-Memory**, repositórios e queries otimizadas.
+- **[`WorkEz.Infra.Ioc`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.Infra.Ioc)**: Contêiner de Inversão de Controle (IoC), centralizando o registro de dependências.
+- **[`WorkEz.WebUID`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.WebUID)**: Ponto de entrada ASP.NET Core Web API, controllers REST (`Auth`, `Services`, `Proposals`, `Reviews`, `Users`, `Uploads`...), managers de WebSockets, middlewares de CORS, uploads locais e Swagger UI.
 
-### Frontend Mobile (React Native + Expo)
+### Frontend Mobile & Web (React Native + Expo)
 
-O aplicativo móvel foi construído em **React Native 0.81** com **Expo 54** utilizando:
+O aplicativo foi construído em **React Native 0.81** com **Expo 54** e compilação híbrida para **Mobile e Web**:
 - **Expo Router (v6)**: Roteamento baseado no sistema de arquivos com layouts aninhados e Route Guards por perfil (`/client` e `/provider`).
-- **NativeWind (v4) / TailwindCSS**: Estilização declarativa com sistema de tokens coerente e responsivo.
-- **Context API & Hooks Personalizados**: `AuthContext` com gerenciamento de sessão, token JWT e refresh token silencioso em chamadas com erro `401`.
-- **Lucide Icons**: Conjunto consistente e moderno de ícones de interface.
+- **Componentes Modulares**: [`ScreenHeader.tsx`](file:///d:/Projetos/WorkEz/WorkEzApp/components/ScreenHeader.tsx) com safe-area automática, botões padronizados, cards de avaliação e sistema de design tokens (`WorkEzTheme`).
+- **Context API & Hooks**: `AuthContext` com gerenciamento de sessão, token JWT, persistência com AsyncStorage e sincronização com `/api/Users/{id}`.
+- **Qualidade & Confiabilidade**: Suíte automatizada com Playwright cobrindo os cenários críticos ponta a ponta.
 
 ---
 
@@ -145,7 +158,8 @@ O atendimento de um serviço transita por uma máquina de estados bem definida:
 │     Open     │ ──> Disponível no mural de oportunidades dos prestadores
 └──────────────┘
      │
-     │ [ Prestador ] Aceita o chamado
+     │ [ Prestadores ] Enviam propostas discriminando Mão de Obra e Materiais
+     │ [ Cliente ] Analisa e aceita a melhor proposta
      ▼
 ┌──────────────┐
 │   Accepted   │ ──> Proposta e Agendamento (Appointment) confirmados
@@ -163,7 +177,7 @@ O atendimento de um serviço transita por uma máquina de estados bem definida:
 │  InProgress  │ ──> Execução da manutenção/serviço no local
 └──────────────┘
      │
-     │ [ Prestador ] Finaliza serviço e informa o valor final (R$)
+     │ [ Prestador ] Finaliza serviço e confirma valores acordados
      ▼
 ┌────────────────┐
 │ WaitingPayment │ ──> Cobrança PIX gerada via AbacatePay
@@ -172,7 +186,7 @@ O atendimento de um serviço transita por uma máquina de estados bem definida:
      │ [ Cliente ] Realiza pagamento PIX confirmado via Webhook/Polling
      ▼
 ┌──────────────┐
-│  Completed   │ ──> Concluído com sucesso! Libera avaliação e crédito na carteira (85%)
+│  Completed   │ ──> Concluído com sucesso! Libera avaliação e repasse financeiro
 └──────────────┘
 ```
 
@@ -186,26 +200,26 @@ O backend implementa dois canais nativos de WebSockets no ASP.NET Core:
 
 ### 1. Rastreamento de Deslocamento (`/ws/tracking`)
 - **Endpoint**: `ws://localhost:5065/ws/tracking?serviceId={serviceId}`
-- **Função**: Quando o prestador passa para o status `OnTheWay`, o aplicativo do prestador transmite atualizações periódicas de latitude e longitude. O cliente conectado na tela de rastreamento recebe essas coordenadas instantaneamente para atualizar a posição no mapa.
+- **Função**: Quando o prestador passa para o status `OnTheWay`, o app transmite atualizações periódicas de geolocalização. O cliente conectado na tela de rastreamento recebe essas coordenadas instantaneamente para atualizar a posição no mapa.
 
 ### 2. Chat em Tempo Real (`/ws/chat`)
 - **Endpoint**: `ws://localhost:5065/ws/chat?proposalId={proposalId}` ou `?serviceId={serviceId}`
-- **Função**: Permite troca de mensagens instantâneas entre o cliente e o prestador antes e durante o atendimento, sem necessidade de polling HTTP contínuo.
+- **Função**: Troca instantânea de mensagens de texto entre o cliente e o prestador antes e durante o atendimento, sem necessidade de polling HTTP.
 
 ---
 
-## 💳 Integração de Pagamentos (AbacatePay PIX)
+## 💳 Integração de Pagamentos e Modelo de Taxa Justa
 
 A monetização e a cobrança ocorrem via **AbacatePay**:
-1. Ao concluir o serviço, o prestador informa o valor acordado.
-2. O aplicativo do cliente solicita a criação da fatura via `POST /api/payments/{appointmentId}`.
-3. A API gera uma transação PIX com QR Code dinâmico e código Copia-e-Cola.
-4. O cliente escaneia ou cola no banco de sua preferência.
-5. A confirmação do pagamento é processada tanto por **Webhook** (`POST /api/payments/webhook`) quanto por verificação sob demanda (*polling* seguro em `GET /api/payments/{id}/status`).
-6. Após a confirmação:
-   - O agendamento é marcado como `Paid`.
-   - O serviço é marcado como `Completed`.
-   - A comissão de **15%** é retida pela plataforma e o valor líquido (**85%**) é disponibilizado na carteira (`Wallet`) do prestador.
+1. Ao enviar a proposta ou concluir o atendimento, os custos são discriminados em:
+   - **Mão de Obra (`LaborPrice`)**: Custo do serviço executado pelo profissional.
+   - **Materiais (`MaterialsPrice`)**: Custos de peças e suprimentos necessários.
+2. **Modelo de Taxa Justa**: A comissão da plataforma (**15%**) incide **exclusivamente sobre o valor de mão de obra**. Os materiais são repassados integralmente (100%) ao prestador.
+   $$\text{Taxa da Plataforma} = \text{Mão de Obra} \times 0.15$$
+   $$\text{Ganho Líquido do Prestador} = (\text{Mão de Obra} \times 0.85) + \text{Materiais}$$
+3. O cliente gera a fatura PIX (`POST /api/payments/{appointmentId}`) com QR Code dinâmico e código Copia-e-Cola.
+4. A confirmação do pagamento é processada tanto por **Webhook** (`POST /api/payments/webhook`) quanto por verificação sob demanda (*polling* em `GET /api/payments/{id}/status`).
+5. Com o pagamento confirmado, o chamado avança para `Completed` e os valores líquidos são creditados na carteira do prestador.
 
 ---
 
@@ -214,64 +228,43 @@ A monetização e a cobrança ocorrem via **AbacatePay**:
 ```text
 WorkEz/
 ├── .vscode/                               # Configurações de execução e depuração no VS Code
-│   ├── launch.json                        # Perfis de F5 unificados (API + App + Juntos)
-│   └── tasks.json                         # Tasks de compilação da API
+│   └── launch.json                        # Perfis de execução unificados (API + App + Web)
+│
+├── package.json                           # Scripts centrais de execução (npm run web, test:e2e...)
+├── scripts/                               # Scripts utilitários de suporte
+│   └── run-api.js                         # Runner multiplataforma Node para a API .NET
 │
 ├── WorkEzApi/                             # Backend ASP.NET Core 10 (Clean Architecture + DDD)
-│   ├── WorkEz.slnx                        # Arquivo de solução XML do .NET
+│   ├── WorkEz.slnx                        # Solução XML do .NET
 │   ├── Dockerfile                         # Contêiner pronto para produção
 │   ├── scripts/                           # Scripts SQL de migrations e sementes
+│   │   ├── 003_add_proposal_labor_and_materials.sql # Migração de custos separados
+│   │   └── 004_create_reviews_table.sql             # Migração da tabela de avaliações
 │   ├── WorkEz.Domain/                     # Entidades, Enums, Interfaces e Domain Services
-│   │   ├── Common/                        # BaseEntity (Id Guid, CreatedAt, IsActive)
-│   │   ├── Entities/                      # User, Service, Proposal, Appointment, etc.
-│   │   ├── Enums/                         # ServiceStatus, ProposalStatus, UserRole
-│   │   └── Interfaces/                    # Contratos de repositórios e serviços
 │   ├── WorkEz.Application/                # Casos de uso, DTOs e Application Services
-│   │   ├── DTOs/                          # Payloads de entrada e saída
-│   │   └── Services/                      # Regras de negócio e fluxos de aplicação
-│   ├── WorkEz.Infra.Data/                 # Acesso a dados e persistência
-│   │   ├── Context/                       # AppDbContext (PostgreSQL / In-Memory)
-│   │   ├── Repositories/                  # Implementações com EF Core
-│   │   └── MessageBroker/                 # Eventos e publicações internas
-│   ├── WorkEz.Infra.Ioc/                  # Injeção de dependências (Dependency Injection)
-│   └── WorkEz.WebUID/                     # Camada Web, Controllers e WebSockets
-│       ├── Controllers/                   # Controllers REST (Auth, Services, Proposals...)
+│   ├── WorkEz.Infra.Data/                 # AppDbContext, Repositories e EF Core
+│   ├── WorkEz.Infra.Ioc/                  # Registro de Injeção de Dependências
+│   └── WorkEz.WebUID/                     # Controllers REST, WebSockets e Startup
+│       ├── Controllers/                   # Controllers REST (Auth, Services, Reviews, Users, Uploads...)
 │       ├── WebSockets/                    # Managers de WebSocket (Tracking e Chat)
-│       ├── Auth/                          # TokenService JWT e configurações de token
-│       ├── Program.cs                     # Startup, middlewares e configuração de rotas
-│       ├── appsettings.json               # Configurações gerais
-│       └── appsettings.Development.json   # Configurações de desenvolvimento local
+│       └── Tests/                         # Bateria de testes unitários xUnit (54 testes)
 │
-├── WorkEzApp/                             # Frontend Mobile (React Native + Expo 54)
+├── WorkEzApp/                             # Frontend React Native (Expo 54 Mobile & Web)
 │   ├── app/                               # Telas e rotas (Expo Router - File-based)
-│   │   ├── _layout.tsx                    # Root Layout com AuthProvider
-│   │   ├── index.tsx                      # Splash screen inicial
-│   │   ├── onboarding.tsx                 # Introdução do aplicativo
-│   │   ├── profile-choice.tsx             # Escolha entre Cliente e Prestador
-│   │   ├── login.tsx                      # Autenticação unificada
-│   │   ├── signup.tsx                     # Cadastro de cliente
-│   │   ├── client/                        # Fluxo completo do Cliente (22 telas)
-│   │   │   ├── _layout.tsx                # Guard de autenticação para clientes
-│   │   │   ├── index.tsx                  # Home com categorias e botão "Chamar Agora"
-│   │   │   ├── describe.tsx               # Formulário com fotos, descrição e CEP
-│   │   │   ├── tracking/[id].tsx          # Mapa e rastreamento em tempo real
-│   │   │   ├── payment/[id].tsx           # Pagamento PIX e QR Code
-│   │   │   └── rating/[id].tsx            # Avaliação de qualidade
-│   │   └── provider/                      # Fluxo completo do Prestador (24 telas)
-│   │       ├── _layout.tsx                # Guard de autenticação para prestadores
-│   │       ├── calls.tsx                  # Mural de oportunidades e chamados em curso
-│   │       ├── new-call/[id].tsx          # Detalhes e aceite da oportunidade
-│   │       ├── in-progress/[id].tsx       # Execução do serviço
-│   │       ├── inform-value/[id].tsx      # Inserção do valor final do serviço
-│   │       └── wallet.tsx                 # Extrato financeiro e saldo da carteira
-│   ├── components/                        # Componentes reutilizáveis (Button, Input, Cards...)
-│   ├── contexts/                          # AuthContext (Estado global da sessão)
-│   ├── services/                          # Clientes de API (api.ts, authService, paymentService...)
-│   ├── tailwind.config.js                 # Configurações do TailwindCSS
-│   └── package.json                       # Dependências do frontend
+│   │   ├── client/                        # Fluxo completo do Cliente (detalhes, tracking, chat, avaliação)
+│   │   └── provider/                      # Fluxo do Prestador (propostas, execução unificada, carteira)
+│   ├── components/                        # Componentes UI (ScreenHeader, Button, RatingCard, BottomNav)
+│   ├── contexts/                          # AuthContext (sessão, tokens e sincronização com backend)
+│   ├── services/                          # Clientes de API (api.ts com auto-resolução de IP, imageService)
+│   ├── playwright.config.ts               # Configuração do Playwright para testes E2E
+│   └── e2e/                               # Suíte completa de testes automatizados E2E
+│       ├── 01-auth-flow.spec.ts           # Teste E2E de cadastro e autenticação
+│       ├── 02-auction-proposals.spec.ts   # Teste E2E de abertura de chamado e leilão de propostas
+│       ├── 03-chat-and-websocket.spec.ts  # Teste E2E de mensageria em tempo real
+│       ├── 04-service-execution-and-review.spec.ts # Teste E2E do ciclo de atendimento e avaliação
+│       ├── 05-found-screen.spec.ts        # Teste E2E de visualização do profissional encontrado
+│       └── 06-provider-profile-navigation.spec.ts # Teste E2E do perfil do prestador
 │
-├── DOCUMENTACAO_TECNICA.md                # Documentação técnica exaustiva do ecossistema
-├── render.yaml                            # Arquivo de infraestrutura como código (IaC) para o Render
 ├── run-all.ps1                            # Script PowerShell: sobe API e App simultaneamente
 ├── run-api.ps1                            # Script PowerShell: sobe apenas a API .NET
 ├── run-app.ps1                            # Script PowerShell: sobe apenas o Expo Mobile
@@ -282,7 +275,7 @@ WorkEz/
 
 ## 📡 Catálogo de Endpoints (API REST)
 
-A API disponibiliza documentação Swagger interativa em `http://localhost:5065/swagger`. Abaixo estão os principais endpoints:
+A API disponibiliza documentação Swagger interativa em `http://localhost:5065/swagger`. Abaixo estão os principais endpoints organizados por módulo:
 
 | Módulo | Método | Rota | Descrição |
 |:---|:---:|:---|:---|
@@ -292,141 +285,199 @@ A API disponibiliza documentação Swagger interativa em `http://localhost:5065/
 | **Auth** | `POST` | `/api/Auth/login` | Login unificado (retorna JWT e Refresh Token) |
 | **Auth** | `POST` | `/api/Auth/refresh-token` | Renovação silenciosa de token de acesso |
 | **Auth** | `POST` | `/api/Auth/revoke-token` | Logout seguro com invalidação de refresh token |
+| **Users** | `GET` | `/api/Users/profile` ou `/me` | Consulta os dados do perfil do usuário autenticado |
+| **Users** | `PUT` | `/api/Users/profile` | Atualiza nome, e-mail, telefone e foto de perfil |
+| **Users** | `GET` | `/api/Users/{id}` | Consulta os dados de um usuário pelo ID |
+| **Uploads** | `POST` | `/api/Uploads` | Upload multipart de imagem com persistência local em `/wwwroot/uploads/` |
+| **Uploads** | `POST` | `/api/Uploads/base64` | Upload de imagem codificada em Base64 via payload JSON |
+| **Reviews** | `POST` | `/api/Reviews` | Cria ou atualiza avaliação (nota 1 a 5, comentário e tags) |
+| **Reviews** | `GET` | `/api/Reviews/by-user/{userId}` | Lista todas as avaliações recebidas por um prestador |
+| **Reviews** | `GET` | `/api/Reviews/by-service/{serviceId}` | Obtém a avaliação associada a um chamado |
+| **Reviews** | `GET` | `/api/Reviews/by-appointment/{appointmentId}` | Obtém a avaliação associada a um agendamento |
 | **Categories** | `GET` | `/api/Categories` | Lista todas as categorias de serviços |
-| **Categories** | `POST` | `/api/Categories` | Cadastro de nova categoria *(Admin)* |
-| **Customers** | `GET` | `/api/Customers/by-user/{userId}` | Obtém perfil do cliente pelo Id do usuário |
-| **Providers** | `GET` | `/api/ServiceProviders/by-user/{userId}` | Obtém perfil do prestador pelo Id do usuário |
+| **Customers** | `GET` | `/api/Customers/by-user/{userId}` | Obtém perfil do cliente pelo ID do usuário |
+| **Customers** | `GET` | `/api/Customers/{userId}/favorites` | Retorna lista de profissionais favoritados pelo cliente |
+| **Providers** | `GET` | `/api/ServiceProviders/by-user/{userId}` | Obtém perfil do prestador pelo ID do usuário |
 | **Providers** | `GET` | `/api/ServiceProviders/{id}/portfolio` | Lista itens do portfólio do prestador |
 | **Providers** | `POST` | `/api/ServiceProviders/{id}/portfolio` | Adiciona fotos ao portfólio |
 | **Services** | `POST` | `/api/Services/by-customer/{customerId}` | Criação de novo chamado ("Chamar Agora") |
 | **Services** | `GET` | `/api/Services/{id}` | Detalhes completos do chamado |
 | **Services** | `GET` | `/api/Services/by-customer/{customerId}` | Histórico de chamados do cliente |
-| **Services** | `GET` | `/api/Services/opportunities-by-user/{userId}` | Chamados abertos para o prestador |
-| **Services** | `GET` | `/api/Services/by-provider-user/{userId}` | Chamados aceitos/em andamento do prestador |
+| **Services** | `GET` | `/api/Services/opportunities-by-user/{userId}` | Mural de chamados abertos para o prestador |
+| **Services** | `GET` | `/api/Services/by-provider-user/{userId}` | Chamados aceitos e em andamento do prestador |
 | **Services** | `POST` | `/api/Services/{id}/accept` | Aceite direto da oportunidade pelo prestador |
 | **Services** | `PATCH` | `/api/Services/{id}/start-displacement` | Atualiza status para `OnTheWay` |
 | **Services** | `PATCH` | `/api/Services/{id}/start` | Atualiza status para `InProgress` |
-| **Services** | `PATCH` | `/api/Services/{id}/complete?price={val}` | Conclui serviço e define status `WaitingPayment` |
+| **Services** | `PATCH` | `/api/Services/{id}/complete?price={val}` | Conclui serviço e avança para `WaitingPayment` |
 | **Services** | `PATCH` | `/api/Services/{id}/cancel` | Cancela o chamado |
-| **Proposals** | `POST` | `/api/Proposals` | Cria proposta com valor personalizado |
+| **Proposals** | `POST` | `/api/Proposals` | Cria proposta discriminando `LaborPrice` e `MaterialsPrice` |
 | **Proposals** | `POST` | `/api/Proposals/{id}/counter` | Cliente realiza contra-proposta de valor |
-| **Proposals** | `POST` | `/api/Proposals/{id}/accept` | Aceita a proposta/contra-proposta |
+| **Proposals** | `POST` | `/api/Proposals/{id}/accept` | Aceita a proposta/contra-proposta selecionada |
 | **Chat** | `GET` | `/api/Chat/by-service/{serviceId}` | Histórico de mensagens do chamado |
 | **Chat** | `POST` | `/api/Chat/send` | Envio de mensagem HTTP fallback |
 | **WebSockets** | `GET` | `/ws/tracking?serviceId={id}` | Canal de rastreamento do prestador em tempo real |
-| **WebSockets** | `GET` | `/ws/chat?serviceId={id}` | Canal bidirecional de chat em tempo real |
+| **WebSockets** | `GET` | `/ws/chat?serviceId={id}` | Canal bidirecional de mensagens em tempo real |
 
 ---
 
-## 📱 Mapeamento de Rotas do App Mobile
+## 📱 Mapeamento de Rotas do App
 
-O aplicativo é dividido em três áreas principais com proteção de rotas (Route Guards):
+O aplicativo possui navegação modular com proteção de rotas (Route Guards):
 
-### 1. Rotas Públicas
+### 1. Rotas Públicas e Comuns
 - `/` ➔ Splash Screen de carregamento.
-- `/onboarding` ➔ Apresentação em slides dos recursos da plataforma.
-- `/profile-choice` ➔ Seleção do perfil de entrada (Cliente ou Prestador).
-- `/login` ➔ Formulário de login unificado.
-- `/signup` ➔ Cadastro de cliente.
-- `/provider/signup` ➔ Cadastro de prestador.
+- `/onboarding` ➔ Slides explicativos sobre a plataforma.
+- `/profile-choice` ➔ Seleção de modalidade de conta (Cliente ou Prestador).
+- `/login` ➔ Formulário de login com preenchimento rápido de teste.
+- `/signup` ➔ Cadastro de novo cliente.
+- `/help` ➔ Central de ajuda e dúvidas frequentes (FAQ).
 
 ### 2. Área do Cliente (`/client/*`)
-- `/client` ➔ Home principal com categorias e atalhos rápidos.
-- `/client/describe` ➔ Formulário de solicitação de serviço (fotos, descrição, CEP).
-- `/client/searching` ➔ Confirmação e publicação do chamado.
-- `/client/tracking/[id]` ➔ Rastreamento do prestador no mapa com WebSocket.
-- `/client/chat/[id]` ➔ Conversa em tempo real com o prestador.
-- `/client/payment/[id]` ➔ Tela de pagamento PIX com QR Code.
-- `/client/completed/[id]` ➔ Confirmação de serviço finalizado.
-- `/client/rating/[id]` ➔ Avaliação com nota e comentários.
-- `/client/services` ➔ Histórico de chamados.
-- `/client/profile` ➔ Gerenciamento de perfil e logout.
+- `/client` ➔ Home com catálogo de especialidades e botão "Chamar Agora".
+- `/client/describe` ➔ Formulário de chamado com fotos, descrição e busca de CEP.
+- `/client/searching` ➔ Mural de busca e confirmação de publicação do chamado.
+- `/client/found` ➔ Visualização do profissional aceito com atalhos de ação.
+- `/client/tracking/[id]` ➔ Rastreamento ao vivo do prestador e gestão do chamado.
+- `/client/chat/[id]` ➔ Chat em tempo real via WebSocket.
+- `/client/payment/[id]` ➔ Checkout PIX com QR Code dinâmico.
+- `/client/rating/[id]` ➔ Avaliação pós-serviço (estrelas, comentários e tags).
+- `/client/professional/[id]` ➔ Perfil público do prestador com avaliações reais.
+- `/client/edit-profile` ➔ Edição de dados cadastrais e foto de perfil.
 
 ### 3. Área do Prestador (`/provider/*`)
-- `/provider/calls` ➔ Painel com abas de "Oportunidades Disponíveis" e "Meus Serviços".
-- `/provider/new-call/[id]` ➔ Detalhes do chamado aberto com opção de aceitar.
-- `/provider/accepted/[id]` ➔ Chamado aceito; botão para iniciar deslocamento.
-- `/provider/in-progress/[id]` ➔ Prestador no local executando o serviço.
-- `/provider/inform-value/[id]` ➔ Tela para informar o valor final do serviço.
-- `/provider/waiting-payment/[id]` ➔ Aguardando confirmação do PIX pago pelo cliente.
-- `/provider/wallet` ➔ Carteira com extrato de ganhos e descontos da taxa de 15%.
-- `/provider/portfolio` ➔ Galeria de fotos de trabalhos anteriores.
-- `/provider/work-area` ➔ Gerenciamento de categorias de atuação do profissional.
+- `/provider` ➔ Painel inicial do prestador com métricas e chamados ativos.
+- `/provider/calls` ➔ Mural de oportunidades abertas e histórico de atendimentos.
+- `/provider/new-call/[id]` ➔ Detalhes do chamado e envio de proposta (mão de obra + peças).
+- `/provider/accepted/[id]` ➔ Central de execução do serviço (*Deslocamento* ➔ *Execução* ➔ *Conclusão*).
+- `/provider/ratings` ➔ Painel de avaliações recebidas de clientes.
+- `/provider/wallet` ➔ Carteira com extrato de ganhos e histórico financeiro.
+- `/provider/portfolio` ➔ Galeria de fotos de serviços anteriores.
+- `/provider/edit-profile` ➔ Edição de dados, foto, anos de experiência e especialidades.
 
 ---
 
 ## 💻 Pré-requisitos
 
-Antes de iniciar, certifique-se de possuir instalado em sua máquina:
+Antes de iniciar, certifique-se de possuir instalado em seu ambiente:
 
 1. **[.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)** (ou superior)
 2. **[Node.js](https://nodejs.org/)** (v18.x ou v20.x LTS recomendado)
-3. **npm** (geralmente instalado junto ao Node.js)
+3. **npm** (incluso com o Node.js)
 4. **Git**
-5. *(Opcional)* Aplicativo **Expo Go** instalado no seu smartphone físico ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) ou [iOS](https://apps.apple.com/app/expo-go/id982107779)) para testar sem emuladores pesados.
+5. *(Opcional)* App **Expo Go** no celular físico ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/app/expo-go/id982107779)).
 
 ---
 
 ## 🚀 Como Rodar o Projeto
 
-Você pode iniciar todo o ecossistema WorkEz através de três maneiras simples:
+### Opção 1: Scripts da Raiz (npm / Node)
 
-### Opção 1: VS Code (F5 — Depuração Unificada)
+Na raiz do projeto `WorkEz`:
 
-Abra a pasta raiz `WorkEz` no Visual Studio Code e acesse a aba **Run and Debug** (`Ctrl + Shift + D`):
+```bash
+# Iniciar a versão Web do aplicativo (Expo Web)
+npm run web
 
-1. Selecione o perfil **`🚀 Executar API + App Mobile (Juntos)`** e aperte **F5**.
-2. O VS Code iniciará automaticamente a API .NET na porta `5065` e abrirá a janela do Expo Mobile simultaneamente.
-3. Se desejar rodar separadamente, escolha:
+# Executar a suíte completa de testes automatizados E2E
+npm run test:e2e
+
+# Executar os testes E2E com interface visual interativa (UI Mode)
+npm run test:e2e:ui
+
+# Iniciar o Expo para desenvolvimento Mobile
+npm run app
+```
+
+---
+
+### Opção 2: VS Code (F5 — Depuração Unificada)
+
+Abra a pasta `WorkEz` no Visual Studio Code e acesse a aba **Run and Debug** (`Ctrl + Shift + D`):
+
+1. Selecione **`🚀 Executar API + Web (Juntos)`** e pressione **F5** para subir a API backend e o frontend Web de uma só vez.
+2. Ou escolha perfis individuais:
    - `🌐 Executar API Backend (WorkEzApi)`
+   - `💻 Executar App Web (WorkEzApp Web)`
    - `📱 Executar App Mobile (WorkEzApp Expo)`
 
 ---
 
-### Opção 2: Scripts Rápidos PowerShell
+### Opção 3: Scripts Rápidos PowerShell
 
-Na raiz do repositório, utilize os scripts automatizados prontos para Windows:
+Para desenvolvedores no Windows, utilize os scripts prontos na raiz:
 
 ```powershell
-# 1. Inicia API (.NET 10) e App Mobile (Expo) juntos em janelas dedicadas
+# Sobe API (.NET 10) e App Mobile (Expo) juntos em janelas dedicadas
 .\run-all.ps1
 
-# 2. Inicia apenas a API Backend
+# Sobe apenas a API Backend
 .\run-api.ps1
 
-# 3. Inicia apenas o App Mobile
+# Sobe apenas o App Mobile
 .\run-app.ps1
 ```
 
 ---
 
-### Opção 3: Manualmente pelo Terminal
+### Opção 4: Manualmente pelo Terminal
 
-#### 1. Iniciando o Backend (.NET 10)
+#### 1. Backend (.NET 10)
 ```powershell
 cd WorkEzApi
 dotnet run --project WorkEz.WebUID/WorkEz.WebUID.csproj
 ```
-- A API estará disponível em: `http://localhost:5065`
-- Documentação interativa Swagger: `http://localhost:5065/swagger`
+- API REST: `http://localhost:5065`
+- Documentação Swagger: `http://localhost:5065/swagger`
 - Health check: `http://localhost:5065/health`
 
-#### 2. Iniciando o Frontend Mobile (React Native / Expo)
+#### 2. Frontend (React Native / Expo)
 Em outro terminal:
 ```powershell
 cd WorkEzApp
 npm install          # Apenas na primeira vez
 npx expo start
 ```
-- Pressione **`a`** para abrir no emulador Android conectado.
-- Pressione **`i`** para abrir no simulador iOS (macOS).
-- Pressione **`w`** para abrir no navegador web.
-- Escaneie o **QR Code** no terminal com a câmera do seu celular usando o **Expo Go**.
+- Pressione **`w`** para abrir diretamente no navegador web.
+- Pressione **`a`** para emulador Android ou **`i`** para simulador iOS.
+- Escaneie o **QR Code** no terminal com o app **Expo Go** no celular.
 
-> 💡 **Dica para Celular Físico:** Se for testar no smartphone via Expo Go, configure o IP local do seu computador no arquivo `WorkEzApp/.env` para que o celular consiga acessar a API local:
-> ```env
-> EXPO_PUBLIC_API_URL=http://192.168.0.X:5065
-> ```
+> 💡 **Auto-Detecção de IP:** O aplicativo resolve automaticamente o IP local do Metro Bundler para conexões móveis, eliminando a necessidade de configurar IPs manuais ao testar no smartphone.
+
+---
+
+## 🧪 Testes Automatizados (Unitários e E2E)
+
+O projeto conta com ampla cobertura de testes automatizados tanto no backend quanto no frontend:
+
+### 1. Testes Unitários Backend (.NET 10)
+Cobre as regras de negócio de propostas com mão de obra/materiais, agendamentos, serviços de oportunidade e portfólio com xUnit:
+
+```powershell
+dotnet test WorkEzApi/WorkEz.WebUID/WorkEz.WebUID.csproj
+```
+
+> **Resultado**: 54 testes unitários automatizados passando com 100% de sucesso.
+
+### 2. Testes End-to-End (Playwright — WorkEzApp)
+A suíte E2E em [`WorkEzApp/e2e/`](file:///d:/Projetos/WorkEz/WorkEzApp/e2e) valida os fluxos completos do usuário de ponta a ponta:
+
+| Arquivo de Teste | Escopo Validado |
+|---|---|
+| `01-auth-flow.spec.ts` | Cadastro de cliente e prestador, login, logout e guards de rota |
+| `02-auction-proposals.spec.ts` | Abertura de chamado pelo cliente, envio de proposta discriminada pelo prestador e aceite |
+| `03-chat-and-websocket.spec.ts` | Troca de mensagens em tempo real entre cliente e profissional |
+| `04-service-execution-and-review.spec.ts` | Ciclo completo: Deslocamento ➔ Execução ➔ Pagamento ➔ Avaliação com estrelas |
+| `05-found-screen.spec.ts` | Tela de profissional encontrado, verificação de dados e links rápidos |
+| `06-provider-profile-navigation.spec.ts` | Edição de perfil do prestador, foto, anos de experiência e visualização pública |
+
+Para executar:
+```bash
+# Execução headless completa
+npm run test:e2e
+
+# Execução com visualização e depurador gráfico
+npm run test:e2e:ui
+```
 
 ---
 
@@ -434,9 +485,7 @@ npx expo start
 
 ### Backend (`WorkEzApi`)
 
-Por padrão, em ambiente de desenvolvimento local, a API funciona de imediato utilizando o banco **In-Memory** e chave JWT padrão definida em [`appsettings.Development.json`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.WebUID/appsettings.Development.json). 
-
-Caso deseje conectar a um banco PostgreSQL real (como o Neon DB) ou configurar gateways de pagamento, defina as variáveis de ambiente ou edite as configurações:
+Em desenvolvimento local, a API opera de fábrica utilizando banco **In-Memory** e autenticação JWT padrão configurada em [`appsettings.Development.json`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.WebUID/appsettings.Development.json). Para conectar ao PostgreSQL ou AbacatePay:
 
 | Variável / Chave | Descrição | Padrão Local |
 |---|---|---|
@@ -452,17 +501,11 @@ Caso deseje conectar a um banco PostgreSQL real (como o Neon DB) ou configurar g
 
 ### Frontend (`WorkEzApp`)
 
-Crie ou edite o arquivo `WorkEzApp/.env` (baseie-se no [`WorkEzApp/.env.example`](file:///d:/Projetos/WorkEz/WorkEzApp/.env.example)):
+Configurado no arquivo `WorkEzApp/.env` (baseie-se no [`WorkEzApp/.env.example`](file:///d:/Projetos/WorkEz/WorkEzApp/.env.example)):
 
 ```env
-# Desenvolvimento local (Emulador iOS ou Web):
+# Desenvolvimento local (Web, Emuladores ou Mobile com auto-resolução de host):
 EXPO_PUBLIC_API_URL=http://localhost:5065
-
-# Emulador Android (Localhost da máquina host mapeado):
-# EXPO_PUBLIC_API_URL=http://10.0.2.2:5065
-
-# Smartphone físico na mesma rede Wi-Fi:
-# EXPO_PUBLIC_API_URL=http://192.168.1.100:5065
 
 # Produção na nuvem (Render):
 # EXPO_PUBLIC_API_URL=https://workez-api.onrender.com
@@ -473,13 +516,14 @@ EXPO_PUBLIC_API_URL=http://localhost:5065
 ## 🌐 Deploy e Infraestrutura
 
 ### Backend no Render.com
-O projeto inclui suporte nativo a contêineres Docker e infraestrutura como código (IaC) via [`render.yaml`](file:///d:/Projetos/WorkEz/render.yaml):
+O projeto inclui suporte a contêineres Docker e IaC via [`render.yaml`](file:///d:/Projetos/WorkEz/render.yaml):
 - **Runtime**: Docker multi-stage build ([`Dockerfile`](file:///d:/Projetos/WorkEz/WorkEzApi/Dockerfile)).
 - **Health Check**: Monitoramento contínuo em `/health`.
-- **Banco de Dados**: Compatível com PostgreSQL Neon DB gerenciado na nuvem.
+- **Banco de Dados**: Compatível com PostgreSQL Neon DB em nuvem.
 
-### Frontend Mobile
-- O aplicativo pode ser gerado e distribuído facilmente através do **EAS Build** (Expo Application Services) para gerar APK/AAB (Android) e IPA (iOS).
+### Frontend Mobile & Web
+- **Web**: Exportável como aplicação web estática ou servida pelo Metro/Node.
+- **Mobile**: Geração de binários APK/AAB (Android) e IPA (iOS) via **EAS Build** (Expo Application Services).
 
 ---
 
