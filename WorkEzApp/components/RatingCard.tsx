@@ -128,10 +128,13 @@ const styles = StyleSheet.create({
     ...WorkEzTheme.typography.base,
     fontWeight: WorkEzTheme.typography.fontWeight.medium,
     color: WorkEzTheme.colors.text,
+    flex: 1,
+    marginRight: 8,
   },
   dateText: {
     ...WorkEzTheme.typography.xs,
     color: WorkEzTheme.colors.textSecondary,
+    flexShrink: 0,
   },
   ratingRow: {
     flexDirection: 'row',

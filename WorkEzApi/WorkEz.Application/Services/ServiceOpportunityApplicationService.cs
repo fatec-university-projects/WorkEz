@@ -71,7 +71,8 @@ public class ServiceOpportunityApplicationService(
         }
 
         var providerHasLocation = provider.Latitude.HasValue && provider.Longitude.HasValue;
-        var providerRadius = provider.ServiceRadiusKm > 0 ? provider.ServiceRadiusKm : 15.0;
+        var isUnlimited = provider.ServiceRadiusKm <= 0 || provider.ServiceRadiusKm >= 9999;
+        var providerRadius = isUnlimited ? double.MaxValue : provider.ServiceRadiusKm;
 
         var items = new List<(OpportunityCallDto Dto, double? Distance)>();
 
@@ -103,7 +104,7 @@ public class ServiceOpportunityApplicationService(
                 );
 
                 // Filtro por raio geográfico: se o chamado estiver fora do raio de atuação, desconsiderar
-                if (distanceKm > providerRadius)
+                if (!isUnlimited && distanceKm > providerRadius)
                 {
                     continue;
                 }

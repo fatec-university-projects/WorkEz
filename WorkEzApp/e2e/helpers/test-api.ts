@@ -158,6 +158,8 @@ export async function createTestServiceCall(customerId: string, token: string): 
       city: 'São Paulo',
       state: 'SP',
       addressType: 'Home',
+      latitude: -23.5630,
+      longitude: -46.6540,
     },
   };
 

@@ -172,7 +172,7 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
 
         provider.Latitude = latitude;
         provider.Longitude = longitude;
-        provider.ServiceRadiusKm = serviceRadiusKm > 0 ? serviceRadiusKm : 15.0;
+        provider.ServiceRadiusKm = serviceRadiusKm >= 0 ? serviceRadiusKm : 0.0;
         provider.Touch();
 
         _providerRepository.Update(provider);
@@ -195,14 +195,15 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
 
         foreach (var p in providersWithCoords)
         {
-            var providerWithUser = await _providerRepository.GetByIdWithUserAsync(p.Id);
-            if (providerWithUser == null) continue;
-
-            var dist = Domain.Common.GeoLocationUtils.CalculateDistanceKm(latitude, longitude, p.Latitude!.Value, p.Longitude!.Value);
-            var effectiveRadius = radiusKm.HasValue && radiusKm.Value > 0 ? radiusKm.Value : p.ServiceRadiusKm;
+            var dist = Domain.Common.GeoLocationUtils.CalculateDistanceKm(latitude, longitude, p.Latitude.Value, p.Longitude.Value);
+            var isUnlimited = p.ServiceRadiusKm <= 0 || p.ServiceRadiusKm >= 9999;
+            var effectiveRadius = isUnlimited ? double.MaxValue : (radiusKm.HasValue && radiusKm.Value > 0 ? radiusKm.Value : p.ServiceRadiusKm);
 
             if (dist <= effectiveRadius)
             {
+                var providerWithUser = await _providerRepository.GetByIdWithUserAsync(p.Id);
+                if (providerWithUser == null) continue;
+
                 var specialties = await _providerRepository.GetSpecialtiesAsync(p.Id);
                 var travelMin = Domain.Common.GeoLocationUtils.EstimateTravelMinutes(dist);
 

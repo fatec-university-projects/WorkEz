@@ -32,36 +32,19 @@ test.describe('Fluxo 7: Geolocalização, Raio de Atuação e Rastreamento em Te
     // Valida que o radar no mapa foi atualizado para 20 km
     await expect(page.getByText(/Raio: 20 km/i)).toBeVisible();
 
-    // 4. Seleciona uma categoria de serviço disponível
-    const firstCategoryButton = page.locator('text=Categorias que você atende').locator('..').locator('button, div[role="button"], [tabindex="0"]').first();
-    // Alternativa robusta buscando pelo texto de categorias caso o botão acima varie
-    const anyCategoryOption = page.locator('div').filter({ hasText: /^(Limpeza|Reformas|Elétrica|Pintura|Hidráulica|Assistência)/i }).first();
-    if (await anyCategoryOption.isVisible()) {
-      await anyCategoryOption.click();
-    } else {
-      // Fallback: clica na primeira opção disponível dentro da grade
-      const catOption = page.locator('text=Categorias que você atende').locator('xpath=following-sibling::div[1]//div').first();
-      await catOption.click();
-    }
-
-    // 5. Preenche os campos obrigatórios de experiência e descrição
-    const experienceInput = page.getByPlaceholder('Ex: 5');
-    await expect(experienceInput).toBeVisible();
-    await experienceInput.fill('6');
-
-    const descInput = page.getByPlaceholder(/Descreva detalhadamente suas habilidades/i);
-    await expect(descInput).toBeVisible();
-    await descInput.fill('Profissional qualificado com atendimento pontual e ferramentas completas.');
+    // 4. Valida botão de detecção de GPS
+    const gpsBtn = page.getByText(/Detectar GPS/i);
+    await expect(gpsBtn).toBeVisible();
 
     // Auto-aceita eventuais diálogos nativos da web
     page.on('dialog', (dialog) => dialog.accept());
 
-    // 6. Clica em "Salvar e Continuar"
-    const submitBtn = page.getByText('Salvar e Continuar');
+    // 5. Clica em "Salvar Raio de Atendimento"
+    const submitBtn = page.getByText('Salvar Raio de Atendimento');
     await expect(submitBtn).toBeVisible();
     await submitBtn.click();
 
-    // 7. Valida redirecionamento ou processamento com sucesso
+    // 6. Valida redirecionamento ou processamento com sucesso
     await expect(page).toHaveURL(/\/provider/, { timeout: 15000 });
   });
 
@@ -165,10 +148,10 @@ test.describe('Fluxo 7: Geolocalização, Raio de Atuação e Rastreamento em Te
     await page.goto(`/client/tracking/${serviceCall.id}`);
 
     // 6. Valida os elementos visuais do mapa em tempo real (LiveTrackingMap)
-    await expect(page.getByText('PRESTADOR EM DESLOCAMENTO')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText('PRESTADOR EM DESLOCAMENTO', { exact: true })).toBeVisible({ timeout: 20000 });
     await expect(page.getByText(/Chegada prevista em ~12 min/i)).toBeVisible();
     await expect(page.getByText(/Aproximadamente 3\.2 km de distância/i)).toBeVisible();
-    await expect(page.getByText('Seu endereço')).toBeVisible();
+    await expect(page.getByText('Seu endereço', { exact: true })).toBeVisible();
 
     // Valida que o nome do prestador aparece como marcador no trajeto do mapa
     await expect(page.getByText(provider.tokens.user.name).first()).toBeVisible();
