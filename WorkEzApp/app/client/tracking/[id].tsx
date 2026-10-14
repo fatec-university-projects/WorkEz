@@ -1266,11 +1266,20 @@ export default function ServiceTracking() {
                   <Text style={{ fontWeight: '800', color: '#B45309', fontSize: 15 }}>{serviceReview.rating}.0</Text>
                 </View>
               </View>
-              {serviceReview.comment ? (
-                <Text style={{ color: '#15803D', fontSize: 13, marginBottom: 12, lineHeight: 18 }}>
-                  "{serviceReview.comment}"
-                </Text>
-              ) : null}
+              {(() => {
+                const c = (serviceReview.comment || '').trim();
+                const cleanComment = c.replace(/^\[(.*?)\]\s*/, '').replace(/^["'“”«»]+|["'“”«»]+$/g, '').trim();
+                const isRealComment = cleanComment.length > 0 && 
+                  cleanComment !== 'Serviço avaliado pelo cliente.' && 
+                  cleanComment !== 'Nenhum comentário deixado.' &&
+                  cleanComment.toLowerCase() !== 'sem comentário' &&
+                  cleanComment.toLowerCase() !== 'sem comentario';
+                return isRealComment ? (
+                  <Text style={{ color: '#15803D', fontSize: 13, marginBottom: 12, lineHeight: 18 }}>
+                    "{cleanComment}"
+                  </Text>
+                ) : null;
+              })()}
               <TouchableOpacity
                 style={styles.btnSecondary}
                 onPress={() => router.push(`/client/rating/${id}` as any)}

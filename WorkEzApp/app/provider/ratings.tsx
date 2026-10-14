@@ -63,7 +63,7 @@ export default function ReceivedRatings() {
         clientName: rev.clientName || 'Cliente',
         clientPhoto: rev.clientPhoto || undefined,
         rating: rev.rating || 0,
-        comment: rev.comment || 'Nenhum comentário deixado.',
+        comment: rev.comment || '',
         date: formattedDate,
         tags: rev.tags || []
       };

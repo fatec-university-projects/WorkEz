@@ -1,6 +1,7 @@
 import { Star, User } from 'lucide-react-native';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { WorkEzTheme } from '../constants/theme';
+import { resolveImageUrl } from '../services/api';
 
 interface RatingCardProps {
   clientName: string;
@@ -39,12 +40,24 @@ export function RatingCard({
   // Remove qualquer aspas residuais no início ou fim do comentário
   displayComment = displayComment.replace(/^["'“”«»]+|["'“”«»]+$/g, '').trim();
 
+  // Se o comentário for vazio ou mensagem padrão automática, deixa em branco para exibir apenas as estrelas
+  if (
+    displayComment === 'Serviço avaliado pelo cliente.' ||
+    displayComment === 'Nenhum comentário deixado.' ||
+    displayComment.toLowerCase() === 'sem comentário' ||
+    displayComment.toLowerCase() === 'sem comentario'
+  ) {
+    displayComment = '';
+  }
+
+  const hasExtraContent = Boolean(displayComment || displayTags.length > 0);
+
   return (
     <View style={styles.cardContainer}>
       <View style={styles.contentRow}>
         {clientPhoto ? (
           <Image
-            source={{ uri: clientPhoto }}
+            source={{ uri: resolveImageUrl(clientPhoto) || clientPhoto }}
             style={styles.avatar}
           />
         ) : (
@@ -59,7 +72,7 @@ export function RatingCard({
             <Text style={styles.dateText}>{date}</Text>
           </View>
 
-          <View style={styles.ratingRow}>
+          <View style={[styles.ratingRow, !hasExtraContent && { marginBottom: 0 }]}>
             {[1, 2, 3, 4, 5].map((star) => (
               <Star
                 key={star}

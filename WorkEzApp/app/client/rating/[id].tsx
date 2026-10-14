@@ -39,9 +39,11 @@ export default function Rating() {
         if (match) {
           const parsedTags = match[1].split(',').map((t: string) => t.trim());
           setSelectedTags(parsedTags);
-          setComment(match[2] === 'Serviço avaliado pelo cliente.' ? '' : match[2]);
+          const raw = match[2]?.trim() || '';
+          setComment(raw === 'Serviço avaliado pelo cliente.' || raw === 'Nenhum comentário deixado.' ? '' : raw);
         } else {
-          setComment(existingReview.comment === 'Serviço avaliado pelo cliente.' ? '' : existingReview.comment);
+          const raw = existingReview.comment.trim();
+          setComment(raw === 'Serviço avaliado pelo cliente.' || raw === 'Nenhum comentário deixado.' ? '' : raw);
         }
       }
     }
@@ -94,7 +96,7 @@ export default function Rating() {
         appointmentId: service.appointmentId,
         reviewedUserId: service.providerUserId || service.professional?.userId || service.professional?.id,
         rating: rating,
-        comment: fullComment || 'Serviço avaliado pelo cliente.'
+        comment: fullComment ? fullComment : null
       };
 
       const res = await apiRequest<any>(`/api/Reviews/by-customer/${customer.id}`, {
