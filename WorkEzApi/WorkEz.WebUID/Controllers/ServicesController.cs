@@ -140,6 +140,21 @@ public class ServicesController(
             lon = address.Longitude;
         }
 
+        if (!lat.HasValue || !lon.HasValue)
+        {
+            var customerAddress = await db.Addresses
+                .Where(a => a.UserId == customer.UserId && a.Latitude.HasValue && a.Longitude.HasValue)
+                .OrderByDescending(a => a.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (customerAddress != null)
+            {
+                lat ??= customerAddress.Latitude;
+                lon ??= customerAddress.Longitude;
+                createdAddressId ??= customerAddress.Id;
+            }
+        }
+
         var categoryId = request.CategoryId;
         if (!categoryId.HasValue || categoryId.Value == Guid.Empty)
         {

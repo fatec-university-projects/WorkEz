@@ -89,6 +89,53 @@ test.describe('Fluxo 7: Geolocalização, Raio de Atuação e Rastreamento em Te
     await expect(distanceBadge).toBeVisible({ timeout: 15000 });
   });
 
+  test('deve descartar chamados fora do raio de atendimento do prestador na listagem de oportunidades', async ({ page }) => {
+    test.setTimeout(90000);
+
+    const customer = await createTestCustomer();
+    const provider = await createTestProvider();
+
+    // 1. Cliente cria chamado em Campinas (~90 km de São Paulo)
+    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`);
+    const customerProfile = await customerProfileRes.json();
+    await createTestServiceCall(customerProfile.id, customer.tokens.accessToken, {
+      title: 'Reparo Hidráulico Distante',
+      address: {
+        city: 'Campinas',
+        state: 'SP',
+        latitude: -22.9056,
+        longitude: -47.0608,
+      },
+    });
+
+    // 2. Prestador está em São Paulo com raio de apenas 10 km
+    const providerProfileRes = await fetch(`${API_BASE_URL}/api/ServiceProviders/by-user/${provider.tokens.user.id}`);
+    const providerProfile = await providerProfileRes.json();
+
+    await fetch(`${API_BASE_URL}/api/ServiceProviders/${providerProfile.id}/location`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${provider.tokens.accessToken}`,
+      },
+      body: JSON.stringify({
+        latitude: -23.5615,
+        longitude: -46.6559,
+        serviceRadiusKm: 10,
+      }),
+    });
+
+    // 3. Prestador acessa a aba de novos chamados
+    await injectAuth(page, provider);
+    await page.goto('/provider/calls');
+
+    await expect(page.getByText('Chamados & Propostas')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Novos')).toBeVisible();
+
+    // 4. O chamado distante (fora do raio de 10 km) NÃO deve aparecer
+    await expect(page.getByText('Reparo Hidráulico Distante')).not.toBeVisible();
+  });
+
   test('deve renderizar o mapa em tempo real (LiveTrackingMap) no acompanhamento do cliente quando prestador estiver em deslocamento', async ({ page }) => {
     test.setTimeout(90000);
 

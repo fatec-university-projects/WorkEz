@@ -104,6 +104,67 @@ export async function reverseGeocodeCoords(latitude: number, longitude: number):
   };
 }
 
+export async function geocodeAddress(addr: {
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+}): Promise<Coordinates | null> {
+  const streetPart = addr.street ? `${addr.street}${addr.number ? ` ${addr.number}` : ''}` : '';
+  const cityState = [addr.city, addr.state].filter(Boolean).join(' - ');
+
+  // 1. Tenta expo-location no dispositivo nativo
+  if (Platform.OS !== 'web') {
+    try {
+      const query = [streetPart, addr.neighborhood, cityState, 'Brasil'].filter(Boolean).join(', ');
+      const results = await Location.geocodeAsync(query);
+      if (results && results.length > 0) {
+        return {
+          latitude: results[0].latitude,
+          longitude: results[0].longitude,
+        };
+      }
+    } catch (e) {
+      console.warn('[useLocation] geocodeAsync nativo falhou, tentando fallback:', e);
+    }
+  }
+
+  // 2. Busca no OpenStreetMap Nominatim
+  const queries = [
+    [streetPart, addr.city, addr.state, 'Brasil'].filter(Boolean).join(', '),
+    [addr.street, addr.city, addr.state, 'Brasil'].filter(Boolean).join(', '),
+    [addr.city, addr.state, 'Brasil'].filter(Boolean).join(', '),
+    addr.postalCode ? `${addr.postalCode}, Brasil` : '',
+  ].filter(Boolean);
+
+  for (const q of queries) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`;
+      const res = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'WorkEzApp/1.0 (contact@workez.com)',
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0 && data[0].lat && data[0].lon) {
+          return {
+            latitude: parseFloat(data[0].lat),
+            longitude: parseFloat(data[0].lon),
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn('[useLocation] Falha ao geocodificar:', q, err?.message);
+    }
+  }
+
+  return null;
+}
+
 export function useLocation() {
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [address, setAddress] = useState<AddressDetails | null>(null);

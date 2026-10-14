@@ -303,6 +303,45 @@ public class ServiceOpportunityApplicationServiceTests
         Assert.NotNull(list[0].EstimatedDurationMinutes);
     }
 
+    [Fact]
+    public async Task GetOpportunitiesAsync_WithProviderLocation_WhenServiceHasNoCoordinates_ShouldFilterOut()
+    {
+        var user = new User { Id = Guid.NewGuid(), Name = "Prestador Paulista" };
+        var provider = new ServiceProviderEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Latitude = -23.5615,
+            Longitude = -46.6559,
+            ServiceRadiusKm = 10.0
+        };
+        await _userRepository.AddAsync(user);
+        await _providerRepository.AddAsync(provider);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente Sem Coords" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id };
+        await _userRepository.AddAsync(customerUser);
+        await _customerRepository.AddAsync(customer);
+
+        var serviceWithoutCoords = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Title = "Serviço Sem Coordenadas",
+            ServiceStatus = ServiceStatus.Open,
+            Latitude = null,
+            Longitude = null,
+            CreatedAt = DateTime.UtcNow
+        };
+        await _serviceRepository.AddAsync(serviceWithoutCoords);
+
+        var appService = CreateService();
+        var result = await appService.GetOpportunitiesAsync(provider.UserId);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value);
+    }
+
     // ─── Fake Repositories ───────────────────────────────────────────────────
 
     private class FakeServiceRepository : IServiceRepository

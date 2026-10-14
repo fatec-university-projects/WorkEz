@@ -131,7 +131,7 @@ export async function injectAuth(page: any, auth: { email: string; pass: string;
   });
 }
 
-export async function createTestServiceCall(customerId: string, token: string): Promise<any> {
+export async function createTestServiceCall(customerId: string, token: string, customPayload?: any): Promise<any> {
   let categoryId: string | undefined;
   try {
     const catRes = await fetch(`${API_BASE_URL}/api/Categories`);
@@ -149,6 +149,7 @@ export async function createTestServiceCall(customerId: string, token: string): 
     title: 'Reparo Hidráulico Urgente',
     description: 'Vazamento sob a pia da cozinha necessitando troca de cano.',
     categoryId,
+    ...customPayload,
     address: {
       zipCode: '01310-100',
       street: 'Av Paulista',
@@ -160,6 +161,7 @@ export async function createTestServiceCall(customerId: string, token: string): 
       addressType: 'Home',
       latitude: -23.5630,
       longitude: -46.6540,
+      ...(customPayload?.address || {}),
     },
   };
 

@@ -111,6 +111,12 @@ public class ServiceOpportunityApplicationService(
 
                 estimatedTravelMin = GeoLocationUtils.EstimateTravelMinutes(distanceKm.Value);
             }
+            else if (providerHasLocation && !isUnlimited && (!sLat.HasValue || !sLon.HasValue))
+            {
+                // Se o prestador delimitou um raio de atuação e o chamado não possui localização conhecida,
+                // desconsiderar para evitar chamados de outras regiões/fora do raio
+                continue;
+            }
 
             var targetDate = s.DesiredDate ?? s.CreatedAt;
             var brDate = ToBrasiliaTime(targetDate);

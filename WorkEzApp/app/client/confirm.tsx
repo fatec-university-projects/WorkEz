@@ -21,6 +21,8 @@ export default function ConfirmCall() {
     neighborhood,
     city,
     state,
+    latitude,
+    longitude,
     images
   } = useLocalSearchParams<{
     category: string;
@@ -33,6 +35,8 @@ export default function ConfirmCall() {
     neighborhood: string;
     city: string;
     state: string;
+    latitude?: string;
+    longitude?: string;
     images: string;
   }>();
 
@@ -131,6 +135,8 @@ export default function ConfirmCall() {
                 neighborhood,
                 city,
                 state,
+                latitude,
+                longitude,
                 images
               }
             } as any)}
