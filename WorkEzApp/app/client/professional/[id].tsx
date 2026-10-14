@@ -7,7 +7,7 @@ import { Button } from '../../../components/Button';
 import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
-import { apiRequest } from '../../../services/api';
+import { apiRequest, resolveImageUrl } from '../../../services/api';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 
 interface Review {
@@ -165,7 +165,7 @@ export default function ProfessionalProfile() {
             <View style={styles.photoWrapper}>
               {professional.photo ? (
                 <Image
-                  source={{ uri: professional.photo }}
+                  source={{ uri: resolveImageUrl(professional.photo) || professional.photo }}
                   style={styles.photo}
                 />
               ) : (

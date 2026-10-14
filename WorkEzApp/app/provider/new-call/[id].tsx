@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFetch } from '../../../hooks/useFetch';
-import { apiRequest } from '../../../services/api';
+import { apiRequest, resolveImageUrl } from '../../../services/api';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
@@ -42,6 +42,25 @@ export default function NewCall() {
   const { data: service, loading, error } = useFetch<any>(
     id ? `/api/Services/${id}` : null
   );
+
+  const attachedImages: string[] = (() => {
+    if (Array.isArray(service?.images) && service.images.length > 0) {
+      return service.images.filter((img: any) => typeof img === 'string' && img.trim().length > 0);
+    }
+    if (typeof service?.imageUrl === 'string' && service.imageUrl.trim().length > 0) {
+      const trimmed = service.imageUrl.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((img: any) => typeof img === 'string' && img.trim().length > 0);
+          }
+        } catch {}
+      }
+      return [service.imageUrl];
+    }
+    return [];
+  })();
 
   const handleSubmitProposal = async () => {
     if (!id || !user) return;
@@ -164,19 +183,36 @@ export default function NewCall() {
                 <MapPin size={18} color="#64748B" style={{ marginTop: 2 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.detailLabel}>Endereço aproximado</Text>
-                  <Text style={styles.detailValue}>{service.address}</Text>
+                  <Text style={styles.detailValue}>
+                    {service.addressApproximate || service.address || 'Endereço cadastrado'}
+                  </Text>
                 </View>
               </View>
 
-              {service.imageUrl && (
+              {attachedImages.length > 0 && (
                 <View style={styles.detailItem}>
                   <ImageIcon size={18} color="#64748B" style={{ marginTop: 2 }} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.detailLabel}>Fotos enviadas pelo cliente</Text>
-                    <Image
-                      source={{ uri: service.imageUrl }}
-                      style={styles.serviceImage}
-                    />
+                    <Text style={styles.detailLabel}>
+                      {attachedImages.length === 1 ? 'Foto enviada pelo cliente' : `Fotos enviadas pelo cliente (${attachedImages.length})`}
+                    </Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 10, paddingTop: 8 }}
+                    >
+                      {attachedImages.map((imgUri, idx) => {
+                        const resolved = resolveImageUrl(imgUri) || imgUri;
+                        return (
+                          <Image
+                            key={idx}
+                            source={{ uri: resolved }}
+                            style={styles.serviceImage}
+                            resizeMode="cover"
+                          />
+                        );
+                      })}
+                    </ScrollView>
                   </View>
                 </View>
               )}
@@ -189,8 +225,9 @@ export default function NewCall() {
             <View style={styles.clientRow}>
               {service.clientPhoto ? (
                 <Image
-                  source={{ uri: service.clientPhoto }}
+                  source={{ uri: resolveImageUrl(service.clientPhoto) || service.clientPhoto }}
                   style={styles.clientAvatar}
+                  resizeMode="cover"
                 />
               ) : (
                 <View style={styles.clientAvatarFallback}>

@@ -19,6 +19,7 @@ import {
 import { 
   View, 
   Text, 
+  Image,
   ActivityIndicator, 
   Alert, 
   StyleSheet, 
@@ -28,7 +29,7 @@ import {
 } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
 import { WorkEzTheme } from '../../../constants/theme';
-import { apiRequest, getWebSocketUrl } from '../../../services/api';
+import { apiRequest, getWebSocketUrl, resolveImageUrl } from '../../../services/api';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -37,12 +38,16 @@ interface ServiceDetail {
   category: string;
   description: string;
   address?: string;
+  addressApproximate?: string;
   startTime?: string;
   createdAt?: string;
   date?: string;
   status: string;
   clientName: string;
   clientPhone?: string;
+  clientPhoto?: string;
+  imageUrl?: string;
+  images?: string[];
   price?: number;
 }
 
@@ -55,6 +60,25 @@ export default function AcceptedService() {
   const { data: service, loading, error, refetch } = useFetch<ServiceDetail>(
     id ? `/api/Services/${id}` : null
   );
+
+  const attachedImages: string[] = (() => {
+    if (Array.isArray(service?.images) && service.images.length > 0) {
+      return service.images.filter((img: any) => typeof img === 'string' && img.trim().length > 0);
+    }
+    if (typeof service?.imageUrl === 'string' && service.imageUrl.trim().length > 0) {
+      const trimmed = service.imageUrl.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((img: any) => typeof img === 'string' && img.trim().length > 0);
+          }
+        } catch {}
+      }
+      return [service.imageUrl];
+    }
+    return [];
+  })();
 
   useFocusEffect(
     useCallback(() => {
@@ -436,6 +460,24 @@ export default function AcceptedService() {
             </View>
           ) : null}
 
+          {attachedImages.length > 0 && (
+            <View style={{ marginTop: 14 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 8 }}>
+                {attachedImages.length === 1 ? 'Foto enviada pelo cliente:' : `Fotos enviadas pelo cliente (${attachedImages.length}):`}
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                {attachedImages.map((uri, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri: resolveImageUrl(uri) || uri }}
+                    style={{ width: 120, height: 120, borderRadius: 10 }}
+                    resizeMode="cover"
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           <View style={styles.divider} />
 
           <View style={styles.infoGrid}>
@@ -462,9 +504,17 @@ export default function AcceptedService() {
           <Text style={styles.sectionTitle}>Cliente</Text>
           
           <View style={styles.clientRow}>
-            <View style={styles.avatar}>
-              <User size={22} color="#2563EB" />
-            </View>
+            {service.clientPhoto ? (
+              <Image
+                source={{ uri: resolveImageUrl(service.clientPhoto) || service.clientPhoto }}
+                style={styles.avatar}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.avatar}>
+                <User size={22} color="#2563EB" />
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.clientName}>{service.clientName || 'Cliente WorkEz'}</Text>
               {service.clientPhone ? (

@@ -44,7 +44,16 @@ export default function SearchingProfessional() {
     images: string;
   }>();
 
-  const parsedImages: string[] = images ? JSON.parse(images) : [];
+  const parsedImages: string[] = (() => {
+    if (!images) return [];
+    if (Array.isArray(images)) return images;
+    try {
+      const p = JSON.parse(images);
+      return Array.isArray(p) ? p : [p];
+    } catch {
+      return [images];
+    }
+  })();
 
   const { data: customer, loading: customerLoading, error: customerError } = useFetch<any>(
     user ? `/api/Customers/by-user/${user.id}` : null
@@ -86,7 +95,7 @@ export default function SearchingProfessional() {
           title: `Chamado para ${category || 'Serviço'}`,
           description: description || '',
           categoryId: categoryId,
-          imageUrl: parsedImages.length > 0 ? parsedImages[0] : null,
+          imageUrl: parsedImages.length > 0 ? (parsedImages.length === 1 ? parsedImages[0] : JSON.stringify(parsedImages)) : null,
           address: {
             zipCode: cep,
             street: street,

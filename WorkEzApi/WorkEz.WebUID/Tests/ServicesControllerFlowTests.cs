@@ -253,4 +253,131 @@ public class ServicesControllerFlowTests
         Assert.NotNull(data.professional);
         Assert.Equal("Carlos Técnico", (string)data.professional.name);
     }
+
+    [Fact]
+    public async Task GetById_ShouldReturnClientPhoto_Images_AndFormattedAddress()
+    {
+        using var db = CreateInMemoryDbContext();
+        var fakeTracker = new FakeTrackingNotificationService();
+        var fakeOpp = new FakeOpportunityService();
+        var controller = new ServicesController(fakeOpp, db, fakeTracker);
+
+        var customerUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Luis Felipe",
+            Phone = "(12) 99999-8888",
+            ProfilePicture = "https://example.com/profiles/luis.png"
+        };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        db.Users.Add(customerUser);
+        db.Customers.Add(customer);
+
+        var address = new Address
+        {
+            Id = Guid.NewGuid(),
+            UserId = customerUser.Id,
+            Street = "Rua das Palmeiras",
+            Number = "450",
+            Complement = "Bloco B",
+            Neighborhood = "Jardim América",
+            City = "São José dos Campos",
+            State = "SP"
+        };
+        db.Addresses.Add(address);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            AddressId = address.Id,
+            Address = address,
+            Title = "Chamado para Técnico",
+            Description = "Reparo em notebook",
+            ImageUrl = "[\"https://example.com/img1.jpg\",\"https://example.com/img2.jpg\"]",
+            ServiceStatus = ServiceStatus.Open,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Services.Add(service);
+        await db.SaveChangesAsync();
+
+        var actionResult = await controller.GetById(service.Id);
+        var okResult = Assert.IsType<OkObjectResult>(actionResult);
+        dynamic data = okResult.Value!;
+
+        Assert.Equal(service.Id, (Guid)data.id);
+        Assert.Equal("https://example.com/profiles/luis.png", (string)data.clientPhoto);
+        Assert.Equal("https://example.com/img1.jpg", (string)data.imageUrl);
+        string[] images = (string[])data.images;
+        Assert.Equal(2, images.Length);
+        Assert.Equal("https://example.com/img1.jpg", images[0]);
+        Assert.Equal("https://example.com/img2.jpg", images[1]);
+        Assert.Equal("Rua das Palmeiras, 450 (Bloco B) - Jardim América - São José dos Campos/SP", (string)data.address);
+        Assert.Equal("Jardim América, São José dos Campos/SP", (string)data.addressApproximate);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnProviderPhoto_WhenProposalAccepted()
+    {
+        using var db = CreateInMemoryDbContext();
+        var fakeTracker = new FakeTrackingNotificationService();
+        var fakeOpp = new FakeOpportunityService();
+        var controller = new ServicesController(fakeOpp, db, fakeTracker);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente Teste" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        db.Users.Add(customerUser);
+        db.Customers.Add(customer);
+
+        var providerUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Prestador Teste",
+            ProfilePicture = "https://example.com/provider-avatar.jpg"
+        };
+        var provider = new ServiceProviderEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = providerUser.Id,
+            User = providerUser,
+            AverageRating = 4.8m
+        };
+        db.Users.Add(providerUser);
+        db.Providers.Add(provider);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            Title = "Serviço com Proposta",
+            ServiceStatus = ServiceStatus.Accepted,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Services.Add(service);
+
+        var proposal = new Proposal
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProviderId = provider.Id,
+            Provider = provider,
+            ProposedPrice = 250m,
+            ProposalStatus = ProposalStatus.Accepted,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Proposals.Add(proposal);
+        await db.SaveChangesAsync();
+
+        var actionResult = await controller.GetById(service.Id);
+        var okResult = Assert.IsType<OkObjectResult>(actionResult);
+        dynamic data = okResult.Value!;
+
+        Assert.NotNull(data.professional);
+        Assert.Equal("Prestador Teste", (string)data.professional.name);
+        Assert.Equal("https://example.com/provider-avatar.jpg", (string)data.professional.photo);
+        Assert.Equal(4.8m, (decimal)data.professional.rating);
+    }
 }
+

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkEz.Application.DTOs;
@@ -144,7 +145,6 @@ public class ServicesController(
         {
             var customerAddress = await db.Addresses
                 .Where(a => a.UserId == customer.UserId && a.Latitude.HasValue && a.Longitude.HasValue)
-                .OrderByDescending(a => a.CreatedAt)
                 .FirstOrDefaultAsync();
 
             if (customerAddress != null)
@@ -226,6 +226,7 @@ public class ServicesController(
     public async Task<IActionResult> GetById(Guid id)
     {
         var service = await db.Services
+            .Include(s => s.Address)
             .Include(s => s.Customer)
                 .ThenInclude(c => c.User)
             .Include(s => s.Proposals)
@@ -241,23 +242,106 @@ public class ServicesController(
 
         var acceptedProposal = service.Proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Accepted);
         var activeProvider = service.Appointment?.Provider ?? acceptedProposal?.Provider;
+        if (activeProvider == null && service.Appointment != null && service.Appointment.ProviderId != Guid.Empty)
+        {
+            activeProvider = await db.Providers.Include(p => p.User).FirstOrDefaultAsync(p => p.Id == service.Appointment.ProviderId);
+        }
+        if (activeProvider == null && acceptedProposal != null && acceptedProposal.ProviderId != Guid.Empty)
+        {
+            activeProvider = await db.Providers.Include(p => p.User).FirstOrDefaultAsync(p => p.Id == acceptedProposal.ProviderId);
+        }
+        if (activeProvider == null && service.ServiceStatus != ServiceStatus.Open)
+        {
+            var latestProp = service.Proposals.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
+            if (latestProp != null)
+            {
+                activeProvider = latestProp.Provider ?? await db.Providers.Include(p => p.User).FirstOrDefaultAsync(p => p.Id == latestProp.ProviderId);
+            }
+        }
+
         var price = service.Appointment?.FinalPrice ?? acceptedProposal?.ProposedPrice;
         var clientPhone = service.Customer?.User?.Phone ?? "";
+        var clientPhoto = service.Customer?.User?.ProfilePicture ?? "";
 
         object? professional = null;
         if (activeProvider != null)
         {
+            var user = activeProvider.User;
+            if (user == null && activeProvider.UserId != Guid.Empty)
+            {
+                user = await db.Users.FindAsync(activeProvider.UserId);
+            }
+
             professional = new
             {
                 id = activeProvider.Id,
                 userId = activeProvider.UserId,
-                name = activeProvider.User?.Name ?? "Profissional",
-                photo = activeProvider.User?.ProfilePicture ?? "",
+                name = user?.Name ?? "Profissional",
+                photo = user?.ProfilePicture ?? "",
                 rating = activeProvider.AverageRating
             };
         }
 
         var brStartTime = ToBrasiliaTime(service.CreatedAt);
+
+        var address = service.Address;
+        if (address == null && service.Customer != null)
+        {
+            address = await db.Addresses
+                .Where(a => a.UserId == service.Customer.UserId)
+                .FirstOrDefaultAsync();
+        }
+
+        string addressText = "Endereço cadastrado";
+        string addressApproximate = "Endereço cadastrado";
+        if (address != null)
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(address.Street))
+            {
+                var streetPart = address.Street;
+                if (!string.IsNullOrWhiteSpace(address.Number))
+                    streetPart += $", {address.Number}";
+                if (!string.IsNullOrWhiteSpace(address.Complement))
+                    streetPart += $" ({address.Complement})";
+                parts.Add(streetPart);
+            }
+            if (!string.IsNullOrWhiteSpace(address.Neighborhood))
+                parts.Add(address.Neighborhood);
+            if (!string.IsNullOrWhiteSpace(address.City))
+                parts.Add(!string.IsNullOrWhiteSpace(address.State) ? $"{address.City}/{address.State}" : address.City);
+
+            if (parts.Count > 0)
+                addressText = string.Join(" - ", parts);
+
+            if (!string.IsNullOrWhiteSpace(address.Neighborhood) && !string.IsNullOrWhiteSpace(address.City))
+                addressApproximate = !string.IsNullOrWhiteSpace(address.State)
+                    ? $"{address.Neighborhood}, {address.City}/{address.State}"
+                    : $"{address.Neighborhood}, {address.City}";
+            else
+                addressApproximate = addressText;
+        }
+
+        string[] images = Array.Empty<string>();
+        if (!string.IsNullOrWhiteSpace(service.ImageUrl))
+        {
+            var trimmed = service.ImageUrl.Trim();
+            if (trimmed.StartsWith("["))
+            {
+                try
+                {
+                    images = JsonSerializer.Deserialize<string[]>(trimmed) ?? Array.Empty<string>();
+                }
+                catch
+                {
+                    images = new[] { service.ImageUrl };
+                }
+            }
+            else
+            {
+                images = new[] { service.ImageUrl };
+            }
+        }
 
         return Ok(new
         {
@@ -266,12 +350,16 @@ public class ServicesController(
             providerUserId = activeProvider?.UserId,
             category = string.IsNullOrWhiteSpace(service.Title) ? "Serviço" : service.Title,
             description = service.Description,
-            address = "Endereço cadastrado",
+            address = addressText,
+            addressApproximate,
             startTime = brStartTime.ToString("dd'/'MM'/'yyyy 'às' HH:mm"),
             createdAt = service.CreatedAt.ToString("o"),
             status = service.ServiceStatus.ToString().ToLower(),
             clientName = service.Customer?.User?.Name ?? "Cliente",
             clientPhone,
+            clientPhoto,
+            imageUrl = images.FirstOrDefault() ?? service.ImageUrl,
+            images,
             price,
             date = brStartTime.ToString("dd'/'MM'/'yyyy"),
             professional

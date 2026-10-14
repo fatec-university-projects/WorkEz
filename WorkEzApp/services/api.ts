@@ -141,4 +141,22 @@ async function tryRefreshToken(): Promise<boolean> {
   }
 }
 
+export function resolveImageUrl(url?: string | null): string | undefined {
+  if (!url || typeof url !== 'string') return undefined;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith('data:')) return trimmed;
+  if (trimmed.startsWith('/')) {
+    return `${API_BASE_URL}${trimmed}`;
+  }
+  if (Platform.OS !== 'web' && (trimmed.includes('localhost') || trimmed.includes('127.0.0.1'))) {
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest?.debuggerHost;
+    const hostIp = hostUri ? hostUri.split(':')[0] : null;
+    if (hostIp) {
+      return trimmed.replace('localhost', hostIp).replace('127.0.0.1', hostIp);
+    }
+  }
+  return trimmed;
+}
+
 export { API_BASE_URL, STORAGE_KEY_ACCESS, STORAGE_KEY_REFRESH };

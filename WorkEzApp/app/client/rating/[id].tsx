@@ -5,7 +5,7 @@ import { Button } from '../../../components/Button';
 import { View, Text, TouchableOpacity, Image, TextInput, ActivityIndicator, Alert, ScrollView, Platform } from 'react-native';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useFetch } from '../../../hooks/useFetch';
-import { apiRequest } from '../../../services/api';
+import { apiRequest, resolveImageUrl } from '../../../services/api';
 import { WorkEzTheme } from '../../../constants/theme';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 
@@ -173,7 +173,7 @@ export default function Rating() {
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0] items-center">
           {service.professional?.photo ? (
             <Image
-              source={{ uri: service.professional.photo }}
+              source={{ uri: resolveImageUrl(service.professional.photo) || service.professional.photo }}
               className="w-20 h-20 rounded-full object-cover mb-3"
             />
           ) : (

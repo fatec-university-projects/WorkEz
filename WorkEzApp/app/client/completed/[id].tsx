@@ -7,6 +7,7 @@ import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView } from 're
 import { useFetch } from '../../../hooks/useFetch';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../../constants/theme';
+import { resolveImageUrl } from '../../../services/api';
 
 export default function ServiceCompleted() {
   const router = useRouter();
@@ -74,7 +75,7 @@ export default function ServiceCompleted() {
             <View className="flex-row items-center gap-3 mb-4">
               {service.professional?.photo ? (
                 <Image
-                  source={{ uri: service.professional.photo }}
+                  source={{ uri: resolveImageUrl(service.professional.photo) || service.professional.photo }}
                   className="w-16 h-16 rounded-full object-cover"
                 />
               ) : (

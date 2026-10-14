@@ -37,7 +37,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
-import { apiRequest, getWebSocketUrl } from '../../../services/api';
+import { apiRequest, getWebSocketUrl, resolveImageUrl } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { LiveTrackingMap } from '../../../components/LiveTrackingMap';
@@ -56,6 +56,9 @@ interface ProposalData {
   serviceId: string;
   providerId: string;
   providerName: string;
+  providerPhoto?: string;
+  providerRating?: number;
+  providerUserId?: string;
   proposedPrice: number;
   laborPrice?: number;
   materialsPrice?: number;
@@ -767,9 +770,17 @@ export default function ServiceTracking() {
                       }}
                       activeOpacity={0.7}
                     >
-                      <View style={styles.avatar}>
-                        <User size={20} color="#2563EB" />
-                      </View>
+                      {proposal.providerPhoto ? (
+                        <Image
+                          source={{ uri: resolveImageUrl(proposal.providerPhoto) || proposal.providerPhoto }}
+                          style={styles.avatarImg}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.avatar}>
+                          <User size={20} color="#2563EB" />
+                        </View>
+                      )}
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>
@@ -977,13 +988,17 @@ export default function ServiceTracking() {
                     activeOpacity={0.7}
                     disabled={!confirmedProviderId}
                   >
-                    {service.professional?.photo ? (
-                      <Image source={{ uri: service.professional.photo }} style={styles.avatarImg} />
-                    ) : (
-                      <View style={styles.avatar}>
-                        <User size={22} color="#2563EB" />
-                      </View>
-                    )}
+                    {(() => {
+                      const photoUrl = service.professional?.photo || acceptedProposal?.providerPhoto;
+                      const resolved = resolveImageUrl(photoUrl) || photoUrl;
+                      return resolved ? (
+                        <Image source={{ uri: resolved }} style={styles.avatarImg} resizeMode="cover" />
+                      ) : (
+                        <View style={styles.avatar}>
+                          <User size={22} color="#2563EB" />
+                        </View>
+                      );
+                    })()}
                     <View style={{ flex: 1 }}>
                       <Text style={styles.clientName}>
                         {service.professional?.name || acceptedProposal?.providerName || 'Prestador Confirmado'}

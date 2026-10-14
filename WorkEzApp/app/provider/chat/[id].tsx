@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Send, AlertCircle, User, Check, X, CornerDownRight, CheckCircle, MessageCircle } from 'lucide-react-native';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
 import { useAuth } from '../../../contexts/AuthContext';
-import { apiRequest, getWebSocketUrl } from '../../../services/api';
+import { apiRequest, getWebSocketUrl, resolveImageUrl } from '../../../services/api';
 
 interface ProposalInfo {
   id: string;
@@ -394,9 +394,17 @@ export default function ProviderChat() {
           >
             <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
           </TouchableOpacity>
-          <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
-            <User size={20} color={WorkEzTheme.colors.textSecondary} />
-          </View>
+          {service?.clientPhoto ? (
+            <Image
+              source={{ uri: resolveImageUrl(service.clientPhoto) || service.clientPhoto }}
+              style={styles.avatar}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
+              <User size={20} color={WorkEzTheme.colors.textSecondary} />
+            </View>
+          )}
           <View style={styles.headerInfo}>
             <Text style={styles.clientName}>{service?.clientName || 'Cliente (Solicitante)'}</Text>
             <Text style={[

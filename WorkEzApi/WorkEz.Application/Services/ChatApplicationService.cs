@@ -145,6 +145,10 @@ public class ChatApplicationService(
     {
         var financialVo = PriceProposalVo.Create(proposal.LaborPrice, proposal.MaterialsPrice, proposal.ProposedPrice);
         var providerName = proposal.Provider?.User?.Name ?? "Prestador";
+        var providerPhoto = proposal.Provider?.User?.ProfilePicture;
+        var providerRating = proposal.Provider?.AverageRating;
+        var providerUserId = proposal.Provider?.UserId;
+
         return new ProposalResponseDto(
             Id: proposal.Id,
             ServiceId: proposal.ServiceId,
@@ -161,7 +165,10 @@ public class ChatApplicationService(
             CounterDescription: proposal.CounterDescription,
             CounterOfferedAt: proposal.CounterOfferedAt,
             LaborPrice: financialVo.LaborAmount,
-            MaterialsPrice: financialVo.MaterialsAmount
+            MaterialsPrice: financialVo.MaterialsAmount,
+            ProviderPhoto: providerPhoto,
+            ProviderRating: providerRating,
+            ProviderUserId: providerUserId
         );
     }
 }

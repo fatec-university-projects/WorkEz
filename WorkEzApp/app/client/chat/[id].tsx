@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
 import { useAuth } from '../../../contexts/AuthContext';
-import { apiRequest, getWebSocketUrl } from '../../../services/api';
+import { apiRequest, getWebSocketUrl, resolveImageUrl } from '../../../services/api';
 
 interface ProposalInfo {
   id: string;
@@ -14,6 +14,7 @@ interface ProposalInfo {
   providerId?: string;
   providerUserId?: string;
   providerName: string;
+  providerPhoto?: string;
   proposedPrice: number;
   status: string;
   counterPrice?: number;
@@ -314,13 +315,17 @@ export default function ClientChat() {
             activeOpacity={0.7}
             disabled={!targetProviderId}
           >
-            {service?.professional?.photo ? (
-              <Image source={{ uri: service.professional.photo }} style={styles.avatarImg} />
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
-                <User size={20} color={WorkEzTheme.colors.textSecondary} />
-              </View>
-            )}
+            {(() => {
+              const photo = service?.professional?.photo || proposal?.providerPhoto;
+              const resolved = resolveImageUrl(photo) || photo;
+              return resolved ? (
+                <Image source={{ uri: resolved }} style={styles.avatarImg} resizeMode="cover" />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
+                  <User size={20} color={WorkEzTheme.colors.textSecondary} />
+                </View>
+              );
+            })()}
             <View style={styles.headerInfo}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={styles.professionalName} numberOfLines={1}>
