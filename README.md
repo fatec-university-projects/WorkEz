@@ -61,16 +61,18 @@ O **WorkEz** é uma plataforma completa para intermediação e contratação de 
 ### 👤 Para o Cliente (Customer)
 - **Autenticação Segura**: Criação de conta, login unificado com JWT, persistência com auto-refresh token.
 - **Catálogo de Categorias**: Busca de serviços por segmento profissional.
-- **Abertura de Chamados ("Chamar Agora")**: Descrição detalhada do problema, upload de imagens (servidor local ou ImgBB) e busca de endereço por CEP (ViaCEP).
-- **Comparação e Aceite de Propostas**: Análise de propostas de múltiplos prestadores discriminando valores de serviço e peças.
+- **Abertura de Chamados ("Chamar Agora")**: Descrição detalhada do problema, upload de múltiplas fotos (servidor local ou ImgBB) e busca de endereço por CEP (ViaCEP).
+- **Comparação e Aceite de Propostas**: Análise de propostas de múltiplos prestadores discriminando valores de serviço e peças, além da foto e avaliação de cada profissional.
 - **Acompanhamento ao Vivo (Tracking)**: Notificação e mapa em tempo real via WebSocket (`Pendente` → `Aceito` → `A Caminho` → `Em Execução` → `Aguardando Pagamento` → `Concluído`).
-- **Chat em Tempo Real**: Troca instantânea de mensagens com o profissional.
+- **Chat em Tempo Real**: Troca instantânea de mensagens com o profissional, com fechamento e bloqueio automático quando uma proposta é recusada.
 - **Checkout com PIX**: Geração de QR Code e código Copia-e-Cola direto no app, com confirmação via webhook e polling.
-- **Avaliações Reais**: Envio de notas de 1 a 5 estrelas com comentários e tags de recomendação para o profissional.
+- **Avaliações Reais e Flexíveis**: Envio de notas de 1 a 5 estrelas com comentários opcionais e tags de recomendação (exibição limpa apenas com estrelas caso não haja texto).
 
 ### 🛠️ Para o Prestador de Serviços (ServiceProvider)
 - **Onboarding e Perfil Profissional**: Cadastro com foto de perfil, anos de experiência, biografia, especialidades e galeria de portfólio.
-- **Mural de Oportunidades**: Visualização de chamados abertos compatíveis com suas áreas de atuação.
+- **Mural de Oportunidades com Filtro Geográfico**: Visualização inteligente de chamados abertos, ocultando automaticamente oportunidades fora do raio de atendimento do prestador.
+- **Configuração de Raio de Atuação**: Definição do raio em km (5km a 100km) com preview interativo em mapa e geocodificação de endereço.
+- **Galeria de Fotos do Chamado**: Visualização das imagens anexadas pelo cliente antes e depois do aceite.
 - **Envio de Propostas e Leilão**: Formulação de propostas discriminando Mão de Obra e Materiais, com cálculo em tempo real do ganho líquido e da taxa da plataforma.
 - **Controle Unificado de Atendimento**: Gestão direta do ciclo de atendimento (*Iniciar Deslocamento* ➔ *Iniciar Serviço* ➔ *Concluir Serviço*).
 - **Carteira Digital (Wallet)**: Extrato transparente de recebimentos, histórico de chamados e saldo acumulado.
@@ -86,7 +88,7 @@ graph TB
         UI["React Native (Expo 54)<br/>Expo Router + NativeWind + Web"]
         AuthCtx["AuthContext (AsyncStorage + Profile Sync)"]
         WSClient["WebSocket Client<br/>(Tracking & Chat)"]
-        E2E["Playwright E2E Suite<br/>(6 fluxos ponta a ponta)"]
+        E2E["Playwright E2E Suite<br/>(7 fluxos ponta a ponta)"]
     end
 
     subgraph StorageUploads["Armazenamento & Uploads"]
@@ -247,13 +249,13 @@ WorkEz/
 │   └── WorkEz.WebUID/                     # Controllers REST, WebSockets e Startup
 │       ├── Controllers/                   # Controllers REST (Auth, Services, Reviews, Users, Uploads...)
 │       ├── WebSockets/                    # Managers de WebSocket (Tracking e Chat)
-│       └── Tests/                         # Bateria de testes unitários xUnit (54 testes)
+│       └── Tests/                         # Bateria de testes unitários xUnit (62 testes)
 │
 ├── WorkEzApp/                             # Frontend React Native (Expo 54 Mobile & Web)
 │   ├── app/                               # Telas e rotas (Expo Router - File-based)
 │   │   ├── client/                        # Fluxo completo do Cliente (detalhes, tracking, chat, avaliação)
-│   │   └── provider/                      # Fluxo do Prestador (propostas, execução unificada, carteira)
-│   ├── components/                        # Componentes UI (ScreenHeader, Button, RatingCard, BottomNav)
+│   │   └── provider/                      # Fluxo do Prestador (propostas, execução unificada, carteira, raio)
+│   ├── components/                        # Componentes UI (ScreenHeader, Button, RatingCard, RadiusMapPreview)
 │   ├── contexts/                          # AuthContext (sessão, tokens e sincronização com backend)
 │   ├── services/                          # Clientes de API (api.ts com auto-resolução de IP, imageService)
 │   ├── playwright.config.ts               # Configuração do Playwright para testes E2E
@@ -263,7 +265,8 @@ WorkEz/
 │       ├── 03-chat-and-websocket.spec.ts  # Teste E2E de mensageria em tempo real
 │       ├── 04-service-execution-and-review.spec.ts # Teste E2E do ciclo de atendimento e avaliação
 │       ├── 05-found-screen.spec.ts        # Teste E2E de visualização do profissional encontrado
-│       └── 06-provider-profile-navigation.spec.ts # Teste E2E do perfil do prestador
+│       ├── 06-provider-profile-navigation.spec.ts # Teste E2E do perfil do prestador
+│       └── 07-geolocation-and-tracking.spec.ts    # Teste E2E de geolocalização, raio de atendimento e tracking
 │
 ├── run-all.ps1                            # Script PowerShell: sobe API e App simultaneamente
 ├── run-api.ps1                            # Script PowerShell: sobe apenas a API .NET
@@ -456,7 +459,7 @@ Cobre as regras de negócio de propostas com mão de obra/materiais, agendamento
 dotnet test WorkEzApi/WorkEz.WebUID/WorkEz.WebUID.csproj
 ```
 
-> **Resultado**: 54 testes unitários automatizados passando com 100% de sucesso.
+> **Resultado**: 62 testes unitários automatizados passando com 100% de sucesso.
 
 ### 2. Testes End-to-End (Playwright — WorkEzApp)
 A suíte E2E em [`WorkEzApp/e2e/`](file:///d:/Projetos/WorkEz/WorkEzApp/e2e) valida os fluxos completos do usuário de ponta a ponta:
@@ -469,6 +472,7 @@ A suíte E2E em [`WorkEzApp/e2e/`](file:///d:/Projetos/WorkEz/WorkEzApp/e2e) val
 | `04-service-execution-and-review.spec.ts` | Ciclo completo: Deslocamento ➔ Execução ➔ Pagamento ➔ Avaliação com estrelas |
 | `05-found-screen.spec.ts` | Tela de profissional encontrado, verificação de dados e links rápidos |
 | `06-provider-profile-navigation.spec.ts` | Edição de perfil do prestador, foto, anos de experiência e visualização pública |
+| `07-geolocation-and-tracking.spec.ts` | Filtro por raio de atendimento geográfico, cálculo de distância e acompanhamento ao vivo |
 
 Para executar:
 ```bash
