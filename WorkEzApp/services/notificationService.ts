@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { apiRequest } from './api';
+import { authService } from './authService';
 import { safeStorage as AsyncStorage } from './storage';
 
 const STORAGE_KEY_PUSH_TOKEN = '@workez_push_token';
@@ -198,13 +199,18 @@ class NotificationService {
         }
         break;
 
-      case 'chat_message':
-        if (data.proposalId) {
-          onNavigate(`/client/chat/${data.proposalId}`);
-        } else if (data.serviceId) {
-          onNavigate(`/client/chat/${data.serviceId}`);
+      case 'chat_message': {
+        const targetId = data.proposalId || data.serviceId;
+        if (targetId) {
+          authService.getUser().then((user) => {
+            const isProvider = user?.role === 'ServiceProvider';
+            onNavigate(isProvider ? `/provider/chat/${targetId}` : `/client/chat/${targetId}`);
+          }).catch(() => {
+            onNavigate(`/client/chat/${targetId}`);
+          });
         }
         break;
+      }
 
       default:
         console.log('[NotificationService] Tipo de notificação sem rota específica:', data.type);

@@ -46,8 +46,8 @@ public class ChatController(
                 await _chatNotification.NotifyChatUpdateAsync(targetProposalId, msg.ServiceId, "new_message", msg);
             }
 
-            // Dispara notificação push em background se destinatário não estiver com WebSocket ativo
-            if (!isWsActive && _pushNotification != null)
+            // Dispara notificação push para o destinatário da mensagem
+            if (_pushNotification != null)
             {
                 _ = Task.Run(async () =>
                 {
@@ -58,38 +58,72 @@ public class ChatController(
                         if (command.IsFromProvider)
                         {
                             // Prestador enviou mensagem: destinatário é o Cliente
-                            if (msg.ServiceId.HasValue)
+                            if (msg.ServiceId.HasValue && msg.ServiceId.Value != Guid.Empty)
                             {
                                 var service = await _db.Services
                                     .Include(s => s.Customer)
                                     .FirstOrDefaultAsync(s => s.Id == msg.ServiceId.Value);
-                                recipientUserId = service?.Customer?.UserId;
+
+                                if (service?.Customer != null && service.Customer.UserId != Guid.Empty)
+                                {
+                                    recipientUserId = service.Customer.UserId;
+                                }
+                                else if (service != null)
+                                {
+                                    var customer = await _db.Customers.FindAsync(service.CustomerId);
+                                    recipientUserId = customer?.UserId;
+                                }
                             }
-                            else if (msg.ProposalId.HasValue)
+
+                            if (!recipientUserId.HasValue && msg.ProposalId.HasValue && msg.ProposalId.Value != Guid.Empty)
                             {
                                 var proposal = await _db.Proposals
                                     .Include(p => p.Service)
                                         .ThenInclude(s => s.Customer)
                                     .FirstOrDefaultAsync(p => p.Id == msg.ProposalId.Value);
+
                                 recipientUserId = proposal?.Service?.Customer?.UserId;
                             }
                         }
                         else
                         {
                             // Cliente enviou mensagem: destinatário é o Prestador
-                            if (msg.ProposalId.HasValue)
+                            if (msg.ProposalId.HasValue && msg.ProposalId.Value != Guid.Empty)
                             {
                                 var proposal = await _db.Proposals
                                     .Include(p => p.Provider)
                                     .FirstOrDefaultAsync(p => p.Id == msg.ProposalId.Value);
-                                recipientUserId = proposal?.Provider?.UserId;
+
+                                if (proposal?.Provider != null && proposal.Provider.UserId != Guid.Empty)
+                                {
+                                    recipientUserId = proposal.Provider.UserId;
+                                }
+                                else if (proposal != null)
+                                {
+                                    var prov = await _db.Providers.FindAsync(proposal.ProviderId);
+                                    recipientUserId = prov?.UserId;
+                                }
                             }
-                            else if (msg.ServiceId.HasValue)
+
+                            if (!recipientUserId.HasValue && msg.ServiceId.HasValue && msg.ServiceId.Value != Guid.Empty)
                             {
                                 var appointment = await _db.Appointments
                                     .Include(a => a.Provider)
                                     .FirstOrDefaultAsync(a => a.ServiceId == msg.ServiceId.Value);
-                                recipientUserId = appointment?.Provider?.UserId;
+
+                                if (appointment?.Provider != null && appointment.Provider.UserId != Guid.Empty)
+                                {
+                                    recipientUserId = appointment.Provider.UserId;
+                                }
+                                else
+                                {
+                                    var acceptedProposal = await _db.Proposals
+                                        .Include(p => p.Provider)
+                                        .FirstOrDefaultAsync(p => p.ServiceId == msg.ServiceId.Value &&
+                                            (p.ProposalStatus == ProposalStatus.Accepted || p.ProposalStatus == ProposalStatus.NegotiationOpen));
+
+                                    recipientUserId = acceptedProposal?.Provider?.UserId;
+                                }
                             }
                         }
 
@@ -107,7 +141,8 @@ public class ChatController(
                                 {
                                     type = "chat_message",
                                     proposalId = msg.ProposalId,
-                                    serviceId = msg.ServiceId
+                                    serviceId = msg.ServiceId,
+                                    senderName = senderName
                                 }
                             );
                         }
