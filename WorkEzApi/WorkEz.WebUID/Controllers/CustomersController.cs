@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkEz.Domain.Entities;
 using WorkEz.Infra.Data.Context;
+using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
 
@@ -20,12 +21,15 @@ public class CustomersController(AppDbContext db) : ControllerBase
     );
 
     /// <summary>
-    /// Retorna perfil do cliente associado ao UserId.
+    /// Retorna perfil do cliente associado ao UserId (somente o próprio usuário ou Admin).
     /// Cria automaticamente se não existir.
     /// </summary>
     [HttpGet("by-user/{userId:guid}")]
     public async Task<IActionResult> GetByUserId(Guid userId)
     {
+        if (User.GetUserId() != userId && !User.IsAdmin())
+            return Forbid();
+
         var user = await db.Users.FindAsync(userId);
         if (user == null)
             return NotFound(new { message = "Usuário não encontrado." });
@@ -58,7 +62,7 @@ public class CustomersController(AppDbContext db) : ControllerBase
     }
 
     /// <summary>
-    /// Retorna dados do cliente pelo CustomerId.
+    /// Retorna dados do cliente pelo CustomerId. E-mail e telefone só para o próprio cliente (ou Admin).
     /// </summary>
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
@@ -70,14 +74,16 @@ public class CustomersController(AppDbContext db) : ControllerBase
         if (customer == null)
             return NotFound(new { message = "Cliente não encontrado." });
 
+        var canSeeContact = User.GetUserId() == customer.UserId || User.IsAdmin();
+
         return Ok(new CustomerProfileDto(
             customer.Id,
             customer.UserId,
             customer.User?.Name ?? "Cliente",
-            customer.User?.Email ?? "",
-            customer.User?.Phone,
+            canSeeContact ? customer.User?.Email ?? "" : "",
+            canSeeContact ? customer.User?.Phone : null,
             customer.User?.ProfilePicture,
-            customer.Notes
+            canSeeContact ? customer.Notes : null
         ));
     }
 
@@ -88,6 +94,9 @@ public class CustomersController(AppDbContext db) : ControllerBase
     [HttpGet("{userId:guid}/favorites")]
     public IActionResult GetFavorites(Guid userId)
     {
+        if (User.GetUserId() != userId && !User.IsAdmin())
+            return Forbid();
+
         return Ok(Array.Empty<object>());
     }
 }

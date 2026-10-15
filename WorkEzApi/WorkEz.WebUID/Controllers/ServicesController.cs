@@ -7,6 +7,7 @@ using WorkEz.Domain.Common;
 using WorkEz.Domain.Entities;
 using WorkEz.Domain.Enums;
 using WorkEz.Infra.Data.Context;
+using WorkEz.WebUID.Auth;
 using WorkEz.WebUID.WebSockets;
 
 namespace WorkEz.WebUID.Controllers;
@@ -53,6 +54,10 @@ public class ServicesController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOpportunities(Guid userId)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+        if (me.Value != userId && !User.IsAdmin()) return Forbid();
+
         var result = await opportunityService.GetOpportunitiesAsync(userId);
         return result.IsSuccess 
             ? Ok(result.Value) 
@@ -66,6 +71,10 @@ public class ServicesController(
     [ProducesResponseType(typeof(IEnumerable<OpportunityCallDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAcceptedByProviderUser(Guid userId)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+        if (me.Value != userId && !User.IsAdmin()) return Forbid();
+
         var provider = await db.Providers.FirstOrDefaultAsync(p => p.UserId == userId);
         if (provider == null)
             return Ok(Enumerable.Empty<OpportunityCallDto>());
@@ -110,6 +119,10 @@ public class ServicesController(
     [HttpPost("by-customer/{customerId:guid}")]
     public async Task<IActionResult> CreateService(Guid customerId, [FromBody] CreateServiceRequest request)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+        if (!User.IsAdmin() && !await db.OwnsCustomerAsync(customerId, me.Value)) return Forbid();
+
         var customer = await db.Customers.Include(c => c.User).FirstOrDefaultAsync(c => c.Id == customerId);
         if (customer == null)
             return NotFound(new { message = "Cliente não encontrado." });
@@ -245,6 +258,10 @@ public class ServicesController(
     [HttpGet("by-customer/{customerId:guid}")]
     public async Task<IActionResult> GetByCustomer(Guid customerId)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+        if (!User.IsAdmin() && !await db.OwnsCustomerAsync(customerId, me.Value)) return Forbid();
+
         var services = await db.Services
             .Include(s => s.Proposals)
                 .ThenInclude(p => p.Provider)
@@ -281,6 +298,9 @@ public class ServicesController(
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
         var service = await db.Services
             .Include(s => s.Address)
             .Include(s => s.Customer)
@@ -295,6 +315,13 @@ public class ServicesController(
 
         if (service == null)
             return NotFound(new { message = "Serviço não encontrado." });
+
+        var isOwner = service.Customer?.UserId == me.Value;
+        var isParticipant = isOwner || await db.IsServiceProviderAsync(id, me.Value);
+        var isOpenOpportunity = service.ServiceStatus == ServiceStatus.Open || service.ServiceStatus == ServiceStatus.UnderNegotiation;
+
+        if (!User.IsAdmin() && !isParticipant && !isOpenOpportunity)
+            return Forbid();
 
         var acceptedProposal = service.Proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Accepted);
         var activeProvider = service.Appointment?.Provider ?? acceptedProposal?.Provider;
@@ -316,7 +343,8 @@ public class ServicesController(
         }
 
         var price = service.Appointment?.FinalPrice ?? acceptedProposal?.ProposedPrice;
-        var clientPhone = service.Customer?.User?.Phone ?? "";
+        var isAssignedOrOwner = User.IsAdmin() || isOwner || await db.IsAssignedProviderAsync(id, me.Value);
+        var clientPhone = isAssignedOrOwner ? (service.Customer?.User?.Phone ?? "") : "";
         var clientPhoto = service.Customer?.User?.ProfilePicture ?? "";
 
         object? professional = null;
@@ -450,6 +478,10 @@ public class ServicesController(
     [HttpPatch("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromQuery] bool? status)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+        if (!User.IsAdmin() && !await db.IsServiceCustomerAsync(id, me.Value)) return Forbid();
+
         var service = await db.Services.FindAsync(id);
         if (service == null)
             return NotFound(new { message = "Serviço não encontrado." });
@@ -480,6 +512,10 @@ public class ServicesController(
     [HttpPatch("{id:guid}/start-displacement")]
     public async Task<IActionResult> StartDisplacement(Guid id)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+        if (!User.IsAdmin() && !await db.IsAssignedProviderAsync(id, me.Value)) return Forbid();
+
         var service = await db.Services.FindAsync(id);
         if (service == null) return NotFound();
         service.ServiceStatus = ServiceStatus.OnTheWay;
@@ -541,6 +577,10 @@ public class ServicesController(
     [HttpPatch("{id:guid}/start")]
     public async Task<IActionResult> StartService(Guid id)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+        if (!User.IsAdmin() && !await db.IsAssignedProviderAsync(id, me.Value)) return Forbid();
+
         var service = await db.Services.FindAsync(id);
         if (service == null) return NotFound();
         service.ServiceStatus = ServiceStatus.InProgress;
@@ -574,6 +614,10 @@ public class ServicesController(
     [HttpPatch("{id:guid}/complete")]
     public async Task<IActionResult> CompleteService(Guid id, [FromQuery] decimal? price)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+        if (!User.IsAdmin() && !await db.IsAssignedProviderAsync(id, me.Value)) return Forbid();
+
         var service = await db.Services.FindAsync(id);
         if (service == null) return NotFound();
         service.ServiceStatus = ServiceStatus.Completed;

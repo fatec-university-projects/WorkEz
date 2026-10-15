@@ -4,6 +4,7 @@ using WorkEz.Application.DTOs;
 using WorkEz.Application.Services;
 using WorkEz.Domain.Enums;
 using WorkEz.Infra.Data.Context;
+using WorkEz.WebUID.Auth;
 using WorkEz.WebUID.WebSockets;
 
 namespace WorkEz.WebUID.Controllers;
@@ -11,6 +12,7 @@ namespace WorkEz.WebUID.Controllers;
 /// <summary>
 /// Dedicated Chat Controller following Clean Architecture and Single Responsibility Principle (SRP).
 /// Handles all chat and real-time messaging concerns independently from Proposal lifecycles.
+/// Protected with JWT authentication, participant validation and IDOR prevention.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -28,17 +30,51 @@ public class ChatController(
 
     /// <summary>
     /// Envia uma mensagem no chat (vinculada a uma proposta e/ou serviço).
+    /// O remetente (SenderId) é estritamente derivado do token JWT autenticado.
     /// </summary>
     [HttpPost("messages")]
     [ProducesResponseType(typeof(ChatMessageResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SendMessage([FromBody] SendChatMessageCommand command)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        if (!command.ProposalId.HasValue && !command.ServiceId.HasValue)
+        {
+            return BadRequest(new { message = "ProposalId ou ServiceId deve ser informado." });
+        }
+
+        bool isCustomer = false;
+        bool isProvider = false;
+
+        if (command.ProposalId.HasValue && command.ProposalId.Value != Guid.Empty)
+        {
+            isCustomer = await _db.IsProposalCustomerAsync(command.ProposalId.Value, me.Value);
+            isProvider = await _db.IsProposalProviderAsync(command.ProposalId.Value, me.Value);
+        }
+        else if (command.ServiceId.HasValue && command.ServiceId.Value != Guid.Empty)
+        {
+            isCustomer = await _db.IsServiceCustomerAsync(command.ServiceId.Value, me.Value);
+            isProvider = await _db.IsServiceProviderAsync(command.ServiceId.Value, me.Value);
+        }
+
+        if (!User.IsAdmin() && !isCustomer && !isProvider)
+        {
+            return Forbid();
+        }
+
+        // Sobrescreve identidade e tipo com base nas claims verificadas
+        command = command with 
+        { 
+            SenderId = me.Value, 
+            IsFromProvider = isProvider && !isCustomer 
+        };
+
         var result = await _chatService.SendMessageAsync(command);
         if (result.IsSuccess && result.Value != null)
         {
             var msg = result.Value;
-            var isWsActive = _chatNotification?.HasActiveSubscribers(msg.ProposalId, msg.ServiceId) ?? false;
 
             if (_chatNotification != null && (msg.ProposalId.HasValue || msg.ServiceId.HasValue))
             {
@@ -160,25 +196,38 @@ public class ChatController(
         return BadRequest(new { message = result.Error, code = result.ErrorCode });
     }
 
-
     /// <summary>
     /// Retorna as mensagens de chat associadas a uma proposta.
+    /// Exige participação ativa na proposta ou privilégio de Admin.
     /// </summary>
     [HttpGet("proposals/{proposalId}")]
     [ProducesResponseType(typeof(IEnumerable<ChatMessageResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMessagesByProposal(Guid proposalId)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        if (!User.IsAdmin() && !await _db.IsProposalParticipantAsync(proposalId, me.Value))
+            return Forbid();
+
         var messages = await _chatService.GetMessagesByProposalIdAsync(proposalId);
         return Ok(messages);
     }
 
     /// <summary>
     /// Retorna as mensagens de chat associadas diretamente a um serviço.
+    /// Exige participação ativa no serviço ou privilégio de Admin.
     /// </summary>
     [HttpGet("services/{serviceId}")]
     [ProducesResponseType(typeof(IEnumerable<ChatMessageResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMessagesByService(Guid serviceId)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        if (!User.IsAdmin() && !await _db.IsServiceParticipantAsync(serviceId, me.Value))
+            return Forbid();
+
         var messages = await _chatService.GetMessagesByServiceIdAsync(serviceId);
         return Ok(messages);
     }
@@ -191,6 +240,12 @@ public class ChatController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetActiveProposalForService(Guid serviceId)
     {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        if (!User.IsAdmin() && !await _db.IsServiceParticipantAsync(serviceId, me.Value))
+            return Forbid();
+
         var proposal = await _chatService.GetActiveChatProposalByServiceIdAsync(serviceId);
         return proposal is not null ? Ok(proposal) : NotFound(new { message = "Nenhum chat ativo encontrado para este serviço." });
     }

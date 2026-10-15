@@ -66,22 +66,13 @@ public class UsersController(AppDbContext db, IWebHostEnvironment env) : Control
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileRequest request)
     {
-        User? user = null;
-
-        // 1. Tenta identificar pelo subject do token JWT
+        // A identidade vem exclusivamente do JWT. (Antes havia um fallback por e-mail enviado no body,
+        // que permitia alterar o perfil de qualquer usuário apenas conhecendo o e-mail dele.)
         var sub = User.FindFirst("sub")?.Value;
-        if (Guid.TryParse(sub, out var userId))
-        {
-            user = await db.Users.FindAsync(userId);
-        }
+        if (!Guid.TryParse(sub, out var userId))
+            return Unauthorized(new { message = "Usuário não autenticado." });
 
-        // 2. Fallback de segurança: busca pelo e-mail informado
-        if (user == null && !string.IsNullOrWhiteSpace(request.Email))
-        {
-            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-            user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
-        }
-
+        var user = await db.Users.FindAsync(userId);
         if (user == null)
             return NotFound(new { message = "Usuário não encontrado para atualização." });
 
@@ -161,7 +152,8 @@ public class UsersController(AppDbContext db, IWebHostEnvironment env) : Control
     }
 
     /// <summary>
-    /// Retorna dados do usuário por Id.
+    /// Retorna dados do usuário por Id. Dados de contato (e-mail/telefone) só vêm para o próprio usuário
+    /// (ou Admin); para os demais, apenas nome e foto.
     /// </summary>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
@@ -172,11 +164,14 @@ public class UsersController(AppDbContext db, IWebHostEnvironment env) : Control
         if (user == null)
             return NotFound(new { message = "Usuário não encontrado." });
 
+        var isSelf = User.FindFirst("sub")?.Value == id.ToString();
+        var canSeeContact = isSelf || User.IsInRole("Admin");
+
         return Ok(new UserProfileDto(
             user.Id,
             user.Name,
-            user.Email,
-            user.Phone,
+            canSeeContact ? user.Email : string.Empty,
+            canSeeContact ? user.Phone : null,
             user.ProfilePicture,
             user.Role.ToString()
         ));

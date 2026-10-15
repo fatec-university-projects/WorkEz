@@ -96,9 +96,11 @@ export default function AcceptedService() {
     let reconnectTimeout: any = null;
     let isMounted = true;
 
-    function connect() {
+    async function connect() {
+      if (!isMounted) return;
       try {
-        const wsUrl = getWebSocketUrl(`/ws/tracking?serviceId=${id}`);
+        const wsUrl = await getWebSocketUrl(`/ws/tracking?serviceId=${id}`);
+        if (!isMounted) return;
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {

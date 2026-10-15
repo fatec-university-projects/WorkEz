@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkEz.Domain.Entities;
 using WorkEz.Infra.Data.Context;
+using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
 
@@ -36,6 +37,10 @@ public class ProviderCategoriesController(AppDbContext db) : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateCategories(Guid providerId, [FromBody] List<Guid> categoryIds)
     {
+        var userId = User.GetUserId();
+        if (userId is null || (!User.IsAdmin() && !await db.OwnsProviderAsync(providerId, userId.Value)))
+            return Forbid();
+
         // Remove vínculos anteriores do prestador
         var existing = await db.ProviderCategories
             .Where(pc => pc.ProviderId == providerId)

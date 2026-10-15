@@ -29,9 +29,15 @@ if (__DEV__) {
   console.log(`[WorkEz API] Conectando a: ${API_BASE_URL}`);
 }
 
-export function getWebSocketUrl(path: string): string {
+export async function getWebSocketUrl(path: string): Promise<string> {
   const base = API_BASE_URL.replace(/^http/, 'ws');
-  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const token = await AsyncStorage.getItem(STORAGE_KEY_ACCESS);
+  if (!token) {
+    return `${base}${normalizedPath}`;
+  }
+  const separator = normalizedPath.includes('?') ? '&' : '?';
+  return `${base}${normalizedPath}${separator}access_token=${encodeURIComponent(token)}`;
 }
 
 export async function apiRequest<T>(

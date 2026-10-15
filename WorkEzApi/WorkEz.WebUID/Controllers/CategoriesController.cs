@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkEz.Infra.Data.Context;
@@ -7,6 +8,7 @@ namespace WorkEz.WebUID.Controllers;
 public record CategoryDto(Guid Id, string Name, string? Description);
 
 [ApiController]
+[AllowAnonymous] // catálogo público de categorias (usado no cadastro do prestador)
 [Route("api/[controller]")]
 public class CategoriesController(AppDbContext db) : ControllerBase
 {

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WorkEz.Domain.Entities;
 using WorkEz.Domain.Enums;
 using WorkEz.Infra.Data.Context;
+using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
 
@@ -47,6 +48,15 @@ public class ReviewsController(AppDbContext db) : ControllerBase
         var customer = await db.Customers.Include(c => c.User).FirstOrDefaultAsync(c => c.Id == customerId);
         if (customer == null)
             return NotFound(new { message = "Cliente solicitante não encontrado." });
+
+        // Ninguém avalia em nome de outro cliente.
+        if (User.GetUserId() != customer.UserId && !User.IsAdmin())
+            return Forbid();
+
+        // E só pode avaliar um chamado que é dele.
+        if (request.ServiceId.HasValue && request.ServiceId.Value != Guid.Empty
+            && !await db.Services.AnyAsync(s => s.Id == request.ServiceId.Value && s.CustomerId == customerId))
+            return Forbid();
 
         Guid targetReviewedUserId = Guid.Empty;
         Guid? targetAppointmentId = request.AppointmentId;

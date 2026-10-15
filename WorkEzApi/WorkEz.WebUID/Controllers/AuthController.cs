@@ -1,4 +1,5 @@
 using System.Net.Mail;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkEz.Domain.Entities;
@@ -21,6 +22,7 @@ public record RegisterResponse(Guid Id, string Name, string Email, string Role);
 /// Contrato consumido por WorkEzApp/services/authService.ts e api.ts.
 /// </summary>
 [ApiController]
+[AllowAnonymous] // login, cadastro e refresh são públicos por natureza
 [Route("api/[controller]")]
 public class AuthController(AppDbContext db, TokenService tokens) : ControllerBase
 {
