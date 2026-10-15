@@ -9,6 +9,9 @@ namespace WorkEz.Domain.Events
     public record ProposalSubmittedEvent(Guid EventId, DateTime OccurredOn, Guid ProposalId, Guid ServiceId, Guid ProviderId, decimal ProposedPrice) : IDomainEvent;
     public record ProposalAcceptedEvent(Guid EventId, DateTime OccurredOn, Guid ProposalId, Guid ServiceId, Guid CustomerId, Guid ProviderId, decimal AgreedPrice, Guid AppointmentId) : IDomainEvent;
     public record ProposalRejectedEvent(Guid EventId, DateTime OccurredOn, Guid ProposalId, Guid ServiceId, Guid CustomerId, string? Reason) : IDomainEvent;
+    public record ServiceCreatedEvent(Guid EventId, DateTime OccurredOn, Guid ServiceId, Guid CustomerId, string Title, double? Latitude, double? Longitude, Guid CategoryId) : IDomainEvent;
+    public record ProviderDisplacementStartedEvent(Guid EventId, DateTime OccurredOn, Guid ServiceId, Guid CustomerId, Guid ProviderId) : IDomainEvent;
+    public record ChatMessageSentEvent(Guid EventId, DateTime OccurredOn, Guid MessageId, Guid? ProposalId, Guid? ServiceId, Guid SenderId, string Content, bool IsFromProvider) : IDomainEvent;
 }
 
 namespace WorkEz.Domain.Services

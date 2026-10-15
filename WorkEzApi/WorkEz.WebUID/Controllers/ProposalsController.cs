@@ -14,13 +14,17 @@ namespace WorkEz.WebUID.Controllers;
 [Route("api/[controller]")]
 public class ProposalsController(
     IProposalApplicationService proposalApplicationService,
+    WorkEz.Domain.Interfaces.IServiceRepository serviceRepository,
     ITrackingNotificationService? trackingNotification = null,
-    IChatNotificationService? chatNotification = null
+    IChatNotificationService? chatNotification = null,
+    IPushNotificationService? pushNotification = null
 ) : ControllerBase
 {
     private readonly IProposalApplicationService _proposalApplicationService = proposalApplicationService;
+    private readonly WorkEz.Domain.Interfaces.IServiceRepository _serviceRepository = serviceRepository;
     private readonly ITrackingNotificationService? _trackingNotification = trackingNotification;
     private readonly IChatNotificationService? _chatNotification = chatNotification;
+    private readonly IPushNotificationService? _pushNotification = pushNotification;
 
     /// <summary>
     /// Envia proposta de preço do prestador.
@@ -31,13 +35,48 @@ public class ProposalsController(
     public async Task<IActionResult> ProposePrice([FromBody] ProposePriceRequest request)
     {
         var result = await _proposalApplicationService.ProposePriceAsync(request);
-        if (result.IsSuccess && _trackingNotification != null)
+        if (result.IsSuccess)
         {
-            await _trackingNotification.NotifyServiceUpdateAsync(request.ServiceId, "proposal_created", result.Value);
+            if (_trackingNotification != null)
+            {
+                await _trackingNotification.NotifyServiceUpdateAsync(request.ServiceId, "proposal_created", result.Value);
+            }
+
+            if (_pushNotification != null && result.Value != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var service = await _serviceRepository.GetByIdWithDetailsAsync(request.ServiceId);
+                        if (service?.Customer?.UserId != null)
+                        {
+                            var priceFormatted = result.Value.ProposedPrice.ToString("C", new System.Globalization.CultureInfo("pt-BR"));
+                            var provName = string.IsNullOrWhiteSpace(result.Value.ProviderName) ? "Um profissional" : result.Value.ProviderName;
+                            await _pushNotification.SendToUserAsync(
+                                service.Customer.UserId,
+                                "💰 Nova proposta recebida!",
+                                $"{provName} enviou uma proposta de {priceFormatted} para seu chamado.",
+                                new
+                                {
+                                    type = "new_proposal",
+                                    serviceId = service.Id,
+                                    proposalId = result.Value.Id
+                                }
+                            );
+                        }
+                    }
+                    catch
+                    {
+                        // Falhas de push em background não devem impactar a resposta
+                    }
+                });
+            }
+
+            return Ok(result.Value);
         }
-        return result.IsSuccess 
-            ? Ok(result.Value) 
-            : BadRequest(new { message = result.Error, code = result.ErrorCode });
+
+        return BadRequest(new { message = result.Error, code = result.ErrorCode });
     }
 
     /// <summary>

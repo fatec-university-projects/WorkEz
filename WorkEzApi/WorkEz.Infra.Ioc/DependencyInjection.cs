@@ -33,6 +33,9 @@ public static class DependencyInjection
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<IServiceProviderRepository, ServiceProviderRepository>();
         services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+        services.AddScoped<IUserDeviceTokenRepository, UserDeviceTokenRepository>();
+
+        services.AddHttpClient<IPushNotificationService, PushNotificationService>();
 
         services.AddScoped<IProposalDomainService, ProposalDomainService>();
         services.AddScoped<IProposalApplicationService, ProposalApplicationService>();

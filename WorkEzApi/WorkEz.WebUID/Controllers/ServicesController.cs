@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkEz.Application.DTOs;
 using WorkEz.Application.Services;
+using WorkEz.Domain.Common;
 using WorkEz.Domain.Entities;
 using WorkEz.Domain.Enums;
 using WorkEz.Infra.Data.Context;
@@ -39,7 +40,8 @@ public class ServicesController(
     IServiceOpportunityApplicationService opportunityService,
     AppDbContext db,
     ITrackingNotificationService? trackingNotification = null,
-    IChatNotificationService? chatNotification = null) : ControllerBase
+    IChatNotificationService? chatNotification = null,
+    IPushNotificationService? pushNotification = null) : ControllerBase
 {
     /// <summary>
     /// Retorna chamados em aberto para o prestador.
@@ -179,6 +181,60 @@ public class ServicesController(
 
         db.Services.Add(service);
         await db.SaveChangesAsync();
+
+        if (pushNotification != null && service.Latitude.HasValue && service.Longitude.HasValue)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var providers = await db.Providers.Include(p => p.User).ToListAsync();
+                    var targetUserIds = new List<Guid>();
+
+                    foreach (var provider in providers)
+                    {
+                        if (provider.Latitude.HasValue && provider.Longitude.HasValue)
+                        {
+                            var dist = GeoLocationUtils.CalculateDistanceKm(
+                                service.Latitude.Value, service.Longitude.Value,
+                                provider.Latitude.Value, provider.Longitude.Value);
+
+                            if (dist <= provider.ServiceRadiusKm)
+                            {
+                                var hasActiveCat = await db.ProviderCategories.AnyAsync(pc =>
+                                    pc.ProviderId == provider.Id && pc.Status == "Active" && pc.CategoryId == service.CategoryId);
+                                var hasAnyActiveCat = await db.ProviderCategories.AnyAsync(pc =>
+                                    pc.ProviderId == provider.Id && pc.Status == "Active");
+
+                                if (!hasAnyActiveCat || hasActiveCat)
+                                {
+                                    targetUserIds.Add(provider.UserId);
+                                }
+                            }
+                        }
+                    }
+
+                    if (targetUserIds.Count > 0)
+                    {
+                        await pushNotification.SendToUsersAsync(
+                            targetUserIds,
+                            "🚨 Novo chamado na sua região!",
+                            $"Novo chamado aberto perto de você: \"{service.Title}\".",
+                            new
+                            {
+                                type = "new_opportunity",
+                                serviceId = service.Id,
+                                categoryId = service.CategoryId
+                            }
+                        );
+                    }
+                }
+                catch
+                {
+                    // Falha em push background não cancela criação do chamado
+                }
+            });
+        }
 
         return CreatedAtAction(nameof(GetById), new { id = service.Id }, new { id = service.Id });
     }
@@ -445,6 +501,34 @@ public class ServicesController(
         if (chatNotification != null)
         {
             await chatNotification.NotifyChatUpdateAsync(Guid.Empty, id, "service_status_changed", new { status = "on-the-way" });
+        }
+
+        if (pushNotification != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == service.CustomerId);
+                    if (customer != null)
+                    {
+                        await pushNotification.SendToUserAsync(
+                            customer.UserId,
+                            "🚗 Prestador a caminho!",
+                            "O profissional iniciou o deslocamento até o seu endereço.",
+                            new
+                            {
+                                type = "provider_on_the_way",
+                                serviceId = service.Id
+                            }
+                        );
+                    }
+                }
+                catch
+                {
+                    // Background push failure ignored
+                }
+            });
         }
 
         return Ok(new { id = service.Id, status = "on-the-way" });

@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WorkEz.Application.DTOs;
 using WorkEz.Application.Services;
+using WorkEz.Domain.Enums;
+using WorkEz.Infra.Data.Context;
 using WorkEz.WebUID.WebSockets;
 
 namespace WorkEz.WebUID.Controllers;
@@ -13,11 +16,15 @@ namespace WorkEz.WebUID.Controllers;
 [Route("api/[controller]")]
 public class ChatController(
     IChatApplicationService chatService,
-    IChatNotificationService? chatNotification = null
+    AppDbContext db,
+    IChatNotificationService? chatNotification = null,
+    IPushNotificationService? pushNotification = null
 ) : ControllerBase
 {
     private readonly IChatApplicationService _chatService = chatService;
+    private readonly AppDbContext _db = db;
     private readonly IChatNotificationService? _chatNotification = chatNotification;
+    private readonly IPushNotificationService? _pushNotification = pushNotification;
 
     /// <summary>
     /// Envia uma mensagem no chat (vinculada a uma proposta e/ou serviço).
@@ -30,16 +37,94 @@ public class ChatController(
         var result = await _chatService.SendMessageAsync(command);
         if (result.IsSuccess && result.Value != null)
         {
-            if (_chatNotification != null && (result.Value.ProposalId.HasValue || result.Value.ServiceId.HasValue))
+            var msg = result.Value;
+            var isWsActive = _chatNotification?.HasActiveSubscribers(msg.ProposalId, msg.ServiceId) ?? false;
+
+            if (_chatNotification != null && (msg.ProposalId.HasValue || msg.ServiceId.HasValue))
             {
-                var targetProposalId = result.Value.ProposalId ?? Guid.Empty;
-                await _chatNotification.NotifyChatUpdateAsync(targetProposalId, result.Value.ServiceId, "new_message", result.Value);
+                var targetProposalId = msg.ProposalId ?? Guid.Empty;
+                await _chatNotification.NotifyChatUpdateAsync(targetProposalId, msg.ServiceId, "new_message", msg);
             }
+
+            // Dispara notificação push em background se destinatário não estiver com WebSocket ativo
+            if (!isWsActive && _pushNotification != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        Guid? recipientUserId = null;
+
+                        if (command.IsFromProvider)
+                        {
+                            // Prestador enviou mensagem: destinatário é o Cliente
+                            if (msg.ServiceId.HasValue)
+                            {
+                                var service = await _db.Services
+                                    .Include(s => s.Customer)
+                                    .FirstOrDefaultAsync(s => s.Id == msg.ServiceId.Value);
+                                recipientUserId = service?.Customer?.UserId;
+                            }
+                            else if (msg.ProposalId.HasValue)
+                            {
+                                var proposal = await _db.Proposals
+                                    .Include(p => p.Service)
+                                        .ThenInclude(s => s.Customer)
+                                    .FirstOrDefaultAsync(p => p.Id == msg.ProposalId.Value);
+                                recipientUserId = proposal?.Service?.Customer?.UserId;
+                            }
+                        }
+                        else
+                        {
+                            // Cliente enviou mensagem: destinatário é o Prestador
+                            if (msg.ProposalId.HasValue)
+                            {
+                                var proposal = await _db.Proposals
+                                    .Include(p => p.Provider)
+                                    .FirstOrDefaultAsync(p => p.Id == msg.ProposalId.Value);
+                                recipientUserId = proposal?.Provider?.UserId;
+                            }
+                            else if (msg.ServiceId.HasValue)
+                            {
+                                var appointment = await _db.Appointments
+                                    .Include(a => a.Provider)
+                                    .FirstOrDefaultAsync(a => a.ServiceId == msg.ServiceId.Value);
+                                recipientUserId = appointment?.Provider?.UserId;
+                            }
+                        }
+
+                        if (recipientUserId.HasValue && recipientUserId.Value != Guid.Empty && recipientUserId.Value != command.SenderId)
+                        {
+                            var senderUser = await _db.Users.FindAsync(command.SenderId);
+                            var senderName = senderUser?.Name ?? (command.IsFromProvider ? "Prestador" : "Cliente");
+                            var preview = command.Content.Length > 80 ? command.Content[..77] + "..." : command.Content;
+
+                            await _pushNotification.SendToUserAsync(
+                                recipientUserId.Value,
+                                $"💬 Mensagem de {senderName}",
+                                preview,
+                                new
+                                {
+                                    type = "chat_message",
+                                    proposalId = msg.ProposalId,
+                                    serviceId = msg.ServiceId
+                                }
+                            );
+                        }
+                    }
+                    catch
+                    {
+                        // Falhas de push em background não devem impactar a resposta do chat
+                    }
+                });
+            }
+
             return Ok(result.Value);
         }
 
         return BadRequest(new { message = result.Error, code = result.ErrorCode });
     }
+
 
     /// <summary>
     /// Retorna as mensagens de chat associadas a uma proposta.

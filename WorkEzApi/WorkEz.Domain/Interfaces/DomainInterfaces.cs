@@ -55,6 +55,16 @@ public interface IChatMessageRepository : IBaseRepository<ChatMessage>
     Task<ChatMessage> SendMessageAsync(Guid proposalId, Guid senderId, string content, bool isFromProvider);
 }
 
+public interface IUserDeviceTokenRepository : IBaseRepository<UserDeviceToken>
+{
+    Task<UserDeviceToken?> GetByTokenAsync(string token);
+    Task<IEnumerable<UserDeviceToken>> GetByUserIdAsync(Guid userId);
+    Task<IEnumerable<UserDeviceToken>> GetByUserIdsAsync(IEnumerable<Guid> userIds);
+    Task<UserDeviceToken> RegisterOrUpdateAsync(Guid userId, string token, string? platform);
+    Task RemoveByTokenAsync(string token);
+}
+
+
 public interface IDomainEvent
 {
     Guid EventId { get; }

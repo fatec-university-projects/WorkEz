@@ -21,6 +21,7 @@ namespace WorkEz.Infra.Data.Context
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
         public DbSet<Address> Addresses => Set<Address>();
         public DbSet<Review> Reviews => Set<Review>();
+        public DbSet<UserDeviceToken> UserDeviceTokens => Set<UserDeviceToken>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -37,6 +38,7 @@ namespace WorkEz.Infra.Data.Context
             modelBuilder.Entity<RefreshToken>(e => { e.HasKey(t => t.Id); e.Ignore(t => t.UpdatedAt); e.Property(t => t.Token).IsRequired().HasMaxLength(500); e.HasIndex(t => t.Token).IsUnique(); e.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade); });
             modelBuilder.Entity<ChatMessage>(e => { e.HasKey(m => m.Id); e.Property(m => m.Content).IsRequired().HasMaxLength(2000); e.HasIndex(m => m.ProposalId); e.HasIndex(m => m.ServiceId); });
             modelBuilder.Entity<Review>(e => { e.HasKey(r => r.Id); e.Property(r => r.Rating).IsRequired(); e.Property(r => r.Comment).HasMaxLength(1000); e.HasOne(r => r.ReviewerUser).WithMany().HasForeignKey(r => r.ReviewerUserId).OnDelete(DeleteBehavior.Restrict); e.HasOne(r => r.ReviewedUser).WithMany().HasForeignKey(r => r.ReviewedUserId).OnDelete(DeleteBehavior.Restrict); e.HasOne(r => r.Appointment).WithMany().HasForeignKey(r => r.AppointmentId).OnDelete(DeleteBehavior.SetNull); e.HasOne(r => r.Service).WithMany().HasForeignKey(r => r.ServiceId).OnDelete(DeleteBehavior.SetNull); });
+            modelBuilder.Entity<UserDeviceToken>(e => { e.HasKey(t => t.Id); e.Property(t => t.ExpoPushToken).IsRequired().HasMaxLength(255); e.Property(t => t.Platform).HasMaxLength(50); e.HasIndex(t => t.ExpoPushToken); e.HasIndex(t => t.UserId); e.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade); });
         }
     }
 }
@@ -188,6 +190,52 @@ namespace WorkEz.Infra.Data.Repositories
 
         public Task<ChatMessage> SendMessageAsync(Guid proposalId, Guid senderId, string content, bool isFromProvider) =>
             SendMessageAsync(proposalId, null, senderId, content, isFromProvider);
+    }
+
+    public class UserDeviceTokenRepository(AppDbContext context) : BaseRepository<UserDeviceToken>(context), IUserDeviceTokenRepository
+    {
+        public async Task<UserDeviceToken?> GetByTokenAsync(string token) =>
+            await DbSet.FirstOrDefaultAsync(t => t.ExpoPushToken == token);
+
+        public async Task<IEnumerable<UserDeviceToken>> GetByUserIdAsync(Guid userId) =>
+            await DbSet.Where(t => t.UserId == userId).AsNoTracking().ToListAsync();
+
+        public async Task<IEnumerable<UserDeviceToken>> GetByUserIdsAsync(IEnumerable<Guid> userIds) =>
+            await DbSet.Where(t => userIds.Contains(t.UserId)).AsNoTracking().ToListAsync();
+
+        public async Task<UserDeviceToken> RegisterOrUpdateAsync(Guid userId, string token, string? platform)
+        {
+            var existing = await DbSet.FirstOrDefaultAsync(t => t.ExpoPushToken == token);
+            if (existing != null)
+            {
+                existing.UserId = userId;
+                existing.Platform = platform ?? existing.Platform;
+                existing.Touch();
+                DbSet.Update(existing);
+                await Context.SaveChangesAsync();
+                return existing;
+            }
+
+            var deviceToken = new UserDeviceToken
+            {
+                UserId = userId,
+                ExpoPushToken = token,
+                Platform = platform
+            };
+            await DbSet.AddAsync(deviceToken);
+            await Context.SaveChangesAsync();
+            return deviceToken;
+        }
+
+        public async Task RemoveByTokenAsync(string token)
+        {
+            var tokens = await DbSet.Where(t => t.ExpoPushToken == token).ToListAsync();
+            if (tokens.Count != 0)
+            {
+                DbSet.RemoveRange(tokens);
+                await Context.SaveChangesAsync();
+            }
+        }
     }
 }
 

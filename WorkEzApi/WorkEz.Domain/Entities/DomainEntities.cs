@@ -174,3 +174,13 @@ public class Review : BaseEntity
     public User ReviewerUser { get; set; } = null!;
     public User ReviewedUser { get; set; } = null!;
 }
+
+public class UserDeviceToken : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public string ExpoPushToken { get; set; } = string.Empty;
+    public string? Platform { get; set; }
+
+    public User? User { get; set; }
+}
+
