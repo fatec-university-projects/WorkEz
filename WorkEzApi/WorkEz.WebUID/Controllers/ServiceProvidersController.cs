@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Application.Services;
-using WorkEz.Infra.Data.Context;
 using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
@@ -12,7 +11,7 @@ namespace WorkEz.WebUID.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class ServiceProvidersController(IPortfolioApplicationService portfolioService, AppDbContext db) : ControllerBase
+public class ServiceProvidersController(IPortfolioApplicationService portfolioService) : ControllerBase
 {
     private readonly IPortfolioApplicationService _portfolioService = portfolioService;
 
@@ -22,7 +21,7 @@ public class ServiceProvidersController(IPortfolioApplicationService portfolioSe
     {
         if (User.IsAdmin()) return true;
         var userId = User.GetUserId();
-        return userId is not null && await db.OwnsProviderAsync(providerId, userId.Value);
+        return userId is not null && await _portfolioService.OwnsProviderAsync(providerId, userId.Value);
     }
 
     /// <summary>

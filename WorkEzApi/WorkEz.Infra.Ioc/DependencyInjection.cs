@@ -34,6 +34,12 @@ public static class DependencyInjection
         services.AddScoped<IServiceProviderRepository, ServiceProviderRepository>();
         services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
         services.AddScoped<IUserDeviceTokenRepository, UserDeviceTokenRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<IReviewRepository, ReviewRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
 
         services.AddHttpClient<IPushNotificationService, PushNotificationService>();
 
@@ -42,6 +48,12 @@ public static class DependencyInjection
         services.AddScoped<IPortfolioApplicationService, PortfolioApplicationService>();
         services.AddScoped<IChatApplicationService, ChatApplicationService>();
         services.AddScoped<IServiceOpportunityApplicationService, ServiceOpportunityApplicationService>();
+        services.AddScoped<IServiceApplicationService, ServiceApplicationService>();
+        services.AddScoped<ICategoryApplicationService, CategoryApplicationService>();
+        services.AddScoped<ICustomerApplicationService, CustomerApplicationService>();
+        services.AddScoped<IReviewApplicationService, ReviewApplicationService>();
+        services.AddScoped<IUserApplicationService, UserApplicationService>();
+        services.AddScoped<IAuthApplicationService, AuthApplicationService>();
 
         return services;
     }

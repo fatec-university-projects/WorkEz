@@ -46,6 +46,7 @@ if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey) || jwtOptions.SecretKey.Leng
 
 builder.Services.Configure<JwtOptions>(jwtSection);
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddSingleton<WorkEz.Domain.Interfaces.ITokenService>(sp => sp.GetRequiredService<TokenService>());
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

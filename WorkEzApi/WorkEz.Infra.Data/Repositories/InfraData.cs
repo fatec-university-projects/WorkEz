@@ -72,13 +72,44 @@ namespace WorkEz.Infra.Data.Repositories
 
     public class ServiceRepository(AppDbContext context) : BaseRepository<Service>(context), IServiceRepository
     {
-        public async Task<Service?> GetByIdWithDetailsAsync(Guid id) => await DbSet.Include(s => s.Customer).ThenInclude(c => c.User).Include(s => s.Proposals).ThenInclude(p => p.Provider).ThenInclude(pr => pr.User).Include(s => s.Appointment).FirstOrDefaultAsync(s => s.Id == id);
-        public async Task<IEnumerable<Service>> GetServicesByCustomerAsync(Guid customerId) => await DbSet.Include(s => s.Proposals).Include(s => s.Appointment).Where(s => s.CustomerId == customerId).OrderByDescending(s => s.CreatedAt).AsNoTracking().ToListAsync();
+        public async Task<Service?> GetByIdWithDetailsAsync(Guid id) => 
+            await DbSet
+                .Include(s => s.Address)
+                .Include(s => s.Customer)
+                    .ThenInclude(c => c.User)
+                .Include(s => s.Proposals)
+                    .ThenInclude(p => p.Provider)
+                        .ThenInclude(pr => pr.User)
+                .Include(s => s.Appointment)
+                    .ThenInclude(a => a.Provider)
+                        .ThenInclude(pr => pr.User)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+        public async Task<IEnumerable<Service>> GetServicesByCustomerAsync(Guid customerId) => 
+            await DbSet
+                .Include(s => s.Proposals)
+                    .ThenInclude(p => p.Provider)
+                        .ThenInclude(pr => pr.User)
+                .Include(s => s.Appointment)
+                .Where(s => s.CustomerId == customerId)
+                .OrderByDescending(s => s.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
     }
 
     public class AppointmentRepository(AppDbContext context) : BaseRepository<Appointment>(context), IAppointmentRepository
     {
         public async Task<Appointment?> GetByServiceIdAsync(Guid serviceId) => await DbSet.FirstOrDefaultAsync(a => a.ServiceId == serviceId);
+
+        public async Task<IEnumerable<Appointment>> GetByProviderIdWithDetailsAsync(Guid providerId) =>
+            await DbSet
+                .Include(a => a.Service)
+                .Include(a => a.Customer)
+                    .ThenInclude(c => c.User)
+                .Where(a => a.ProviderId == providerId)
+                .OrderByDescending(a => a.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
     }
 
     public class ServiceProviderRepository(AppDbContext context) : BaseRepository<ServiceProvider>(context), IServiceProviderRepository
@@ -234,6 +265,129 @@ namespace WorkEz.Infra.Data.Repositories
             {
                 DbSet.RemoveRange(tokens);
                 await Context.SaveChangesAsync();
+            }
+        }
+    }
+
+    public class CategoryRepository(AppDbContext context) : BaseRepository<Category>(context), ICategoryRepository
+    {
+        public async Task<IEnumerable<Category>> GetAllOrderedByNameAsync() =>
+            await DbSet.AsNoTracking().OrderBy(c => c.Name).ToListAsync();
+
+        public async Task<IEnumerable<Category>> GetByProviderIdAsync(Guid providerId) =>
+            await Context.ProviderCategories
+                .AsNoTracking()
+                .Where(pc => pc.ProviderId == providerId && pc.Status == "Active")
+                .Include(pc => pc.Category)
+                .Select(pc => pc.Category)
+                .ToListAsync();
+
+        public async Task UpdateProviderCategoriesAsync(Guid providerId, IEnumerable<Guid> categoryIds)
+        {
+            var existing = await Context.ProviderCategories
+                .Where(pc => pc.ProviderId == providerId)
+                .ToListAsync();
+
+            Context.ProviderCategories.RemoveRange(existing);
+
+            var distinctIds = categoryIds?.Distinct().ToList();
+            if (distinctIds is { Count: > 0 })
+            {
+                foreach (var catId in distinctIds)
+                {
+                    Context.ProviderCategories.Add(new ProviderCategory
+                    {
+                        ProviderId = providerId,
+                        CategoryId = catId,
+                        Status = "Active"
+                    });
+                }
+            }
+
+            await Context.SaveChangesAsync();
+        }
+    }
+
+    public class CustomerRepository(AppDbContext context) : BaseRepository<Customer>(context), ICustomerRepository
+    {
+        public async Task<Customer?> GetByUserIdWithUserAsync(Guid userId) =>
+            await DbSet.Include(c => c.User).FirstOrDefaultAsync(c => c.UserId == userId);
+
+        public async Task<Customer?> GetByIdWithUserAsync(Guid id) =>
+            await DbSet.Include(c => c.User).FirstOrDefaultAsync(c => c.Id == id);
+    }
+
+    public class ReviewRepository(AppDbContext context) : BaseRepository<Review>(context), IReviewRepository
+    {
+        public async Task<Review?> GetByServiceOrAppointmentAsync(Guid serviceId, Guid? appointmentId, Guid reviewerUserId) =>
+            await DbSet.FirstOrDefaultAsync(r =>
+                (r.ServiceId == serviceId || (appointmentId.HasValue && r.AppointmentId == appointmentId.Value))
+                && r.ReviewerUserId == reviewerUserId);
+
+        public async Task<Review?> GetByAppointmentAndReviewerAsync(Guid appointmentId, Guid reviewerUserId) =>
+            await DbSet.FirstOrDefaultAsync(r => r.AppointmentId == appointmentId && r.ReviewerUserId == reviewerUserId);
+
+        public async Task<Review?> GetReviewByServiceAsync(Guid serviceId)
+        {
+            var appt = await Context.Appointments.FirstOrDefaultAsync(a => a.ServiceId == serviceId);
+            Guid? appointmentId = appt?.Id;
+
+            return await DbSet
+                .Include(r => r.ReviewerUser)
+                .FirstOrDefaultAsync(r => r.ServiceId == serviceId || (appointmentId.HasValue && r.AppointmentId == appointmentId.Value));
+        }
+
+        public async Task<Review?> GetReviewByAppointmentAsync(Guid appointmentId) =>
+            await DbSet
+                .Include(r => r.ReviewerUser)
+                .FirstOrDefaultAsync(r => r.AppointmentId == appointmentId);
+
+        public async Task<IEnumerable<Review>> GetReviewsByReviewedUserIdAsync(Guid userId) =>
+            await DbSet
+                .Include(r => r.ReviewerUser)
+                .Where(r => r.ReviewedUserId == userId)
+                .OrderByDescending(r => r.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+
+        public async Task<List<int>> GetRatingsForUserAsync(Guid userId) =>
+            await DbSet
+                .Where(r => r.ReviewedUserId == userId)
+                .Select(r => r.Rating)
+                .ToListAsync();
+    }
+
+    public class UserRepository(AppDbContext context) : BaseRepository<User>(context), IUserRepository
+    {
+        public async Task<User?> GetByEmailAsync(string email) =>
+            await DbSet.FirstOrDefaultAsync(u => u.Email == email);
+
+        public async Task<bool> IsEmailInUseAsync(string email, Guid excludeUserId) =>
+            await DbSet.AnyAsync(u => u.Email == email && u.Id != excludeUserId);
+    }
+
+    public class RefreshTokenRepository(AppDbContext context) : BaseRepository<RefreshToken>(context), IRefreshTokenRepository
+    {
+        public async Task<RefreshToken?> GetByTokenWithUserAsync(string token) =>
+            await DbSet.Include(t => t.User).FirstOrDefaultAsync(t => t.Token == token);
+
+        public async Task<RefreshToken?> GetByTokenAsync(string token) =>
+            await DbSet.FirstOrDefaultAsync(t => t.Token == token);
+    }
+
+    public class PasswordHasher : IPasswordHasher
+    {
+        public string HashPassword(string password) => BCrypt.Net.BCrypt.HashPassword(password);
+
+        public bool VerifyPassword(string password, string passwordHash)
+        {
+            try
+            {
+                return BCrypt.Net.BCrypt.Verify(password, passwordHash);
+            }
+            catch
+            {
+                return false;
             }
         }
     }

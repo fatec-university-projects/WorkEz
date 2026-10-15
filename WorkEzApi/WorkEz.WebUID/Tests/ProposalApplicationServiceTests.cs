@@ -245,6 +245,7 @@ public class ProposalApplicationServiceTests
         public void Remove(Appointment entity) => Appointments.Remove(entity);
         public Task<int> SaveChangesAsync() => Task.FromResult(1);
         public Task<Appointment?> GetByServiceIdAsync(Guid serviceId) => Task.FromResult(Appointments.FirstOrDefault(a => a.ServiceId == serviceId));
+        public Task<IEnumerable<Appointment>> GetByProviderIdWithDetailsAsync(Guid providerId) => Task.FromResult(Appointments.Where(a => a.ProviderId == providerId));
     }
 
     private class FakeProviderRepository : IBaseRepository<ServiceProviderEntity>

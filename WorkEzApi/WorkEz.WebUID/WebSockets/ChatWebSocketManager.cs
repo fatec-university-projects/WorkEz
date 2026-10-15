@@ -5,10 +5,8 @@ using System.Text.Json;
 
 namespace WorkEz.WebUID.WebSockets;
 
-public interface IChatNotificationService
+public interface IChatNotificationService : WorkEz.Domain.Interfaces.IChatNotificationService
 {
-    Task NotifyChatUpdateAsync(Guid proposalId, Guid? serviceId, string eventType, object? payload = null);
-    bool HasActiveSubscribers(Guid? proposalId, Guid? serviceId);
 }
 
 public class ChatWebSocketManager : IChatNotificationService

@@ -1,15 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WorkEz.Domain.Entities;
-using WorkEz.Infra.Data.Context;
+using WorkEz.Application.DTOs;
+using WorkEz.Application.Services;
 using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ProviderCategoriesController(AppDbContext db) : ControllerBase
+public class ProviderCategoriesController(ICategoryApplicationService categoryService) : ControllerBase
 {
+    private readonly ICategoryApplicationService _categoryService = categoryService;
+
     /// <summary>
     /// Retorna as categorias associadas ao prestador especificado.
     /// GET /api/ProviderCategories/by-provider/{providerId}/categories
@@ -18,13 +19,7 @@ public class ProviderCategoriesController(AppDbContext db) : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<CategoryDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByProvider(Guid providerId)
     {
-        var categories = await db.ProviderCategories
-            .AsNoTracking()
-            .Where(pc => pc.ProviderId == providerId && pc.Status == "Active")
-            .Include(pc => pc.Category)
-            .Select(pc => new CategoryDto(pc.Category.Id, pc.Category.Name, pc.Category.Description))
-            .ToListAsync();
-
+        var categories = await _categoryService.GetByProviderIdAsync(providerId);
         return Ok(categories);
     }
 
@@ -38,32 +33,18 @@ public class ProviderCategoriesController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> UpdateCategories(Guid providerId, [FromBody] List<Guid> categoryIds)
     {
         var userId = User.GetUserId();
-        if (userId is null || (!User.IsAdmin() && !await db.OwnsProviderAsync(providerId, userId.Value)))
+        if (userId is null)
             return Forbid();
 
-        // Remove vínculos anteriores do prestador
-        var existing = await db.ProviderCategories
-            .Where(pc => pc.ProviderId == providerId)
-            .ToListAsync();
-
-        db.ProviderCategories.RemoveRange(existing);
-
-        // Adiciona os novos vínculos
-        if (categoryIds is { Count: > 0 })
+        var result = await _categoryService.UpdateProviderCategoriesAsync(providerId, categoryIds, userId.Value, User.IsAdmin());
+        if (!result.IsSuccess)
         {
-            var distinctIds = categoryIds.Distinct();
-            foreach (var catId in distinctIds)
-            {
-                db.ProviderCategories.Add(new ProviderCategory
-                {
-                    ProviderId = providerId,
-                    CategoryId = catId,
-                    Status = "Active"
-                });
-            }
+            if (result.ErrorCode == "FORBIDDEN")
+                return Forbid();
+
+            return BadRequest(new { message = result.Error });
         }
 
-        await db.SaveChangesAsync();
         return Ok(new { message = "Categorias atualizadas com sucesso." });
     }
 }
