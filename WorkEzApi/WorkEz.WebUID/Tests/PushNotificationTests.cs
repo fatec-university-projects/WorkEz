@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -35,6 +37,17 @@ public class PushNotificationTests : IDisposable
         );
 
         _controller = new NotificationsController(_pushService);
+    }
+
+    private void AuthenticateAs(Guid userId, string role = "Customer")
+    {
+        var identity = new ClaimsIdentity(
+            [new Claim("sub", userId.ToString()), new Claim("role", role)],
+            "TestAuth", "name", "role");
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) }
+        };
     }
 
     public void Dispose()
@@ -125,6 +138,7 @@ public class PushNotificationTests : IDisposable
     {
         // Arrange
         var userId = Guid.NewGuid();
+        AuthenticateAs(userId);
         var request = new RegisterDeviceTokenRequest(userId, "ExponentPushToken[controller-test-token]", "android");
 
         // Act
@@ -136,11 +150,59 @@ public class PushNotificationTests : IDisposable
     }
 
     [Fact]
+    public async Task Controller_RegisterDevice_IgnoresBodyUserId_UsesTokenIdentity()
+    {
+        var realUser = Guid.NewGuid();
+        var victim = Guid.NewGuid();
+        AuthenticateAs(realUser);
+
+        await _controller.RegisterDevice(new RegisterDeviceTokenRequest(victim, "ExponentPushToken[spoof]", "ios"));
+
+        Assert.Empty(await _tokenRepository.GetByUserIdAsync(victim));
+        Assert.Single(await _tokenRepository.GetByUserIdAsync(realUser));
+    }
+
+    [Fact]
+    public async Task Controller_RegisterDevice_WithoutIdentity_ReturnsUnauthorized()
+    {
+        _controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+
+        var result = await _controller.RegisterDevice(new RegisterDeviceTokenRequest(Guid.NewGuid(), "ExponentPushToken[x]", "ios"));
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    [Fact]
+    public async Task Controller_GetUserTokens_OtherUser_ReturnsForbid()
+    {
+        AuthenticateAs(Guid.NewGuid());
+
+        var result = await _controller.GetUserTokens(Guid.NewGuid());
+
+        Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task Controller_RemoveDevice_OtherUsersToken_IsNotRemoved()
+    {
+        var owner = Guid.NewGuid();
+        var tokenStr = "ExponentPushToken[owned-by-someone-else]";
+        await _pushService.RegisterDeviceTokenAsync(new RegisterDeviceTokenRequest(owner, tokenStr, "ios"));
+        AuthenticateAs(Guid.NewGuid());
+
+        await _controller.RemoveDevice(new RemoveDeviceTokenRequest(tokenStr));
+
+        Assert.Single(await _tokenRepository.GetByUserIdAsync(owner));
+    }
+
+    [Fact]
     public async Task Controller_RemoveDevice_ReturnsOkResult()
     {
         // Arrange
         var tokenStr = "ExponentPushToken[controller-remove-test]";
-        await _pushService.RegisterDeviceTokenAsync(new RegisterDeviceTokenRequest(Guid.NewGuid(), tokenStr, "ios"));
+        var userId = Guid.NewGuid();
+        await _pushService.RegisterDeviceTokenAsync(new RegisterDeviceTokenRequest(userId, tokenStr, "ios"));
+        AuthenticateAs(userId);
 
         // Act
         var actionResult = await _controller.RemoveDevice(new RemoveDeviceTokenRequest(tokenStr));
@@ -157,6 +219,7 @@ public class PushNotificationTests : IDisposable
         var userId = Guid.NewGuid();
         await _pushService.RegisterDeviceTokenAsync(new RegisterDeviceTokenRequest(userId, "ExponentPushToken[user-token-1]", "android"));
         await _pushService.RegisterDeviceTokenAsync(new RegisterDeviceTokenRequest(userId, "ExponentPushToken[user-token-2]", "ios"));
+        AuthenticateAs(userId);
 
         // Act
         var actionResult = await _controller.GetUserTokens(userId);
