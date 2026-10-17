@@ -55,12 +55,16 @@ test.describe('Fluxo 7: Geolocalização, Raio de Atuação e Rastreamento em Te
     const provider = await createTestProvider();
 
     // Busca perfil do cliente e cria chamado com endereço georreferenciado
-    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`);
+    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
+    });
     const customerProfile = await customerProfileRes.json();
     const serviceCall = await createTestServiceCall(customerProfile.id, customer.tokens.accessToken);
 
     // Atualiza a localização do prestador para São Paulo (próximo ao chamado)
-    const providerProfileRes = await fetch(`${API_BASE_URL}/api/ServiceProviders/by-user/${provider.tokens.user.id}`);
+    const providerProfileRes = await fetch(`${API_BASE_URL}/api/ServiceProviders/by-user/${provider.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${provider.tokens.accessToken}` },
+    });
     const providerProfile = await providerProfileRes.json();
 
     await fetch(`${API_BASE_URL}/api/ServiceProviders/${providerProfile.id}/location`, {
@@ -96,7 +100,9 @@ test.describe('Fluxo 7: Geolocalização, Raio de Atuação e Rastreamento em Te
     const provider = await createTestProvider();
 
     // 1. Cliente cria chamado em Campinas (~90 km de São Paulo)
-    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`);
+    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
+    });
     const customerProfile = await customerProfileRes.json();
     await createTestServiceCall(customerProfile.id, customer.tokens.accessToken, {
       title: 'Reparo Hidráulico Distante',
@@ -109,7 +115,9 @@ test.describe('Fluxo 7: Geolocalização, Raio de Atuação e Rastreamento em Te
     });
 
     // 2. Prestador está em São Paulo com raio de apenas 10 km
-    const providerProfileRes = await fetch(`${API_BASE_URL}/api/ServiceProviders/by-user/${provider.tokens.user.id}`);
+    const providerProfileRes = await fetch(`${API_BASE_URL}/api/ServiceProviders/by-user/${provider.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${provider.tokens.accessToken}` },
+    });
     const providerProfile = await providerProfileRes.json();
 
     await fetch(`${API_BASE_URL}/api/ServiceProviders/${providerProfile.id}/location`, {
@@ -145,7 +153,9 @@ test.describe('Fluxo 7: Geolocalização, Raio de Atuação e Rastreamento em Te
     await injectAuth(page, customer);
 
     // 1. Cria chamado pelo cliente
-    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`);
+    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
+    });
     const customerProfile = await customerProfileRes.json();
     const serviceCall = await createTestServiceCall(customerProfile.id, customer.tokens.accessToken);
 

@@ -145,6 +145,8 @@ class NotificationService {
    * Adiciona o ouvinte para cliques em notificações recebidas (Deep Linking).
    */
   setupNotificationListeners(onNavigate: (route: string) => void) {
+    if (Platform.OS === 'web') return;
+
     // Limpa ouvintes anteriores se existirem
     this.removeNotificationListeners();
 

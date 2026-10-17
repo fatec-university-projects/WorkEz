@@ -1,8 +1,14 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\WorkEz.Infra.Ioc\WorkEz.Infra.Ioc.csproj" />
     <ProjectReference Include="..\WorkEz.Application\WorkEz.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\scripts\*.sql" Link="scripts\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

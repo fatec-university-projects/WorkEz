@@ -86,6 +86,13 @@ builder.Services.AddAuthorizationBuilder()
 
 var app = builder.Build();
 
+// Aplica migrações SQL automaticamente caso esteja conectado ao PostgreSQL
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    DatabaseMigrator.ApplySqlMigrations(db, app.Environment.ContentRootPath, app.Logger);
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
