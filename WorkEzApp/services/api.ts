@@ -165,4 +165,92 @@ export function resolveImageUrl(url?: string | null): string | undefined {
   return trimmed;
 }
 
+// ─── Wallet & Delfinance API ──────────────────────────────────────────────────
+
+export interface CommissionDetail {
+  serviceTitle: string;
+  grossAmount: number;
+  laborAmount: number;
+  materialsAmount: number;
+  platformFeeAmount: number;
+  netAmount: number;
+  date: string;
+}
+
+export interface WalletSummary {
+  providerId: string;
+  availableBalance: number;
+  escrowBalance: number;
+  thisMonthGross: number;
+  thisMonthNet: number;
+  totalWithdrawn: number;
+  pendingWithdrawal: number;
+  platformFeePercent: number;
+  materialsFeePercent: number;
+  lastCommission: CommissionDetail | null;
+  defaultPixKey?: string;
+  defaultPixKeyType?: string;
+}
+
+export interface WalletStatementItem {
+  id: string;
+  date: string;
+  createdAt: string;
+  description: string;
+  serviceTitle?: string;
+  transactionType: 'Credit' | 'PlatformFee' | 'EscrowHold' | 'EscrowRelease' | 'Withdrawal';
+  transactionTypeLabel: string;
+  grossAmount: number;
+  laborAmount: number;
+  materialsAmount: number;
+  platformFeeAmount: number;
+  amount: number;
+  status: string;
+  statusLabel: string;
+  receiptNumber?: string;
+}
+
+export interface WalletStatementResponse {
+  items: WalletStatementItem[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface WithdrawalRequestPayload {
+  providerId?: string;
+  amount: number;
+  pixKey: string;
+  pixKeyType: string;
+}
+
+export interface WithdrawalResponse {
+  id: string;
+  providerId: string;
+  amount: number;
+  pixKey: string;
+  pixKeyType: string;
+  status: string;
+  receiptNumber: string;
+  processedAt: string;
+  newAvailableBalance: number;
+}
+
+export async function fetchWalletSummary(providerId: string) {
+  return apiRequest<WalletSummary>(`/api/Wallet/summary/${providerId}`, { method: 'GET' }, true);
+}
+
+export async function fetchWalletStatement(providerId: string, filter?: string) {
+  const query = filter && filter !== 'all' ? `?filter=${encodeURIComponent(filter)}` : '';
+  return apiRequest<WalletStatementResponse>(`/api/Wallet/statement/${providerId}${query}`, { method: 'GET' }, true);
+}
+
+export async function requestPixWithdrawal(payload: WithdrawalRequestPayload) {
+  return apiRequest<WithdrawalResponse>('/api/Wallet/withdraw', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, true);
+}
+
 export { API_BASE_URL, STORAGE_KEY_ACCESS, STORAGE_KEY_REFRESH };

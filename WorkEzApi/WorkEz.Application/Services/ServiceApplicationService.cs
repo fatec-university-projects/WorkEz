@@ -32,7 +32,8 @@ public class ServiceApplicationService(
     IBaseRepository<User> userRepository,
     ITrackingNotificationService? trackingNotification = null,
     IChatNotificationService? chatNotification = null,
-    IPushNotificationService? pushNotification = null
+    IPushNotificationService? pushNotification = null,
+    IWalletApplicationService? walletService = null
 ) : IServiceApplicationService
 {
     private readonly IServiceRepository _serviceRepository = serviceRepository;
@@ -44,6 +45,7 @@ public class ServiceApplicationService(
     private readonly ITrackingNotificationService? _trackingNotification = trackingNotification;
     private readonly IChatNotificationService? _chatNotification = chatNotification;
     private readonly IPushNotificationService? _pushNotification = pushNotification;
+    private readonly IWalletApplicationService? _walletService = walletService;
 
     public async Task<Result<IEnumerable<OpportunityCallDto>>> GetAcceptedByProviderUserAsync(Guid providerUserId, Guid callerUserId, bool isAdmin)
     {
@@ -253,6 +255,11 @@ public class ServiceApplicationService(
 
         await _serviceRepository.SaveChangesAsync();
         await NotifyStatusChangedAsync(serviceId, "completed");
+
+        if (_walletService != null)
+        {
+            await _walletService.ReleaseEscrowForServiceAsync(serviceId, price);
+        }
 
         return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, "completed"));
     }

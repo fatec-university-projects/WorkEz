@@ -39,6 +39,8 @@ public static class DependencyInjection
         services.AddScoped<IReviewRepository, ReviewRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IWalletTransactionRepository, WalletTransactionRepository>();
+        services.AddScoped<IWithdrawalRequestRepository, WithdrawalRequestRepository>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
 
         services.AddHttpClient<IPushNotificationService, PushNotificationService>();
@@ -54,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IReviewApplicationService, ReviewApplicationService>();
         services.AddScoped<IUserApplicationService, UserApplicationService>();
         services.AddScoped<IAuthApplicationService, AuthApplicationService>();
+        services.AddScoped<IWalletApplicationService, WalletApplicationService>();
 
         return services;
     }

@@ -22,6 +22,8 @@ namespace WorkEz.Infra.Data.Context
         public DbSet<Address> Addresses => Set<Address>();
         public DbSet<Review> Reviews => Set<Review>();
         public DbSet<UserDeviceToken> UserDeviceTokens => Set<UserDeviceToken>();
+        public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
+        public DbSet<WithdrawalRequest> WithdrawalRequests => Set<WithdrawalRequest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -39,7 +41,37 @@ namespace WorkEz.Infra.Data.Context
             modelBuilder.Entity<ChatMessage>(e => { e.HasKey(m => m.Id); e.Property(m => m.Content).IsRequired().HasMaxLength(2000); e.HasIndex(m => m.ProposalId); e.HasIndex(m => m.ServiceId); });
             modelBuilder.Entity<Review>(e => { e.HasKey(r => r.Id); e.Property(r => r.Rating).IsRequired(); e.Property(r => r.Comment).HasMaxLength(1000); e.HasOne(r => r.ReviewerUser).WithMany().HasForeignKey(r => r.ReviewerUserId).OnDelete(DeleteBehavior.Restrict); e.HasOne(r => r.ReviewedUser).WithMany().HasForeignKey(r => r.ReviewedUserId).OnDelete(DeleteBehavior.Restrict); e.HasOne(r => r.Appointment).WithMany().HasForeignKey(r => r.AppointmentId).OnDelete(DeleteBehavior.SetNull); e.HasOne(r => r.Service).WithMany().HasForeignKey(r => r.ServiceId).OnDelete(DeleteBehavior.SetNull); });
             modelBuilder.Entity<UserDeviceToken>(e => { e.HasKey(t => t.Id); e.Property(t => t.ExpoPushToken).IsRequired().HasMaxLength(255); e.Property(t => t.Platform).HasMaxLength(50); e.HasIndex(t => t.ExpoPushToken); e.HasIndex(t => t.UserId); e.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade); });
+            modelBuilder.Entity<WalletTransaction>(e =>
+            {
+                e.HasKey(t => t.Id);
+                e.Property(t => t.Amount).HasPrecision(10, 2).IsRequired();
+                e.Property(t => t.GrossAmount).HasPrecision(10, 2).IsRequired();
+                e.Property(t => t.LaborAmount).HasPrecision(10, 2);
+                e.Property(t => t.MaterialsAmount).HasPrecision(10, 2);
+                e.Property(t => t.PlatformFeeAmount).HasPrecision(10, 2);
+                e.Property(t => t.TransactionType).HasConversion<string>();
+                e.Property(t => t.Status).HasConversion<string>();
+                e.Property(t => t.Description).HasMaxLength(500);
+                e.HasOne(t => t.Provider).WithMany().HasForeignKey(t => t.ProviderId).OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(t => t.Service).WithMany().HasForeignKey(t => t.ServiceId).OnDelete(DeleteBehavior.SetNull);
+                e.HasOne(t => t.Appointment).WithMany().HasForeignKey(t => t.AppointmentId).OnDelete(DeleteBehavior.SetNull);
+                e.HasIndex(t => t.ProviderId);
+                e.HasIndex(t => t.ServiceId);
+            });
+            modelBuilder.Entity<WithdrawalRequest>(e =>
+            {
+                e.HasKey(w => w.Id);
+                e.Property(w => w.Amount).HasPrecision(10, 2).IsRequired();
+                e.Property(w => w.PixKey).IsRequired().HasMaxLength(150);
+                e.Property(w => w.PixKeyType).HasConversion<string>();
+                e.Property(w => w.Status).HasConversion<string>();
+                e.Property(w => w.ReceiptNumber).HasMaxLength(100);
+                e.Property(w => w.Notes).HasMaxLength(500);
+                e.HasOne(w => w.Provider).WithMany().HasForeignKey(w => w.ProviderId).OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(w => w.ProviderId);
+            });
         }
+
     }
 }
 
@@ -373,6 +405,88 @@ namespace WorkEz.Infra.Data.Repositories
 
         public async Task<RefreshToken?> GetByTokenAsync(string token) =>
             await DbSet.FirstOrDefaultAsync(t => t.Token == token);
+    }
+
+    public class WalletTransactionRepository(AppDbContext context) : BaseRepository<WalletTransaction>(context), IWalletTransactionRepository
+    {
+        public async Task<IEnumerable<WalletTransaction>> GetByProviderIdAsync(Guid providerId) =>
+            await DbSet
+                .Include(t => t.Service)
+                .Where(t => t.ProviderId == providerId)
+                .OrderByDescending(t => t.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+
+        public async Task<IEnumerable<WalletTransaction>> GetByProviderIdFilteredAsync(
+            Guid providerId,
+            WalletTransactionType? type = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            int skip = 0,
+            int take = 20)
+        {
+            var query = DbSet
+                .Include(t => t.Service)
+                .Where(t => t.ProviderId == providerId);
+
+            if (type.HasValue)
+                query = query.Where(t => t.TransactionType == type.Value);
+
+            if (startDate.HasValue)
+                query = query.Where(t => t.CreatedAt >= startDate.Value);
+
+            if (endDate.HasValue)
+                query = query.Where(t => t.CreatedAt <= endDate.Value);
+
+            return await query
+                .OrderByDescending(t => t.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<int> CountByProviderIdFilteredAsync(
+            Guid providerId,
+            WalletTransactionType? type = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null)
+        {
+            var query = DbSet.Where(t => t.ProviderId == providerId);
+
+            if (type.HasValue)
+                query = query.Where(t => t.TransactionType == type.Value);
+
+            if (startDate.HasValue)
+                query = query.Where(t => t.CreatedAt >= startDate.Value);
+
+            if (endDate.HasValue)
+                query = query.Where(t => t.CreatedAt <= endDate.Value);
+
+            return await query.CountAsync();
+        }
+
+        public async Task<WalletTransaction?> GetEscrowHoldByServiceIdAsync(Guid serviceId) =>
+            await DbSet.FirstOrDefaultAsync(t => t.ServiceId == serviceId && t.TransactionType == WalletTransactionType.EscrowHold);
+
+        public async Task<WalletTransaction?> GetEscrowReleaseByServiceIdAsync(Guid serviceId) =>
+            await DbSet.FirstOrDefaultAsync(t => t.ServiceId == serviceId && t.TransactionType == WalletTransactionType.EscrowRelease);
+    }
+
+    public class WithdrawalRequestRepository(AppDbContext context) : BaseRepository<WithdrawalRequest>(context), IWithdrawalRequestRepository
+    {
+        public async Task<IEnumerable<WithdrawalRequest>> GetByProviderIdAsync(Guid providerId) =>
+            await DbSet
+                .Where(w => w.ProviderId == providerId)
+                .OrderByDescending(w => w.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+
+        public async Task<WithdrawalRequest?> GetLatestByProviderIdAsync(Guid providerId) =>
+            await DbSet
+                .Where(w => w.ProviderId == providerId)
+                .OrderByDescending(w => w.CreatedAt)
+                .FirstOrDefaultAsync();
     }
 
     public class PasswordHasher : IPasswordHasher
