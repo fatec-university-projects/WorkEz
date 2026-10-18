@@ -130,4 +130,67 @@ test.describe('Fluxo 8: Carteira Digital, Custódia (Escrow), Comissão Justa e 
     // Valida que o saldo disponível na tela foi atualizado para R$ 127,50 (227,50 - 100,00)
     await expect(page.getByText('127,50').first()).toBeVisible({ timeout: 10000 });
   });
+
+  test('deve acessar a tela de pagamento do cliente com DelFinance BaaS e exibir cobrança PIX dinâmica', async ({ page }) => {
+    test.setTimeout(90000);
+
+    const customer = await createTestCustomer();
+    const provider = await createTestProvider();
+
+    // 1. Cria chamado de serviço
+    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
+    });
+    const customerProfile = await customerProfileRes.json();
+    const serviceCall = await createTestServiceCall(customerProfile.id, customer.tokens.accessToken);
+
+    // 2. Prestador envia proposta
+    const propRes = await fetch(`${API_BASE_URL}/api/Proposals/propose`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${provider.tokens.accessToken}`,
+      },
+      body: JSON.stringify({
+        serviceId: serviceCall.id,
+        providerUserId: provider.tokens.user.id,
+        laborPrice: 150.0,
+        materialsPrice: 50.0,
+        proposedPrice: 200.0,
+        description: 'Serviço com materiais.',
+      }),
+    });
+    const proposal = await propRes.json();
+
+    // 3. Cliente aceita proposta
+    await fetch(`${API_BASE_URL}/api/Proposals/accept`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${customer.tokens.accessToken}`,
+      },
+      body: JSON.stringify({
+        proposalId: proposal.id,
+        customerUserId: customer.tokens.user.id,
+      }),
+    });
+
+    // 4. Injeta sessão do cliente e navega para /client/payment/[id]
+    await injectAuth(page, customer);
+    await page.goto(`/client/payment/${serviceCall.id}`);
+    await page.waitForLoadState('networkidle');
+
+    // 5. Valida os elementos da tela de pagamento DelFinance BaaS
+    await expect(page.getByText('Pagamento via PIX')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Processado por DelFinance BaaS')).toBeVisible();
+    await expect(page.getByText('Mão de Obra')).toBeVisible();
+    await expect(page.getByText('Peças e Materiais')).toBeVisible();
+    await expect(page.getByText('PIX Copia e Cola')).toBeVisible();
+    await expect(page.getByText('Copiar Código PIX')).toBeVisible();
+    await expect(page.getByText('Garantia e Custódia WorkEz')).toBeVisible();
+
+    // 6. Clica em Copiar Código PIX
+    page.on('dialog', dialog => dialog.accept());
+    await page.getByText('Copiar Código PIX').click();
+  });
 });

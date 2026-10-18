@@ -1,94 +1,104 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CreditCard, Shield, DollarSign, ExternalLink } from 'lucide-react-native';
+import { ShieldCheck, DollarSign, QrCode, Copy, Check, Clock, RefreshCw } from 'lucide-react-native';
 import { Button } from '../../../components/Button';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView, StyleSheet } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
-import { paymentService } from '../../../services/paymentService';
+import { generateEscrowPixCheckout, EscrowCheckoutPixResponse, apiRequest } from '../../../services/api';
 import { WorkEzTheme } from '../../../constants/theme';
-import * as WebBrowser from 'expo-web-browser';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 
 export default function Payment() {
   const router = useRouter();
   const { id } = useLocalSearchParams(); // service id
-  const [paying, setPaying] = useState(false);
-  const [paymentId, setPaymentId] = useState<string | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<EscrowCheckoutPixResponse | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   // Fetch service details
   const { data: service, loading, error } = useFetch<any>(
     id ? `/api/Services/${id}` : null
   );
 
-  // Fetch or resume existing payment once service details are loaded
-  useEffect(() => {
-    if (!service || !service.appointmentId) return;
+  const loadCheckout = async () => {
+    if (!id) return;
+    setGenerating(true);
+    try {
+      const res = await generateEscrowPixCheckout(id as string);
+      if (res.data) {
+        setCheckoutData(res.data);
+      } else if (res.error) {
+        console.warn('Aviso na geração de cobrança DelFinance:', res.error);
+      }
+    } catch (err) {
+      console.error('Falha ao gerar cobrança PIX DelFinance:', err);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
-    paymentService.getPaymentByAppointment(service.appointmentId)
-      .then(res => {
-        if (res.data) {
-          setPaymentId(res.data.paymentId);
-          setPaymentStatus(res.data.status);
-          setPaymentUrl(res.data.paymentUrl);
-        }
-      })
-      .catch(err => console.error('Error fetching existing payment:', err));
+  // Auto-generate checkout once service details are loaded
+  useEffect(() => {
+    if (service && !checkoutData && !generating) {
+      loadCheckout();
+    }
   }, [service]);
 
-  // If already paid, automatically forward to completed screen
+  // Polling service status to detect completion
   useEffect(() => {
-    if (paymentStatus === 'Paid') {
-      router.replace(`/client/completed/${id}` as any);
-    }
-  }, [paymentStatus, id]);
-
-  // Polling payment status from backend / AbacatePay
-  useEffect(() => {
-    if (!paymentId || paymentStatus === 'Paid') return;
+    if (!id) return;
 
     const interval = setInterval(async () => {
       try {
-        const res = await paymentService.getPaymentStatus(paymentId);
+        const res = await apiRequest<any>(`/api/Services/${id}`);
         if (res.data) {
-          setPaymentStatus(res.data.status);
-          if (res.data.status === 'Paid') {
+          const st = (res.data.status || res.data.serviceStatus || '').toLowerCase();
+          if (st === 'completed') {
             clearInterval(interval);
-            Alert.alert('Sucesso', 'Pagamento realizado com sucesso!', [
-              { text: 'OK', onPress: () => router.push(`/client/completed/${id}` as any) }
+            Alert.alert('Sucesso', 'Pagamento confirmado e serviço concluído com sucesso!', [
+              { text: 'Ver Recibo', onPress: () => router.replace(`/client/completed/${id}` as any) }
             ]);
           }
         }
-      } catch (err) {
-        console.error('Error polling status:', err);
+      } catch {
+        // Ignora erros de polling momentâneos
       }
-    }, 5000);
+    }, 4000);
 
     return () => clearInterval(interval);
-  }, [paymentId, paymentStatus, id]);
+  }, [id]);
 
-  const handlePay = async () => {
-    if (!service || !service.appointmentId) return;
-    setPaying(true);
+  const handleCopyPix = async () => {
+    if (!checkoutData?.pixCopiaECola) return;
     try {
-      const res = await paymentService.createPayment(service.appointmentId);
-      if (res.error) {
-        Alert.alert('Erro ao processar pagamento', res.error);
-      } else if (res.data) {
-        setPaymentId(res.data.paymentId);
-        setPaymentStatus(res.data.status);
-        setPaymentUrl(res.data.paymentUrl);
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(checkoutData.pixCopiaECola);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+      Alert.alert('Copiado!', 'Código PIX Copia e Cola copiado para a área de transferência.');
+    } catch {
+      Alert.alert('Código PIX', checkoutData.pixCopiaECola);
+    }
+  };
 
-        if (res.data.paymentUrl) {
-          await WebBrowser.openBrowserAsync(res.data.paymentUrl);
+  const handleManualCheck = async () => {
+    setCheckingStatus(true);
+    try {
+      const res = await apiRequest<any>(`/api/Services/${id}`);
+      if (res.data) {
+        const st = (res.data.status || res.data.serviceStatus || '').toLowerCase();
+        if (st === 'completed') {
+          router.replace(`/client/completed/${id}` as any);
+          return;
         }
       }
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Erro', 'Não foi possível se conectar ao servidor.');
+      Alert.alert('Aguardando Confirmação', 'O pagamento ainda está sendo processado pela rede PIX DelFinance. Aguarde alguns instantes.');
+    } catch {
+      Alert.alert('Aviso', 'Não foi possível verificar no momento. Tente novamente em instantes.');
     } finally {
-      setPaying(false);
+      setCheckingStatus(false);
     }
   };
 
@@ -111,102 +121,157 @@ export default function Payment() {
     );
   }
 
-  const priceVal = service.price || 150.00;
+  const priceVal = checkoutData?.totalAmount ?? (service.price || 150.00);
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Pagamento" showBack />
+      <ScreenHeader title="Pagamento via PIX" showBack />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.content}>
+          {/* Service summary */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Resumo do serviço</Text>
+            <View style={styles.row}>
+              <Text style={styles.label}>Profissional</Text>
+              <Text style={styles.value}>{service.professional?.name || 'Profissional'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Serviço</Text>
+              <Text style={styles.value}>{service.title || service.category}</Text>
+            </View>
 
-      <View style={styles.content}>
-        {/* Service summary */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Resumo do serviço</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Profissional</Text>
-            <Text style={styles.value}>{service.professional?.name || 'Profissional'}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Serviço</Text>
-            <Text style={styles.value}>{service.category}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>R$ {priceVal.toFixed(2).replace('.', ',')}</Text>
-          </View>
-        </View>
+            {checkoutData && (
+              <>
+                <View style={styles.row}>
+                  <Text style={styles.label}>Mão de Obra</Text>
+                  <Text style={styles.value}>R$ {checkoutData.laborAmount.toFixed(2).replace('.', ',')}</Text>
+                </View>
+                {checkoutData.materialsAmount > 0 && (
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Peças e Materiais</Text>
+                    <Text style={styles.value}>R$ {checkoutData.materialsAmount.toFixed(2).replace('.', ',')}</Text>
+                  </View>
+                )}
+              </>
+            )}
 
-        {/* Payment Methods */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Forma de pagamento</Text>
-          
-          {/* AbacatePay notice */}
-          <View style={styles.noticeBox}>
-            <DollarSign size={20} color="#10B981" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.noticeTitle}>Processado por AbacatePay</Text>
-              <Text style={styles.noticeText}>
-                Seus pagamentos são processados de forma 100% segura através do AbacatePay via PIX ou Cartão.
-              </Text>
+            <View style={styles.divider} />
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>R$ {priceVal.toFixed(2).replace('.', ',')}</Text>
             </View>
           </View>
 
-          {paymentUrl ? (
-            <TouchableOpacity
-              onPress={async () => {
-                if (paymentUrl) await WebBrowser.openBrowserAsync(paymentUrl);
-              }}
-              style={styles.billingActiveBtn}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                <CreditCard size={24} color="#2563EB" />
-                <View>
-                  <Text style={styles.billingActiveTitle}>Fatura AbacatePay Gerada</Text>
-                  <Text style={styles.billingActiveSubtitle}>Clique para abrir a fatura</Text>
+          {/* DelFinance PIX Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Forma de pagamento</Text>
+
+            {/* DelFinance notice */}
+            <View style={styles.noticeBox}>
+              <DollarSign size={20} color="#10B981" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.noticeTitle}>Processado por DelFinance BaaS</Text>
+                <Text style={styles.noticeText}>
+                  Seu pagamento é mantido em custódia segura (Escrow) e repassado ao prestador somente após a conclusão do serviço.
+                </Text>
+              </View>
+            </View>
+
+            {generating ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator size="small" color="#2563EB" />
+                <Text style={styles.loadingText}>Gerando cobrança PIX oficial no DelFinance...</Text>
+              </View>
+            ) : checkoutData ? (
+              <View style={styles.pixContainer}>
+                {/* QR Code Container */}
+                <View style={styles.qrContainer}>
+                  {checkoutData.qrCodeBase64 ? (
+                    <Image
+                      source={{ uri: `data:image/png;base64,${checkoutData.qrCodeBase64}` }}
+                      style={styles.qrImage}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <View style={styles.qrPlaceholder}>
+                      <QrCode size={120} color="#1E293B" />
+                      <Text style={styles.qrPlaceholderText}>QR Code Dinâmico DelFinance</Text>
+                    </View>
+                  )}
+                  <Text style={styles.qrSubtitle}>Escaneie com o app do seu banco</Text>
+                </View>
+
+                {/* Copia e Cola */}
+                <View style={styles.copyContainer}>
+                  <Text style={styles.copyLabel}>PIX Copia e Cola</Text>
+                  <View style={styles.copyBox}>
+                    <Text style={styles.pixCodeText} numberOfLines={2} ellipsizeMode="middle">
+                      {checkoutData.pixCopiaECola}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.copyButton, copied && styles.copyButtonActive]}
+                    onPress={handleCopyPix}
+                    activeOpacity={0.8}
+                  >
+                    {copied ? (
+                      <>
+                        <Check size={18} color="#FFFFFF" />
+                        <Text style={styles.copyButtonText}>Código Copiado!</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={18} color="#FFFFFF" />
+                        <Text style={styles.copyButtonText}>Copiar Código PIX</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Polling Indicator */}
+                <View style={styles.pollingNotice}>
+                  <Clock size={16} color="#64748B" />
+                  <Text style={styles.pollingText}>Aguardando confirmação do pagamento...</Text>
                 </View>
               </View>
-              <ExternalLink size={20} color="#2563EB" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.billingNotice}>
-              <Text style={styles.billingNoticeText}>
-                Clique no botão abaixo para gerar a fatura de pagamento segura no AbacatePay.
+            ) : (
+              <TouchableOpacity style={styles.generateBtn} onPress={loadCheckout}>
+                <RefreshCw size={20} color="#2563EB" />
+                <Text style={styles.generateBtnText}>Gerar Cobrança PIX DelFinance</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Guarantee Info */}
+          <View style={styles.shieldNotice}>
+            <ShieldCheck size={22} color="#2563EB" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.shieldTitle}>Garantia e Custódia WorkEz</Text>
+              <Text style={styles.shieldText}>
+                Seus recursos ficam protegidos no DelFinance BaaS e você conta com a garantia de 30 dias após a conclusão do chamado.
               </Text>
             </View>
-          )}
-        </View>
-
-        {/* Guarantee Info */}
-        <View style={styles.shieldNotice}>
-          <Shield size={20} color="#2563EB" style={{ marginTop: 2 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.shieldTitle}>Pagamento seguro</Text>
-            <Text style={styles.shieldText}>
-              Seu pagamento é protegido pelo WorkEz. O profissional só recebe após a conclusão do serviço.
-            </Text>
           </View>
         </View>
-      </View>
 
-      <View style={styles.footer}>
-        <Button
-          fullWidth
-          onPress={paymentUrl ? async () => { await WebBrowser.openBrowserAsync(paymentUrl); } : handlePay}
-          disabled={paying}
-        >
-          {paying ? (
-            <ActivityIndicator color="#FFF" />
-          ) : paymentUrl ? (
-            'Abrir Fatura AbacatePay'
-          ) : (
-            `Pagar R$ ${priceVal.toFixed(2).replace('.', ',')} com segurança`
-          )}
-        </Button>
-      </View>
-    </ScrollView>
-  </View>
-);
+        <View style={styles.footer}>
+          <Button
+            fullWidth
+            onPress={checkoutData ? handleManualCheck : loadCheckout}
+            disabled={generating || checkingStatus}
+          >
+            {generating || checkingStatus ? (
+              <ActivityIndicator color="#FFF" />
+            ) : checkoutData ? (
+              'Já realizei o pagamento'
+            ) : (
+              `Pagar R$ ${priceVal.toFixed(2).replace('.', ',')} via DelFinance`
+            )}
+          </Button>
+        </View>
+      </ScrollView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -229,31 +294,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
   },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconButton: {
-    padding: 8,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#0F172A',
-  },
   content: {
     padding: 24,
-    gap: 24,
+    gap: 20,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -319,50 +362,131 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   noticeTitle: {
-    color: '#064e3b',
+    color: '#064E3B',
     fontWeight: '600',
     fontSize: 14,
     textAlign: 'left',
   },
   noticeText: {
-    color: '#065f46',
+    color: '#065F46',
     fontSize: 12,
     marginTop: 4,
     lineHeight: 18,
     textAlign: 'left',
   },
-  billingActiveBtn: {
-    width: '100%',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#2563EB',
-    backgroundColor: 'rgba(37, 99, 235, 0.05)',
-    flexDirection: 'row',
+  loadingBox: {
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    color: '#64748B',
+    fontSize: 13,
+  },
+  pixContainer: {
+    gap: 16,
     alignItems: 'center',
   },
-  billingActiveTitle: {
-    fontWeight: '600',
-    color: '#0F172A',
-    fontSize: 14,
-  },
-  billingActiveSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  billingNotice: {
+  qrContainer: {
+    alignItems: 'center',
     padding: 16,
     backgroundColor: '#F8FAFC',
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 12,
+    width: '100%',
   },
-  billingNoticeText: {
-    fontSize: 14,
+  qrImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  qrPlaceholder: {
+    width: 180,
+    height: 180,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  qrPlaceholderText: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  qrSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 10,
+    fontWeight: '500',
+  },
+  copyContainer: {
+    width: '100%',
+    gap: 8,
+  },
+  copyLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  copyBox: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  pixCodeText: {
+    fontSize: 12,
     color: '#475569',
-    textAlign: 'center',
-    lineHeight: 20,
+    fontFamily: 'monospace',
+  },
+  copyButton: {
+    backgroundColor: '#2563EB',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  copyButtonActive: {
+    backgroundColor: '#10B981',
+  },
+  copyButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  pollingNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  pollingText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  generateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+  },
+  generateBtnText: {
+    color: '#2563EB',
+    fontSize: 14,
+    fontWeight: '600',
   },
   shieldNotice: {
     backgroundColor: '#EFF6FF',
