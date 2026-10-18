@@ -23,8 +23,8 @@ def run_migrations():
         except Exception as e:
             print(f"  -> ERROR applying {fname}: {e}")
 
-    # Verify columns in Providers, Services, Addresses, Reviews, and UserDeviceTokens
-    for table in ["Providers", "Services", "Addresses", "Reviews", "UserDeviceTokens"]:
+    # Verify columns in Providers, Services, Addresses, Reviews, UserDeviceTokens, WalletTransactions, and WithdrawalRequests
+    for table in ["Providers", "Services", "Addresses", "Reviews", "UserDeviceTokens", "WalletTransactions", "WithdrawalRequests"]:
         cursor.execute(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table}' ORDER BY column_name;")
         cols = cursor.fetchall()
         col_names = [c[0] for c in cols]

@@ -15,9 +15,11 @@ services:
         sync: false
       - key: Jwt__SecretKey
         sync: false
-      - key: AbacatePay__ApiKey
+      - key: DelFinance__ApiKey
         sync: false
-      - key: AbacatePay__WebhookSecret
+      - key: DelFinance__AccountId
+        sync: false
+      - key: DelFinance__WebhookSecret
         sync: false
       - key: Jwt__Issuer
         value: WorkEz
@@ -27,5 +29,5 @@ services:
         value: "15"
       - key: Jwt__RefreshTokenExpirationDays
         value: "7"
-      - key: AbacatePay__BaseUrl
-        value: "https://api.abacatepay.com/v1"
+      - key: DelFinance__BaseUrl
+        value: "https://apisandbox.delbank.com.br"

@@ -114,10 +114,22 @@ public class Service : BaseEntity
     public DateTime? DesiredDate { get; set; }
     public ServiceStatus ServiceStatus { get; set; } = ServiceStatus.Open;
 
+    // ── Segurança Operacional & Vistorias (Branch 5) ──────────────────────────
+    public string? StartCheckInCode { get; set; }
+    public string? BeforePhotosJson { get; set; }
+    public string? AfterPhotosJson { get; set; }
+    public string? CompletedClientSignatureUrl { get; set; }
+
     public Customer Customer { get; set; } = null!;
     public Address? Address { get; set; }
     public ICollection<Proposal> Proposals { get; set; } = [];
     public Appointment? Appointment { get; set; }
+
+    public string GenerateStartCheckInCode()
+    {
+        StartCheckInCode = new Random().Next(1000, 10000).ToString("D4");
+        return StartCheckInCode;
+    }
 }
 
 public class Proposal : BaseEntity
@@ -182,5 +194,38 @@ public class UserDeviceToken : BaseEntity
     public string? Platform { get; set; }
 
     public User? User { get; set; }
+}
+
+public class WalletTransaction : BaseEntity
+{
+    public Guid ProviderId { get; set; }
+    public Guid? ServiceId { get; set; }
+    public Guid? AppointmentId { get; set; }
+    public decimal Amount { get; set; }
+    public decimal GrossAmount { get; set; }
+    public decimal LaborAmount { get; set; }
+    public decimal MaterialsAmount { get; set; }
+    public decimal PlatformFeeAmount { get; set; }
+    public WalletTransactionType TransactionType { get; set; } = WalletTransactionType.Credit;
+    public WalletTransactionStatus Status { get; set; } = WalletTransactionStatus.Completed;
+    public string? Description { get; set; }
+
+    public ServiceProvider Provider { get; set; } = null!;
+    public Service? Service { get; set; }
+    public Appointment? Appointment { get; set; }
+}
+
+public class WithdrawalRequest : BaseEntity
+{
+    public Guid ProviderId { get; set; }
+    public decimal Amount { get; set; }
+    public string PixKey { get; set; } = string.Empty;
+    public PixKeyType PixKeyType { get; set; } = PixKeyType.CPF;
+    public WithdrawalStatus Status { get; set; } = WithdrawalStatus.Pending;
+    public string? ReceiptNumber { get; set; }
+    public DateTime? ProcessedAt { get; set; }
+    public string? Notes { get; set; }
+
+    public ServiceProvider Provider { get; set; } = null!;
 }
 

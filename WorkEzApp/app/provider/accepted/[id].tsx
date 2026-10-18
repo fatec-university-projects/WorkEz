@@ -14,7 +14,14 @@ import {
   FileText,
   BadgeDollarSign,
   Wrench,
-  Play
+  Play,
+  ShieldCheck,
+  QrCode,
+  Camera,
+  Check,
+  X as XIcon,
+  Eye,
+  Plus
 } from 'lucide-react-native';
 import { 
   View, 
@@ -25,11 +32,15 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  Platform 
+  Platform,
+  Modal,
+  TextInput
 } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
 import { WorkEzTheme } from '../../../constants/theme';
-import { apiRequest, getWebSocketUrl, resolveImageUrl } from '../../../services/api';
+import { apiRequest, getWebSocketUrl, resolveImageUrl, validateCheckIn, uploadChecklistPhotos } from '../../../services/api';
+import { imageService } from '../../../services/imageService';
+import * as ImagePicker from 'expo-image-picker';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -49,6 +60,10 @@ interface ServiceDetail {
   imageUrl?: string;
   images?: string[];
   price?: number;
+  startCheckInCode?: string;
+  beforePhotos?: string[];
+  afterPhotos?: string[];
+  completedClientSignatureUrl?: string;
 }
 
 export default function AcceptedService() {
@@ -56,6 +71,16 @@ export default function AcceptedService() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Security OTP Check-in Modal State (Branch 5)
+  const [checkInModalVisible, setCheckInModalVisible] = useState(false);
+  const [checkInCode, setCheckInCode] = useState('');
+  const [checkInSubmitting, setCheckInSubmitting] = useState(false);
+  const [checkInError, setCheckInError] = useState<string | null>(null);
+
+  // Photos state (Branch 5)
+  const [uploadingBefore, setUploadingBefore] = useState(false);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
 
   const { data: service, loading, error, refetch } = useFetch<ServiceDetail>(
     id ? `/api/Services/${id}` : null
@@ -196,80 +221,102 @@ export default function AcceptedService() {
     }
   };
 
-  const handleStartService = async () => {
-    if (!id) return;
-    setActionLoading(true);
-    try {
-      const res = await apiRequest<{ id: string; status: string }>(`/api/Services/${id}/start`, {
-        method: 'POST'
-      });
+  // Abre modal para validar código OTP de 4 dígitos antes de destravar a execução
+  const handleStartService = () => {
+    setCheckInCode('');
+    setCheckInError(null);
+    setCheckInModalVisible(true);
+  };
+  const handleOpenCheckInModal = handleStartService;
 
+  const handleValidateCheckIn = async () => {
+    if (!id) return;
+    const clean = checkInCode.trim().replace(/\s/g, '');
+    if (clean.length < 4) {
+      setCheckInError('O código de check-in deve conter 4 dígitos.');
+      return;
+    }
+
+    setCheckInSubmitting(true);
+    setCheckInError(null);
+    try {
+      const res = await validateCheckIn(id, clean);
       if (res.error) {
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          window.alert(`Erro: ${res.error}`);
-        } else {
-          Alert.alert('Erro', res.error);
-        }
+        setCheckInError(res.error);
       } else {
+        setCheckInModalVisible(false);
+        setCheckInCode('');
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert('Check-in realizado com sucesso! Atendimento iniciado.');
+        } else {
+          Alert.alert('Sucesso', 'Check-in presencial validado! Atendimento iniciado.');
+        }
         refetch();
       }
     } catch (err: any) {
-      const msg = err?.message || 'Não foi possível se conectar ao servidor.';
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.alert(`Erro: ${msg}`);
-      } else {
-        Alert.alert('Erro', msg);
-      }
+      setCheckInError(err?.message || 'Erro ao conectar ao servidor.');
     } finally {
-      setActionLoading(false);
+      setCheckInSubmitting(false);
     }
   };
 
-  const handleCompleteService = async () => {
+  // Redireciona para anexo de até 3 fotos e confirmação de valor final
+  const handleCompleteService = () => {
     if (!id) return;
+    router.push({
+      pathname: '/provider/inform-value/[id]',
+      params: { id }
+    } as any);
+  };
 
-    const execute = async () => {
-      setActionLoading(true);
-      try {
-        const res = await apiRequest<{ id: string; status: string }>(`/api/Services/${id}/complete`, {
-          method: 'POST'
-        });
+  // Upload opcional de fotos de vistoria inicial (Antes)
+  const handlePickBeforePhoto = async () => {
+    if (!id) return;
+    const currentPhotos = service?.beforePhotos || [];
+    if (currentPhotos.length >= 3) {
+      Alert.alert('Limite atingido', 'Você já anexou 3 fotos de início.');
+      return;
+    }
 
-        if (res.error) {
-          if (Platform.OS === 'web' && typeof window !== 'undefined') {
-            window.alert(`Erro: ${res.error}`);
-          } else {
-            Alert.alert('Erro', res.error);
-          }
-        } else {
-          refetch();
-        }
-      } catch (err: any) {
-        const msg = err?.message || 'Não foi possível se conectar ao servidor.';
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          window.alert(`Erro: ${msg}`);
+          window.alert('Precisamos de permissão para acessar suas fotos!');
         } else {
-          Alert.alert('Erro', msg);
+          Alert.alert('Permissão necessária', 'Precisamos de permissão para acessar suas fotos!');
         }
-      } finally {
-        setActionLoading(false);
+        return;
       }
-    };
 
-    const confirmMsg = 'Deseja confirmar a conclusão deste serviço? O chamado será finalizado com sucesso.';
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm(confirmMsg)) {
-        await execute();
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setUploadingBefore(true);
+        try {
+          const uploadedUrl = await imageService.uploadImage(asset.uri, asset.base64);
+          const updated = [...currentPhotos, uploadedUrl].slice(0, 3);
+          const uploadRes = await uploadChecklistPhotos(id, 'before', updated);
+          if (uploadRes.error) {
+            Alert.alert('Erro', uploadRes.error);
+          } else {
+            refetch();
+          }
+        } catch (err) {
+          console.error(err);
+          Alert.alert('Erro', 'Falha ao fazer upload da foto de vistoria.');
+        } finally {
+          setUploadingBefore(false);
+        }
       }
-    } else {
-      Alert.alert(
-        'Concluir Chamado',
-        confirmMsg,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Confirmar', onPress: execute }
-        ]
-      );
+    } catch (e) {
+      console.warn('Erro ao selecionar foto:', e);
     }
   };
 
@@ -439,6 +486,104 @@ export default function AcceptedService() {
                 O cliente confirmou a sua proposta. Quando estiver pronto para ir até o endereço, clique no botão abaixo para avisar que está a caminho.
               </Text>
             </View>
+          </View>
+        )}
+
+        {/* ─── CARD DE CHECK-IN PRESENCIAL & VISTORIAS (BRANCH 5) ────────────── */}
+        {isOnTheWay && (
+          <View style={styles.providerSecurityAlertCard}>
+            <View style={styles.providerSecurityHeaderRow}>
+              <View style={styles.providerSecurityIconWrap}>
+                <ShieldCheck size={20} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.providerSecurityTitle}>Check-in Obrigatório no Local</Text>
+                <Text style={styles.providerSecuritySubtitle}>
+                  Ao chegar, solicite o código de 4 dígitos exibido no app do cliente para liberar o início.
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.providerCheckInActionBtn}
+              onPress={handleOpenCheckInModal}
+              activeOpacity={0.85}
+            >
+              <ShieldCheck size={18} color="#FFFFFF" />
+              <Text style={styles.providerCheckInActionText}>Digitar Código de Início</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {isInProgress && (
+          <View style={styles.card}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Camera size={18} color="#2563EB" />
+                <Text style={styles.sectionTitle}>Vistorias do Atendimento</Text>
+              </View>
+              <View style={styles.validatedBadge}>
+                <CheckCircle2 size={13} color="#16A34A" />
+                <Text style={styles.validatedBadgeText}>Check-in Validado</Text>
+              </View>
+            </View>
+            <Text style={styles.cardHelperText}>
+              Registre fotos de "Antes" agora ou de "Depois" na finalização do serviço:
+            </Text>
+
+            {/* Fotos de Antes */}
+            <View style={{ marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={styles.checklistPhotoSectionTitle}>
+                  Fotos de Início (Antes) ({service?.beforePhotos?.length || 0}/3)
+                </Text>
+                {(!service?.beforePhotos || service.beforePhotos.length < 3) && (
+                  <TouchableOpacity
+                    style={styles.addPhotoMiniBtn}
+                    onPress={handlePickBeforePhoto}
+                    disabled={uploadingBefore}
+                    activeOpacity={0.7}
+                  >
+                    {uploadingBefore ? (
+                      <ActivityIndicator size="small" color="#2563EB" />
+                    ) : (
+                      <>
+                        <Plus size={14} color="#2563EB" />
+                        <Text style={styles.addPhotoMiniBtnText}>Tirar Foto</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {service?.beforePhotos && service.beforePhotos.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                  {service.beforePhotos.map((url, idx) => (
+                    <TouchableOpacity key={idx} onPress={() => setPreviewPhotoUrl(url)} activeOpacity={0.85}>
+                      <Image source={{ uri: resolveImageUrl(url) || url }} style={styles.checklistThumb} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic' }}>
+                  Nenhuma foto de início anexada. Recomendamos registrar o estado do problema.
+                </Text>
+              )}
+            </View>
+
+            {/* Fotos de Depois */}
+            {service?.afterPhotos && service.afterPhotos.length > 0 && (
+              <View style={{ marginTop: 12 }}>
+                <Text style={styles.checklistPhotoSectionTitle}>Fotos de Conclusão (Depois)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 4 }}>
+                  {service.afterPhotos.map((url, idx) => (
+                    <TouchableOpacity key={idx} onPress={() => setPreviewPhotoUrl(url)} activeOpacity={0.85}>
+                      <Image source={{ uri: resolveImageUrl(url) || url }} style={styles.checklistThumb} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </View>
         )}
 
@@ -737,7 +882,7 @@ export default function AcceptedService() {
         ) : isOnTheWay ? (
           <TouchableOpacity
             style={[styles.primaryActionBtn, actionLoading && styles.btnDisabled]}
-            onPress={handleStartService}
+            onPress={handleOpenCheckInModal}
             disabled={actionLoading}
             activeOpacity={0.85}
           >
@@ -745,8 +890,8 @@ export default function AcceptedService() {
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
-                <Play size={20} color="#FFFFFF" />
-                <Text style={styles.primaryActionText}>Iniciar Execução do Serviço</Text>
+                <ShieldCheck size={20} color="#FFFFFF" />
+                <Text style={styles.primaryActionText}>Check-in Seguro & Iniciar Execução</Text>
               </>
             )}
           </TouchableOpacity>
@@ -762,7 +907,7 @@ export default function AcceptedService() {
             ) : (
               <>
                 <CheckCircle2 size={20} color="#FFFFFF" />
-                <Text style={styles.primaryActionText}>Finalizar Serviço</Text>
+                <Text style={styles.primaryActionText}>Concluir Atendimento (Fotos & Valor)</Text>
               </>
             )}
           </TouchableOpacity>
@@ -786,6 +931,104 @@ export default function AcceptedService() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Modal de Check-in OTP Presencial (Branch 5) */}
+      <Modal
+        visible={checkInModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCheckInModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.checkInModalCard}>
+            <View style={styles.checkInModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ShieldCheck size={22} color="#2563EB" />
+                <Text style={styles.checkInModalTitle}>Check-in de Segurança</Text>
+              </View>
+              <TouchableOpacity onPress={() => setCheckInModalVisible(false)} style={styles.closeBtn}>
+                <XIcon size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.checkInModalDesc}>
+              Peça ao cliente o código de 4 dígitos gerado no aplicativo dele para comprovar a presença no local:
+            </Text>
+
+            <TextInput
+              style={styles.otpInputBox}
+              placeholder="0 0 0 0"
+              placeholderTextColor="#94A3B8"
+              keyboardType="numeric"
+              maxLength={4}
+              value={checkInCode}
+              onChangeText={(text) => {
+                setCheckInCode(text.replace(/[^0-9]/g, ''));
+                setCheckInError(null);
+              }}
+              autoFocus
+            />
+
+            {checkInError && (
+              <View style={styles.errorAlertBox}>
+                <AlertCircle size={16} color="#DC2626" />
+                <Text style={styles.errorAlertText}>{checkInError}</Text>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 18, width: '100%' }}>
+              <TouchableOpacity
+                style={styles.cancelModalBtn}
+                onPress={() => setCheckInModalVisible(false)}
+                disabled={checkInSubmitting}
+              >
+                <Text style={styles.cancelModalBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.confirmCheckInBtn, checkInSubmitting && styles.btnDisabled]}
+                onPress={handleValidateCheckIn}
+                disabled={checkInSubmitting}
+              >
+                {checkInSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Check size={18} color="#FFFFFF" />
+                    <Text style={styles.confirmCheckInBtnText}>Validar Check-in</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Zoom da Foto (Branch 5) */}
+      <Modal
+        visible={!!previewPhotoUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewPhotoUrl(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.checkInModalCard}>
+            <View style={styles.checkInModalHeader}>
+              <Text style={styles.checkInModalTitle}>Vistoria do Atendimento</Text>
+              <TouchableOpacity onPress={() => setPreviewPhotoUrl(null)} style={styles.closeBtn}>
+                <XIcon size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            {previewPhotoUrl && (
+              <Image
+                source={{ uri: resolveImageUrl(previewPhotoUrl) || previewPhotoUrl }}
+                style={styles.previewFullImg}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1204,5 +1447,210 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontWeight: '600',
     fontSize: 14,
+  },
+  // ─── Estilos de Segurança e Check-In (Branch 5) ──────────────────────────
+  providerSecurityAlertCard: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#93C5FD',
+  },
+  providerSecurityHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  providerSecurityIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  providerSecurityTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E3A8A',
+  },
+  providerSecuritySubtitle: {
+    fontSize: 12,
+    color: '#3B82F6',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  providerCheckInActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2563EB',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  providerCheckInActionText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  validatedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F0FDF4',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  validatedBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#166534',
+  },
+  cardHelperText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 10,
+    lineHeight: 16,
+  },
+  checklistPhotoSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  addPhotoMiniBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  addPhotoMiniBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  checklistThumb: {
+    width: 84,
+    height: 84,
+    borderRadius: 10,
+    backgroundColor: '#E2E8F0',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  checkInModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 22,
+    width: '100%',
+    maxWidth: 420,
+    alignItems: 'center',
+  },
+  checkInModalHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  checkInModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  checkInModalDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  otpInputBox: {
+    width: '100%',
+    height: 64,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 2,
+    borderColor: '#3B82F6',
+    borderRadius: 14,
+    fontSize: 32,
+    fontWeight: '800',
+    textAlign: 'center',
+    color: '#1D4ED8',
+    letterSpacing: 10,
+    marginVertical: 8,
+  },
+  errorAlertBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 6,
+    width: '100%',
+  },
+  errorAlertText: {
+    color: '#DC2626',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  cancelModalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+  cancelModalBtnText: {
+    color: '#475569',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  confirmCheckInBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  confirmCheckInBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  previewFullImg: {
+    width: '100%',
+    height: 380,
+    borderRadius: 12,
+    backgroundColor: '#0F172A',
+    marginTop: 10,
   },
 });

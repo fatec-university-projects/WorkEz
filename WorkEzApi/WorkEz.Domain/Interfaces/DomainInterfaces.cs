@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using WorkEz.Domain.Common;
 using WorkEz.Domain.Entities;
+using WorkEz.Domain.Enums;
 
 namespace WorkEz.Domain.Interfaces;
 
@@ -135,4 +136,29 @@ public interface IPasswordHasher
 {
     string HashPassword(string password);
     bool VerifyPassword(string password, string passwordHash);
+}
+
+public interface IWalletTransactionRepository : IBaseRepository<WalletTransaction>
+{
+    Task<IEnumerable<WalletTransaction>> GetByProviderIdAsync(Guid providerId);
+    Task<IEnumerable<WalletTransaction>> GetByProviderIdFilteredAsync(
+        Guid providerId,
+        WalletTransactionType? type = null,
+        DateTime? startDate = null,
+        DateTime? endDate = null,
+        int skip = 0,
+        int take = 20);
+    Task<int> CountByProviderIdFilteredAsync(
+        Guid providerId,
+        WalletTransactionType? type = null,
+        DateTime? startDate = null,
+        DateTime? endDate = null);
+    Task<WalletTransaction?> GetEscrowHoldByServiceIdAsync(Guid serviceId);
+    Task<WalletTransaction?> GetEscrowReleaseByServiceIdAsync(Guid serviceId);
+}
+
+public interface IWithdrawalRequestRepository : IBaseRepository<WithdrawalRequest>
+{
+    Task<IEnumerable<WithdrawalRequest>> GetByProviderIdAsync(Guid providerId);
+    Task<WithdrawalRequest?> GetLatestByProviderIdAsync(Guid providerId);
 }

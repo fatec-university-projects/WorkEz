@@ -52,7 +52,8 @@ public class ProposalApplicationService(
     IBaseRepository<Customer>? customerRepository = null,
     ITrackingNotificationService? trackingNotification = null,
     IChatNotificationService? chatNotification = null,
-    IPushNotificationService? pushNotification = null
+    IPushNotificationService? pushNotification = null,
+    IWalletApplicationService? walletService = null
 ) : IProposalApplicationService
 {
     private readonly IProposalDomainService _proposalDomainService = proposalDomainService;
@@ -64,6 +65,7 @@ public class ProposalApplicationService(
     private readonly ITrackingNotificationService? _trackingNotification = trackingNotification;
     private readonly IChatNotificationService? _chatNotification = chatNotification;
     private readonly IPushNotificationService? _pushNotification = pushNotification;
+    private readonly IWalletApplicationService? _walletService = walletService;
 
     public async Task<Result<ProposalResponseDto>> ProposePriceAsync(ProposePriceRequest request)
     {
@@ -96,6 +98,10 @@ public class ProposalApplicationService(
     {
         var result = await _proposalDomainService.AcceptProposalAsync(request.CustomerUserId, request.ProposalId);
         if (result.IsFailure) return Result<ProposalResponseDto>.Failure(result.Error, result.ErrorCode);
+        if (_walletService != null && result.Value != null)
+        {
+            await _walletService.HoldEscrowForServiceAsync(result.Value.ServiceId);
+        }
         return Result<ProposalResponseDto>.Success(MapToResponseDto(result.Value));
     }
 
@@ -231,6 +237,10 @@ public class ProposalApplicationService(
     {
         var result = await _proposalDomainService.AcceptCounterAsync(request.ProviderUserId, request.ProposalId);
         if (result.IsFailure) return Result<ProposalResponseDto>.Failure(result.Error, result.ErrorCode);
+        if (_walletService != null && result.Value != null)
+        {
+            await _walletService.HoldEscrowForServiceAsync(result.Value.ServiceId);
+        }
         return Result<ProposalResponseDto>.Success(MapToResponseDto(result.Value));
     }
 

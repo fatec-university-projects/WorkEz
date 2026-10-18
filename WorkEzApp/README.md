@@ -64,9 +64,8 @@ WorkEzApp/
 │   └── AuthContext.tsx           # Gerenciamento de autenticação, login, logout e sessão
 ├── e2e/                          # Testes automatizados End-to-End com Playwright (7 suítes)
 ├── services/                     # Integrações e APIs
-│   ├── api.ts                    # Cliente HTTP Fetch com interceptador e auto-refresh de JWT
+│   ├── api.ts                    # Cliente HTTP Fetch com interceptador, auto-refresh de JWT e DelFinance BaaS
 │   ├── authService.ts            # Métodos de autenticação, registro e logout
-│   ├── paymentService.ts         # Integração com endpoints de pagamento PIX
 │   ├── imageService.ts           # Upload de fotos diretamente para o ImgBB
 │   └── storage.ts                # Wrapper seguro em volta do AsyncStorage
 ├── constants/                    # Constantes e tokens de tema
