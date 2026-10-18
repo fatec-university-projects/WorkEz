@@ -137,6 +137,40 @@ public class ServicesController(
     }
 
     /// <summary>
+    /// Valida o código OTP gerado no app do cliente antes de alterar o status para InProgress.
+    /// </summary>
+    [HttpPost("{id:guid}/validate-checkin")]
+    [ProducesResponseType(typeof(ServiceStatusResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ValidateCheckIn(Guid id, [FromBody] ValidateCheckInRequest request)
+    {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        var result = await _serviceAppService.ValidateCheckInAsync(id, request.Code, me.Value, User.IsAdmin());
+        return ToActionResult(result);
+    }
+
+    /// <summary>
+    /// Upload com carimbo de data/hora (Timestamp) das vistorias (fotos de antes ou depois).
+    /// </summary>
+    [HttpPost("{id:guid}/checklist-photos")]
+    [ProducesResponseType(typeof(ServiceDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ChecklistPhotos(Guid id, [FromBody] ChecklistPhotosRequest request)
+    {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        var result = await _serviceAppService.UploadChecklistPhotosAsync(id, request, me.Value, User.IsAdmin());
+        return ToActionResult(result);
+    }
+
+    /// <summary>
     /// Prestador conclui o serviço e informa valor final.
     /// </summary>
     [HttpPost("{id:guid}/complete")]

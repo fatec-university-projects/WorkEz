@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ShieldCheck, DollarSign, QrCode, Copy, Check, Clock, RefreshCw } from 'lucide-react-native';
+import { ShieldCheck, DollarSign, QrCode, Copy, Check, Clock, RefreshCw, Camera, CheckCircle2, X as XIcon } from 'lucide-react-native';
 import { Button } from '../../../components/Button';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView, StyleSheet, Modal } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
-import { generateEscrowPixCheckout, EscrowCheckoutPixResponse, apiRequest } from '../../../services/api';
+import { generateEscrowPixCheckout, EscrowCheckoutPixResponse, apiRequest, resolveImageUrl } from '../../../services/api';
 import { WorkEzTheme } from '../../../constants/theme';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 
@@ -15,6 +15,7 @@ export default function Payment() {
   const [checkoutData, setCheckoutData] = useState<EscrowCheckoutPixResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
 
   // Fetch service details
   const { data: service, loading, error } = useFetch<any>(
@@ -162,6 +163,62 @@ export default function Payment() {
             </View>
           </View>
 
+          {/* Card de Vistoria Fotográfica do Serviço Finalizado (Branch 5) */}
+          {((service.afterPhotos && service.afterPhotos.length > 0) || (service.beforePhotos && service.beforePhotos.length > 0)) && (
+            <View style={styles.card}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Camera size={18} color="#2563EB" />
+                <Text style={styles.cardTitle}>Vistoria do Serviço Finalizado</Text>
+              </View>
+              <Text style={styles.vistoriaSubtitle}>
+                Confira as fotos anexadas pelo profissional como comprovação da conclusão antes de pagar:
+              </Text>
+
+              {service.afterPhotos && service.afterPhotos.length > 0 ? (
+                <View style={styles.vistoriaGrid}>
+                  {service.afterPhotos.map((url: string, index: number) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => setPreviewModalUrl(url)}
+                      activeOpacity={0.85}
+                      style={styles.vistoriaThumbWrapper}
+                    >
+                      <Image
+                        source={{ uri: resolveImageUrl(url) || url }}
+                        style={styles.vistoriaThumbImg}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.vistoriaBadge}>
+                        <CheckCircle2 size={11} color="#FFFFFF" />
+                        <Text style={styles.vistoriaBadgeText}>Depois #{index + 1}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : service.beforePhotos && service.beforePhotos.length > 0 ? (
+                <View style={styles.vistoriaGrid}>
+                  {service.beforePhotos.map((url: string, index: number) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => setPreviewModalUrl(url)}
+                      activeOpacity={0.85}
+                      style={styles.vistoriaThumbWrapper}
+                    >
+                      <Image
+                        source={{ uri: resolveImageUrl(url) || url }}
+                        style={styles.vistoriaThumbImg}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.vistoriaBadge}>
+                        <Text style={styles.vistoriaBadgeText}>Antes #{index + 1}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          )}
+
           {/* DelFinance PIX Card */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Forma de pagamento</Text>
@@ -270,6 +327,32 @@ export default function Payment() {
           </Button>
         </View>
       </ScrollView>
+
+      {/* Modal de Zoom da Foto (Branch 5) */}
+      <Modal
+        visible={!!previewModalUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewModalUrl(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalHeaderTitle}>Foto de Comprovação</Text>
+              <TouchableOpacity onPress={() => setPreviewModalUrl(null)}>
+                <XIcon size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            {previewModalUrl && (
+              <Image
+                source={{ uri: resolveImageUrl(previewModalUrl) || previewModalUrl }}
+                style={styles.modalFullImg}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -516,5 +599,79 @@ const styles = StyleSheet.create({
     padding: 24,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
+  },
+  // ─── Estilos de Vistoria do Serviço (Branch 5) ──────────────────────────
+  vistoriaSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  vistoriaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  vistoriaThumbWrapper: {
+    position: 'relative',
+    width: 96,
+    height: 96,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#0F172A',
+  },
+  vistoriaThumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  vistoriaBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  vistoriaBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    width: '100%',
+    maxWidth: 480,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  modalFullImg: {
+    width: '100%',
+    height: 380,
+    borderRadius: 12,
+    backgroundColor: '#0F172A',
   },
 });

@@ -56,10 +56,29 @@ public record ServiceDetailDto(
     double? Longitude,
     string ImageUrl,
     string[] Images,
-    ServiceProfessionalDto? Professional
+    ServiceProfessionalDto? Professional,
+    string? StartCheckInCode = null,
+    string[]? BeforePhotos = null,
+    string[]? AfterPhotos = null,
+    string? CompletedClientSignatureUrl = null
 );
 
 public record ServiceStatusResultDto(
     Guid Id,
     string Status
+);
+
+public record ValidateCheckInRequest(
+    string Code
+);
+
+public record ChecklistPhotoDetailDto(
+    string Url,
+    DateTime Timestamp
+);
+
+public record ChecklistPhotosRequest(
+    string Phase,
+    string[] Photos,
+    string? SignatureUrl = null
 );

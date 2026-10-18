@@ -306,6 +306,9 @@ namespace WorkEz.Domain.Services
 
         private async Task<Appointment> CreateAppointmentAsync(Service service, Proposal proposal, decimal finalPrice)
         {
+            var code = service.StartCheckInCode ?? service.GenerateStartCheckInCode();
+            _serviceRepository.Update(service);
+
             var appointment = new Appointment
             {
                 ServiceId = service.Id,
@@ -315,7 +318,7 @@ namespace WorkEz.Domain.Services
                 AppointmentStatus = AppointmentStatus.Confirmed,
                 FinalPrice = finalPrice,
                 ScheduledDate = service.DesiredDate ?? DateTime.UtcNow.AddDays(1),
-                ConfirmationCode = new Random().Next(1000, 9999).ToString()
+                ConfirmationCode = code
             };
 
             await _appointmentRepository.AddAsync(appointment);
