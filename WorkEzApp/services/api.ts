@@ -272,4 +272,28 @@ export async function generateEscrowPixCheckout(serviceId: string) {
   }, true);
 }
 
+export interface ValidateCheckInResponse {
+  id: string;
+  status: string;
+}
+
+export async function validateCheckIn(serviceId: string, code: string) {
+  return apiRequest<ValidateCheckInResponse>(`/api/Services/${serviceId}/validate-checkin`, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  }, true);
+}
+
+export async function uploadChecklistPhotos(
+  serviceId: string,
+  phase: 'before' | 'after',
+  photos: string[],
+  signatureUrl?: string
+) {
+  return apiRequest<any>(`/api/Services/${serviceId}/checklist-photos`, {
+    method: 'POST',
+    body: JSON.stringify({ phase, photos, signatureUrl }),
+  }, true);
+}
+
 export { API_BASE_URL, STORAGE_KEY_ACCESS, STORAGE_KEY_REFRESH };

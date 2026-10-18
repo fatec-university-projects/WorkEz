@@ -114,10 +114,22 @@ public class Service : BaseEntity
     public DateTime? DesiredDate { get; set; }
     public ServiceStatus ServiceStatus { get; set; } = ServiceStatus.Open;
 
+    // ── Segurança Operacional & Vistorias (Branch 5) ──────────────────────────
+    public string? StartCheckInCode { get; set; }
+    public string? BeforePhotosJson { get; set; }
+    public string? AfterPhotosJson { get; set; }
+    public string? CompletedClientSignatureUrl { get; set; }
+
     public Customer Customer { get; set; } = null!;
     public Address? Address { get; set; }
     public ICollection<Proposal> Proposals { get; set; } = [];
     public Appointment? Appointment { get; set; }
+
+    public string GenerateStartCheckInCode()
+    {
+        StartCheckInCode = new Random().Next(1000, 10000).ToString("D4");
+        return StartCheckInCode;
+    }
 }
 
 public class Proposal : BaseEntity

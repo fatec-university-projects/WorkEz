@@ -16,6 +16,8 @@ public interface IServiceApplicationService
     Task<Result<ServiceStatusResultDto>> UpdateStatusAsync(Guid serviceId, bool? status, Guid callerUserId, bool isAdmin);
     Task<Result<ServiceStatusResultDto>> StartDisplacementAsync(Guid serviceId, Guid callerUserId, bool isAdmin);
     Task<Result<ServiceStatusResultDto>> StartServiceAsync(Guid serviceId, Guid callerUserId, bool isAdmin);
+    Task<Result<ServiceStatusResultDto>> ValidateCheckInAsync(Guid serviceId, string code, Guid callerUserId, bool isAdmin);
+    Task<Result<ServiceDetailDto>> UploadChecklistPhotosAsync(Guid serviceId, ChecklistPhotosRequest request, Guid callerUserId, bool isAdmin);
     Task<Result<ServiceStatusResultDto>> CompleteServiceAsync(Guid serviceId, decimal? price, Guid callerUserId, bool isAdmin);
 }
 
@@ -136,6 +138,23 @@ public class ServiceApplicationService(
         var isAssignedProvider = service.Appointment != null && (service.Appointment.Provider?.UserId == callerUserId || service.Appointment.ProviderId == callerUserId);
         var isAssignedOrOwner = isAdmin || isOwner || isAssignedProvider;
 
+        // Gera código OTP de check-in caso ainda não exista em chamado aceito ou em andamento
+        if (string.IsNullOrWhiteSpace(service.StartCheckInCode) &&
+            (service.ServiceStatus == ServiceStatus.Accepted || service.ServiceStatus == ServiceStatus.OnTheWay || service.ServiceStatus == ServiceStatus.InProgress))
+        {
+            service.StartCheckInCode = service.Appointment?.ConfirmationCode ?? service.GenerateStartCheckInCode();
+            _serviceRepository.Update(service);
+            await _serviceRepository.SaveChangesAsync();
+        }
+
+        // Regra de segurança anti-fraude: Apenas o cliente e admin visualizam o código antes do check-in
+        // O prestador só o visualiza após ter destravado a execução (status in-progress ou completed)
+        var canSeeCheckInCode = isAdmin || isOwner || service.ServiceStatus == ServiceStatus.InProgress || service.ServiceStatus == ServiceStatus.Completed;
+        var visibleCheckInCode = canSeeCheckInCode ? service.StartCheckInCode : null;
+
+        var beforePhotos = ParseChecklistPhotos(service.BeforePhotosJson);
+        var afterPhotos = ParseChecklistPhotos(service.AfterPhotosJson);
+
         var dto = new ServiceDetailDto(
             Id: service.Id,
             Category: string.IsNullOrWhiteSpace(service.Title) ? "Serviço" : service.Title,
@@ -152,7 +171,11 @@ public class ServiceApplicationService(
             Longitude: service.Longitude,
             ImageUrl: service.ImageUrl ?? "",
             Images: images,
-            Professional: professional
+            Professional: professional,
+            StartCheckInCode: visibleCheckInCode,
+            BeforePhotos: beforePhotos,
+            AfterPhotos: afterPhotos,
+            CompletedClientSignatureUrl: service.CompletedClientSignatureUrl
         );
 
         return Result<ServiceDetailDto>.Success(dto);
@@ -230,6 +253,101 @@ public class ServiceApplicationService(
         await NotifyStatusChangedAsync(serviceId, "in-progress");
 
         return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, "in-progress"));
+    }
+
+    public async Task<Result<ServiceStatusResultDto>> ValidateCheckInAsync(Guid serviceId, string code, Guid callerUserId, bool isAdmin)
+    {
+        var authCheck = await AuthorizeAssignedProviderAsync(serviceId, callerUserId, isAdmin);
+        if (!authCheck.IsSuccess)
+            return Result<ServiceStatusResultDto>.Failure(authCheck.Error!, authCheck.ErrorCode!);
+
+        var (service, appointment) = authCheck.Value;
+
+        if (service.ServiceStatus == ServiceStatus.Completed || service.ServiceStatus == ServiceStatus.Cancelled)
+            return Result<ServiceStatusResultDto>.Failure($"Não é possível realizar check-in em um chamado com status '{service.ServiceStatus}'.", "INVALID_SERVICE_STATUS");
+
+        if (string.IsNullOrWhiteSpace(code))
+            return Result<ServiceStatusResultDto>.Failure("O código de check-in é obrigatório.", "INVALID_CHECKIN_CODE");
+
+        var expectedCode = service.StartCheckInCode ?? appointment?.ConfirmationCode;
+        if (string.IsNullOrWhiteSpace(expectedCode))
+        {
+            expectedCode = service.GenerateStartCheckInCode();
+            _serviceRepository.Update(service);
+        }
+
+        var normalizedInput = code.Trim().Replace(" ", "").Replace("-", "");
+        var normalizedExpected = expectedCode.Trim().Replace(" ", "").Replace("-", "");
+
+        if (!string.Equals(normalizedInput, normalizedExpected, StringComparison.OrdinalIgnoreCase))
+        {
+            return Result<ServiceStatusResultDto>.Failure("Código de check-in inválido. Solicite ao cliente o código de 4 dígitos exibido no app dele.", "INVALID_CHECKIN_CODE");
+        }
+
+        service.ServiceStatus = ServiceStatus.InProgress;
+        service.Touch();
+        _serviceRepository.Update(service);
+
+        if (appointment != null)
+        {
+            appointment.AppointmentStatus = AppointmentStatus.InProgress;
+            appointment.Touch();
+            _appointmentRepository.Update(appointment);
+        }
+
+        await _serviceRepository.SaveChangesAsync();
+        await NotifyStatusChangedAsync(serviceId, "in-progress");
+
+        return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, "in-progress"));
+    }
+
+    public async Task<Result<ServiceDetailDto>> UploadChecklistPhotosAsync(Guid serviceId, ChecklistPhotosRequest request, Guid callerUserId, bool isAdmin)
+    {
+        var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId) ?? await _serviceRepository.GetByIdAsync(serviceId);
+        if (service == null)
+            return Result<ServiceDetailDto>.Failure("Serviço não encontrado.", "SERVICE_NOT_FOUND");
+
+        var accessResult = AuthorizeServiceAccess(service, callerUserId, isAdmin);
+        if (!accessResult.IsSuccess)
+            return Result<ServiceDetailDto>.Failure(accessResult.Error!, accessResult.ErrorCode!);
+
+        var phase = (request.Phase ?? "").Trim().ToLowerInvariant();
+        if (phase != "before" && phase != "after")
+            return Result<ServiceDetailDto>.Failure("A fase da vistoria deve ser 'before' (início) ou 'after' (conclusão).", "INVALID_PHASE");
+
+        var photos = request.Photos?.Where(p => !string.IsNullOrWhiteSpace(p)).Take(10).ToList() ?? [];
+        if (photos.Count == 0)
+            return Result<ServiceDetailDto>.Failure("Pelo menos uma foto deve ser enviada para a vistoria.", "EMPTY_PHOTOS");
+
+        var now = DateTime.UtcNow;
+        var items = photos.Select(p => new
+        {
+            url = p.Trim(),
+            timestamp = now
+        }).ToList();
+        var json = JsonSerializer.Serialize(items);
+
+        if (phase == "before")
+        {
+            service.BeforePhotosJson = json;
+        }
+        else
+        {
+            service.AfterPhotosJson = json;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.SignatureUrl))
+        {
+            service.CompletedClientSignatureUrl = request.SignatureUrl.Trim();
+        }
+
+        service.Touch();
+        _serviceRepository.Update(service);
+        await _serviceRepository.SaveChangesAsync();
+
+        await NotifyStatusChangedAsync(serviceId, phase == "before" ? "checklist-photos-before" : "checklist-photos-after");
+
+        return await GetByIdAsync(service.Id, callerUserId, isAdmin);
     }
 
     public async Task<Result<ServiceStatusResultDto>> CompleteServiceAsync(Guid serviceId, decimal? price, Guid callerUserId, bool isAdmin)
@@ -556,6 +674,39 @@ public class ServiceApplicationService(
             {
                 return DateTime.SpecifyKind(utcDate, DateTimeKind.Utc).AddHours(-3);
             }
+        }
+    }
+
+    private static string[] ParseChecklistPhotos(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try
+        {
+            var trimmed = json.Trim();
+            if (trimmed.StartsWith("["))
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                var list = new List<string>();
+                foreach (var element in doc.RootElement.EnumerateArray())
+                {
+                    if (element.ValueKind == JsonValueKind.String)
+                    {
+                        var val = element.GetString();
+                        if (!string.IsNullOrWhiteSpace(val)) list.Add(val);
+                    }
+                    else if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty("url", out var urlProp))
+                    {
+                        var val = urlProp.GetString();
+                        if (!string.IsNullOrWhiteSpace(val)) list.Add(val);
+                    }
+                }
+                return list.ToArray();
+            }
+            return [json.Trim()];
+        }
+        catch
+        {
+            return [json.Trim()];
         }
     }
 
