@@ -548,9 +548,22 @@ export default function Wallet() {
 
             <View style={styles.pixInfoAlert}>
               <ShieldCheck size={16} color="#059669" />
-              <Text style={styles.pixInfoAlertText}>
-                Transferência imediata sem custos. O crédito entra na conta em segundos.
-              </Text>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={styles.pixInfoAlertText}>
+                  BaaS DelFinance oficial integrado. Liquidação imediata SPI/Banco Central sem taxas.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setPixKeyType('CPF');
+                    setPixKey('30287697789');
+                  }}
+                  style={{ alignSelf: 'flex-start', marginTop: 2, paddingVertical: 3, paddingHorizontal: 8, backgroundColor: '#D1FAE5', borderRadius: 6 }}
+                >
+                  <Text style={{ fontSize: 11, color: '#065F46', fontWeight: '700' }}>
+                    ⚡ Usar Chave Teste DelFinance (CPF: 30287697789)
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity

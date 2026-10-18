@@ -253,4 +253,23 @@ export async function requestPixWithdrawal(payload: WithdrawalRequestPayload) {
   }, true);
 }
 
+export interface EscrowCheckoutPixResponse {
+  serviceId: string;
+  serviceTitle: string;
+  totalAmount: number;
+  laborAmount: number;
+  materialsAmount: number;
+  pixCopiaECola: string;
+  qrCodeBase64: string;
+  correlationId: string;
+  transactionId: string;
+  expiresAt: string;
+}
+
+export async function generateEscrowPixCheckout(serviceId: string) {
+  return apiRequest<EscrowCheckoutPixResponse>(`/api/Wallet/checkout-pix/${serviceId}`, {
+    method: 'POST',
+  }, true);
+}
+
 export { API_BASE_URL, STORAGE_KEY_ACCESS, STORAGE_KEY_REFRESH };

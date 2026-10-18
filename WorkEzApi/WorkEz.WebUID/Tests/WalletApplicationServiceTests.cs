@@ -340,4 +340,283 @@ public class WalletApplicationServiceTests
         var summary = Assert.IsType<WalletSummaryDto>(okResult.Value);
         Assert.Equal(provider.Id, summary.ProviderId);
     }
+
+    [Fact]
+    public async Task RequestWithdrawal_WithDelFinanceClient_ExecutesDictLookupAndTransferSuccessfully()
+    {
+        var (baseWalletService, db, providerUser, provider, customerUser, customer) = CreateTestSetup();
+
+        // Adiciona saldo disponível na carteira de R$ 500
+        db.WalletTransactions.Add(new WalletTransaction
+        {
+            ProviderId = provider.Id,
+            Amount = 500.00m,
+            GrossAmount = 500.00m,
+            TransactionType = WalletTransactionType.Credit,
+            Status = WalletTransactionStatus.Completed,
+            Description = "Saldo inicial"
+        });
+        await db.SaveChangesAsync();
+
+        var mockDelFinance = new MockDelFinanceClient();
+        var walletService = new WalletApplicationService(
+            new WalletTransactionRepository(db),
+            new WithdrawalRequestRepository(db),
+            new ServiceProviderRepository(db),
+            new ServiceRepository(db),
+            new AppointmentRepository(db),
+            new ProposalRepository(db),
+            mockDelFinance,
+            new CustomerRepository(db)
+        );
+
+        var request = new CreateWithdrawalRequestDto(
+            ProviderId: provider.Id,
+            Amount: 150.00m,
+            PixKey: "30287697789",
+            PixKeyType: "CPF"
+        );
+
+        var result = await walletService.RequestWithdrawalAsync(request, providerUser.Id, false);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal(150.00m, result.Value.Amount);
+        Assert.Equal(350.00m, result.Value.NewAvailableBalance);
+        Assert.Equal("E38224857TESTENDTOENDID", result.Value.ReceiptNumber);
+
+        var withdrawal = await db.WithdrawalRequests.FirstOrDefaultAsync(w => w.Id == result.Value.Id);
+        Assert.NotNull(withdrawal);
+        Assert.Equal(WithdrawalStatus.Transferred, withdrawal.Status);
+        Assert.Contains("DelFinance BaaS", withdrawal.Notes);
+        Assert.Contains("HOMOLOGACAO INTEGRACAO API", withdrawal.Notes);
+    }
+
+    [Fact]
+    public async Task GenerateEscrowPixCheckout_CreatesDynamicPixAndReturnsQrCode()
+    {
+        var (baseWalletService, db, providerUser, provider, customerUser, customer) = CreateTestSetup();
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Title = "Instalação Ar Condicionado",
+            ServiceStatus = ServiceStatus.Accepted
+        };
+        var proposal = new Proposal
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProviderId = provider.Id,
+            ProposedPrice = 600m,
+            LaborPrice = 400m,
+            MaterialsPrice = 200m,
+            ProposalStatus = ProposalStatus.Accepted
+        };
+
+        db.Services.Add(service);
+        db.Proposals.Add(proposal);
+        await db.SaveChangesAsync();
+
+        var mockDelFinance = new MockDelFinanceClient();
+        var walletService = new WalletApplicationService(
+            new WalletTransactionRepository(db),
+            new WithdrawalRequestRepository(db),
+            new ServiceProviderRepository(db),
+            new ServiceRepository(db),
+            new AppointmentRepository(db),
+            new ProposalRepository(db),
+            mockDelFinance,
+            new CustomerRepository(db)
+        );
+
+        var result = await walletService.GenerateEscrowPixCheckoutAsync(service.Id, customerUser.Id, false);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal(600m, result.Value.TotalAmount);
+        Assert.Equal(400m, result.Value.LaborAmount);
+        Assert.Equal(200m, result.Value.MaterialsAmount);
+        Assert.StartsWith("000201010212", result.Value.PixCopiaECola);
+        Assert.Equal("mock_base64_qrcode", result.Value.QrCodeBase64);
+        Assert.Equal("vcharge123456789", result.Value.TransactionId);
+    }
+
+    [Fact]
+    public async Task ProcessDelFinanceWebhook_PixReceived_HoldsEscrowForService()
+    {
+        var (baseWalletService, db, providerUser, provider, customerUser, customer) = CreateTestSetup();
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Title = "Pintura Externa",
+            ServiceStatus = ServiceStatus.Accepted
+        };
+        var proposal = new Proposal
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProviderId = provider.Id,
+            ProposedPrice = 1000m,
+            LaborPrice = 800m,
+            MaterialsPrice = 200m,
+            ProposalStatus = ProposalStatus.Accepted
+        };
+
+        db.Services.Add(service);
+        db.Proposals.Add(proposal);
+        await db.SaveChangesAsync();
+
+        var walletService = new WalletApplicationService(
+            new WalletTransactionRepository(db),
+            new WithdrawalRequestRepository(db),
+            new ServiceProviderRepository(db),
+            new ServiceRepository(db),
+            new AppointmentRepository(db),
+            new ProposalRepository(db),
+            new MockDelFinanceClient(),
+            new CustomerRepository(db)
+        );
+
+        var webhookPayload = new DelFinanceWebhookPayload
+        {
+            EventType = "PIX_RECEIVED",
+            CorrelationId = service.Id.ToString(),
+            Amount = 1000m,
+            Status = "RECEIVED"
+        };
+
+        var result = await walletService.ProcessDelFinanceWebhookAsync(webhookPayload);
+        Assert.True(result.IsSuccess);
+
+        var escrowTx = await db.WalletTransactions.FirstOrDefaultAsync(t => t.ServiceId == service.Id && t.TransactionType == WalletTransactionType.EscrowHold);
+        Assert.NotNull(escrowTx);
+        Assert.Equal(WalletTransactionStatus.Held, escrowTx.Status);
+        // Comissão de 15% sobre R$ 800 = R$ 120. Líquido = R$ 880
+        Assert.Equal(880m, escrowTx.Amount);
+        Assert.Equal(120m, escrowTx.PlatformFeeAmount);
+    }
+
+    [Fact]
+    public async Task ProcessDelFinanceWebhook_PixPaymentError_ReversesWithdrawal()
+    {
+        var (baseWalletService, db, providerUser, provider, customerUser, customer) = CreateTestSetup();
+
+        var withdrawal = new WithdrawalRequest
+        {
+            Id = Guid.NewGuid(),
+            ProviderId = provider.Id,
+            Amount = 200m,
+            PixKey = "30287697789",
+            PixKeyType = PixKeyType.CPF,
+            Status = WithdrawalStatus.Transferred,
+            ReceiptNumber = "E38224857ERRORTRANSID",
+            Notes = "Em trânsito"
+        };
+        var debitTx = new WalletTransaction
+        {
+            ProviderId = provider.Id,
+            Amount = -200m,
+            GrossAmount = 200m,
+            TransactionType = WalletTransactionType.Withdrawal,
+            Status = WalletTransactionStatus.Completed,
+            Description = "Saque"
+        };
+        db.WithdrawalRequests.Add(withdrawal);
+        db.WalletTransactions.Add(debitTx);
+        await db.SaveChangesAsync();
+
+        var walletService = new WalletApplicationService(
+            new WalletTransactionRepository(db),
+            new WithdrawalRequestRepository(db),
+            new ServiceProviderRepository(db),
+            new ServiceRepository(db),
+            new AppointmentRepository(db),
+            new ProposalRepository(db),
+            new MockDelFinanceClient(),
+            new CustomerRepository(db)
+        );
+
+        var webhookPayload = new DelFinanceWebhookPayload
+        {
+            EventType = "PIX_PAYMENT_ERROR",
+            EndToEndId = "E38224857ERRORTRANSID",
+            Error = new DelFinanceWebhookErrorDto
+            {
+                Code = "AC06",
+                Description = "Conta transacional bloqueada"
+            }
+        };
+
+        var result = await walletService.ProcessDelFinanceWebhookAsync(webhookPayload);
+        Assert.True(result.IsSuccess);
+
+        var updatedWithdrawal = await db.WithdrawalRequests.FirstOrDefaultAsync(w => w.Id == withdrawal.Id);
+        Assert.NotNull(updatedWithdrawal);
+        Assert.Equal(WithdrawalStatus.Rejected, updatedWithdrawal.Status);
+
+        // Verifica transação de estorno
+        var refundTx = await db.WalletTransactions.FirstOrDefaultAsync(t => t.TransactionType == WalletTransactionType.Credit && t.Amount == 200m);
+        Assert.NotNull(refundTx);
+        Assert.Contains("Estorno", refundTx.Description);
+    }
+}
+
+public class MockDelFinanceClient : IDelFinanceClient
+{
+    public Task<WorkEz.Domain.Common.Result<DelFinanceDictInitResponse>> InitializePaymentByKeyAsync(string pixKey, string? holderDocument = null, CancellationToken cancellationToken = default)
+    {
+        var response = new DelFinanceDictInitResponse
+        {
+            EndToEndId = "E38224857TESTENDTOENDID",
+            Key = pixKey,
+            KeyBelongsHolder = true,
+            Beneficiary = new DelFinanceBeneficiaryDto
+            {
+                Number = "29823",
+                Branch = "0001",
+                Type = "CURRENT",
+                Holder = new DelFinanceHolderDto
+                {
+                    Name = "HOMOLOGACAO INTEGRACAO API",
+                    Document = "30287697789",
+                    Type = "NATURAL"
+                },
+                Participant = new DelFinanceParticipantDto
+                {
+                    Name = "DELFINANCE SCD S.A.",
+                    Ispb = "38224857"
+                }
+            }
+        };
+        return Task.FromResult(WorkEz.Domain.Common.Result<DelFinanceDictInitResponse>.Success(response));
+    }
+
+    public Task<WorkEz.Domain.Common.Result<DelFinanceTransferResponse>> ExecuteTransferAsync(decimal amount, string endToEndId, string description, Guid? idempotencyKey = null, CancellationToken cancellationToken = default)
+    {
+        var response = new DelFinanceTransferResponse
+        {
+            Id = "del-tx-99999",
+            EndToEndId = endToEndId,
+            Status = "PIX_PROCESSING",
+            Amount = amount,
+            CreatedAt = DateTime.UtcNow,
+            Description = description
+        };
+        return Task.FromResult(WorkEz.Domain.Common.Result<DelFinanceTransferResponse>.Success(response));
+    }
+
+    public Task<WorkEz.Domain.Common.Result<DelFinanceDynamicQrCodeResponse>> CreateDynamicPixChargeAsync(Guid correlationId, decimal amount, string? description = null, CancellationToken cancellationToken = default)
+    {
+        var response = new DelFinanceDynamicQrCodeResponse
+        {
+            TransactionId = "vcharge123456789",
+            PayloadPix = "00020101021226820014br.gov.bcb.pix2560pix-h.delbank.com.br/qr/v2/testpayload",
+            QrCodeImageBase64 = "mock_base64_qrcode"
+        };
+        return Task.FromResult(WorkEz.Domain.Common.Result<DelFinanceDynamicQrCodeResponse>.Success(response));
+    }
 }

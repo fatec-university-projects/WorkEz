@@ -71,7 +71,7 @@ public class WalletController(IWalletApplicationService walletService) : Control
     }
 
     /// <summary>
-    /// Solicita transferência/saque instantâneo via PIX do saldo disponível da carteira.
+    /// Solicita transferência/saque instantâneo via PIX do saldo disponível da carteira (DelFinance BaaS).
     /// </summary>
     [HttpPost("withdraw")]
     [ProducesResponseType(typeof(WithdrawalResponseDto), StatusCodes.Status200OK)]
@@ -96,5 +96,51 @@ public class WalletController(IWalletApplicationService walletService) : Control
         }
 
         return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Gera cobrança PIX dinâmica oficial (DelFinance BaaS) com QR Code e Copia-e-Cola para pagamento em custódia (Escrow).
+    /// </summary>
+    [HttpPost("checkout-pix/{serviceId:guid}")]
+    [ProducesResponseType(typeof(EscrowCheckoutPixDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GenerateCheckoutPix(Guid serviceId)
+    {
+        var callerUserId = User.GetUserId();
+        if (callerUserId == null) return Unauthorized(new { message = "Usuário não autenticado." });
+
+        var result = await _walletService.GenerateEscrowPixCheckoutAsync(serviceId, callerUserId.Value, User.IsAdmin());
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "FORBIDDEN" => StatusCode(StatusCodes.Status403Forbidden, new { message = result.Error, code = result.ErrorCode }),
+                "SERVICE_NOT_FOUND" => NotFound(new { message = result.Error, code = result.ErrorCode }),
+                _ => BadRequest(new { message = result.Error, code = result.ErrorCode })
+            };
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Webhook receptor de eventos DelFinance (PIX_RECEIVED, PIX_PAYMENT_EFFECTIVE, PIX_PAYMENT_ERROR).
+    /// </summary>
+    [HttpPost("webhook/delfinance")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ReceiveDelFinanceWebhook([FromBody] DelFinanceWebhookPayload payload)
+    {
+        var result = await _walletService.ProcessDelFinanceWebhookAsync(payload);
+        if (!result.IsSuccess)
+        {
+            return BadRequest(new { message = result.Error, code = result.ErrorCode });
+        }
+
+        return Ok(new { received = true, eventType = payload.EventType });
     }
 }
