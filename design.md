@@ -17,7 +17,7 @@ O **WorkEz** é uma plataforma marketplace mobile multifuncional que conecta **C
 - **Conceito:** Interface ultra-moderna, fluida e limpa, inspirada em aplicativos de mobilidade e delivery (Uber/iFood), combinada com painel financeiro profissional para prestadores.
 - **Hierarquia Visual:** Cards elevados com cantos arredondados (`border-radius: 16px`), ícones expressivos (Lucide Icons), tipografia em negrito para chamadas principais e estados de progresso com alta visibilidade.
 - **Experiência Dual-Persona:**
-  - **Fluxo do Cliente:** Foco em agilidade ("Chamar Agora" em 1 clique), facilidade de descrição de problemas com foto, radar de busca animado, rastreamento em tempo real do prestador e pagamento instantâneo via PIX com AbacatePay.
+  - **Fluxo do Cliente:** Foco em agilidade ("Chamar Agora" em 1 clique), facilidade de descrição de problemas com foto, radar de busca animado, rastreamento em tempo real do prestador e pagamento instantâneo via PIX com DelFinance BaaS.
   - **Fluxo do Prestador:** Foco em produtividade com chave de status Online/Offline, alerta sonoro/modal de novos chamados com cronômetro de aceite, navegação integrada ao local de atendimento, inclusão de valores e gestão de carteira financeira com taxa de comissão de 15%.
 
 ---
@@ -404,7 +404,7 @@ graph TD
   - Clique `Acionar Garantia` $\rightarrow$ `app/activate-guarantee/[id].tsx`.
   - Quando o prestador conclui e informa o valor $\rightarrow$ Transição para `app/client/payment/[id].tsx`.
 
-#### 2.8 Tela: Pagamento via PIX (AbacatePay)
+#### 2.8 Tela: Pagamento via PIX (DelFinance BaaS)
 - **Identificador Stitch:** `SCREEN_CLIENT_PAYMENT`
 - **Rota no App:** `app/client/payment/[id].tsx`
 - **Persona / Acesso:** Cliente
@@ -412,7 +412,7 @@ graph TD
   - Header: "Pagamento do Serviço".
   - **Card de Valor:** Destaque em texto grande `R$ 150,00` em verde/ciano.
   - Subtítulo: "Escaneie o QR Code PIX ou utilize o Copia e Cola".
-  - **Box QR Code:** Imagem do QR Code PIX gerado via AbacatePay centralizada com moldura branca e sombra.
+  - **Box QR Code:** Imagem do QR Code PIX gerado via DelFinance centralizada com moldura branca e sombra.
   - **Campo PIX Copia e Cola:** Input de texto somente leitura com código hash PIX e botão lateral em destaque `Copiar Código PIX`.
   - Indicador de Polling: "Aguardando confirmação do pagamento..." com spinner discreto.
   - Botão Secundário: `Já realizei o pagamento`.
@@ -429,7 +429,7 @@ graph TD
   - **Card de Recibo:**
     - Número do Chamado: `#WEZ-84920`.
     - Prestador: Carlos Silva (Encanador).
-    - Valor Pago: `R$ 150,00` (Método: PIX - AbacatePay).
+    - Valor Pago: `R$ 150,00` (Método: PIX - DelFinance).
     - Data/Hora de Término.
   - Botão Primário: `Avaliar o Prestador`.
   - Botão Secundário: `Voltar ao Início`.
@@ -509,7 +509,7 @@ graph TD
 - **Persona / Acesso:** Cliente
 - **Layout & Composição Visual:**
   - Header: "Formas de Pagamento".
-  - Card Destaque: **PIX Instantâneo** (Método Padrão com Chave/QR Code AbacatePay).
+  - Card Destaque: **PIX Instantâneo** (Método Padrão com Chave/QR Code DelFinance BaaS).
   - Opções adicionais de cartões salvos para consulta.
 - **Ações & Transição:**
   - Clique em adicionar método $\rightarrow$ Atualiza dados de pagamento.

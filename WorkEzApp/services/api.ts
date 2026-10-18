@@ -29,9 +29,15 @@ if (__DEV__) {
   console.log(`[WorkEz API] Conectando a: ${API_BASE_URL}`);
 }
 
-export function getWebSocketUrl(path: string): string {
+export async function getWebSocketUrl(path: string): Promise<string> {
   const base = API_BASE_URL.replace(/^http/, 'ws');
-  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const token = await AsyncStorage.getItem(STORAGE_KEY_ACCESS);
+  if (!token) {
+    return `${base}${normalizedPath}`;
+  }
+  const separator = normalizedPath.includes('?') ? '&' : '?';
+  return `${base}${normalizedPath}${separator}access_token=${encodeURIComponent(token)}`;
 }
 
 export async function apiRequest<T>(
@@ -157,6 +163,137 @@ export function resolveImageUrl(url?: string | null): string | undefined {
     }
   }
   return trimmed;
+}
+
+// ─── Wallet & Delfinance API ──────────────────────────────────────────────────
+
+export interface CommissionDetail {
+  serviceTitle: string;
+  grossAmount: number;
+  laborAmount: number;
+  materialsAmount: number;
+  platformFeeAmount: number;
+  netAmount: number;
+  date: string;
+}
+
+export interface WalletSummary {
+  providerId: string;
+  availableBalance: number;
+  escrowBalance: number;
+  thisMonthGross: number;
+  thisMonthNet: number;
+  totalWithdrawn: number;
+  pendingWithdrawal: number;
+  platformFeePercent: number;
+  materialsFeePercent: number;
+  lastCommission: CommissionDetail | null;
+  defaultPixKey?: string;
+  defaultPixKeyType?: string;
+}
+
+export interface WalletStatementItem {
+  id: string;
+  date: string;
+  createdAt: string;
+  description: string;
+  serviceTitle?: string;
+  transactionType: 'Credit' | 'PlatformFee' | 'EscrowHold' | 'EscrowRelease' | 'Withdrawal';
+  transactionTypeLabel: string;
+  grossAmount: number;
+  laborAmount: number;
+  materialsAmount: number;
+  platformFeeAmount: number;
+  amount: number;
+  status: string;
+  statusLabel: string;
+  receiptNumber?: string;
+}
+
+export interface WalletStatementResponse {
+  items: WalletStatementItem[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface WithdrawalRequestPayload {
+  providerId?: string;
+  amount: number;
+  pixKey: string;
+  pixKeyType: string;
+}
+
+export interface WithdrawalResponse {
+  id: string;
+  providerId: string;
+  amount: number;
+  pixKey: string;
+  pixKeyType: string;
+  status: string;
+  receiptNumber: string;
+  processedAt: string;
+  newAvailableBalance: number;
+}
+
+export async function fetchWalletSummary(providerId: string) {
+  return apiRequest<WalletSummary>(`/api/Wallet/summary/${providerId}`, { method: 'GET' }, true);
+}
+
+export async function fetchWalletStatement(providerId: string, filter?: string) {
+  const query = filter && filter !== 'all' ? `?filter=${encodeURIComponent(filter)}` : '';
+  return apiRequest<WalletStatementResponse>(`/api/Wallet/statement/${providerId}${query}`, { method: 'GET' }, true);
+}
+
+export async function requestPixWithdrawal(payload: WithdrawalRequestPayload) {
+  return apiRequest<WithdrawalResponse>('/api/Wallet/withdraw', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, true);
+}
+
+export interface EscrowCheckoutPixResponse {
+  serviceId: string;
+  serviceTitle: string;
+  totalAmount: number;
+  laborAmount: number;
+  materialsAmount: number;
+  pixCopiaECola: string;
+  qrCodeBase64: string;
+  correlationId: string;
+  transactionId: string;
+  expiresAt: string;
+}
+
+export async function generateEscrowPixCheckout(serviceId: string) {
+  return apiRequest<EscrowCheckoutPixResponse>(`/api/Wallet/checkout-pix/${serviceId}`, {
+    method: 'POST',
+  }, true);
+}
+
+export interface ValidateCheckInResponse {
+  id: string;
+  status: string;
+}
+
+export async function validateCheckIn(serviceId: string, code: string) {
+  return apiRequest<ValidateCheckInResponse>(`/api/Services/${serviceId}/validate-checkin`, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  }, true);
+}
+
+export async function uploadChecklistPhotos(
+  serviceId: string,
+  phase: 'before' | 'after',
+  photos: string[],
+  signatureUrl?: string
+) {
+  return apiRequest<any>(`/api/Services/${serviceId}/checklist-photos`, {
+    method: 'POST',
+    body: JSON.stringify({ phase, photos, signatureUrl }),
+  }, true);
 }
 
 export { API_BASE_URL, STORAGE_KEY_ACCESS, STORAGE_KEY_REFRESH };

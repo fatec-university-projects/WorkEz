@@ -1,25 +1,22 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WorkEz.Infra.Data.Context;
+using WorkEz.Application.DTOs;
+using WorkEz.Application.Services;
 
 namespace WorkEz.WebUID.Controllers;
 
-public record CategoryDto(Guid Id, string Name, string? Description);
-
 [ApiController]
+[AllowAnonymous] // catálogo público de categorias (usado no cadastro do prestador)
 [Route("api/[controller]")]
-public class CategoriesController(AppDbContext db) : ControllerBase
+public class CategoriesController(ICategoryApplicationService categoryService) : ControllerBase
 {
+    private readonly ICategoryApplicationService _categoryService = categoryService;
+
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<CategoryDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
-        var categories = await db.Categories
-            .AsNoTracking()
-            .OrderBy(c => c.Name)
-            .Select(c => new CategoryDto(c.Id, c.Name, c.Description))
-            .ToListAsync();
-
+        var categories = await _categoryService.GetAllAsync();
         return Ok(categories);
     }
 }

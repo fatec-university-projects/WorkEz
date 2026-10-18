@@ -61,6 +61,7 @@ public interface IPortfolioApplicationService
     Task<Result<IEnumerable<NearbyProviderDto>>> GetNearbyProvidersAsync(double latitude, double longitude, double? radiusKm = null);
     Task<Result<ProviderWeeklySummaryDto>> GetWeeklySummaryByUserIdAsync(Guid userId, DateTime? referenceDate = null);
     Task<Result<ProviderWeeklySummaryDto>> GetWeeklySummaryByProviderIdAsync(Guid providerId, DateTime? referenceDate = null);
+    Task<bool> OwnsProviderAsync(Guid providerId, Guid userId);
 }
 
 // ─── Implementation ───────────────────────────────────────────────────────────
@@ -72,6 +73,12 @@ public interface IPortfolioApplicationService
 public class PortfolioApplicationService(IServiceProviderRepository providerRepository) : IPortfolioApplicationService
 {
     private readonly IServiceProviderRepository _providerRepository = providerRepository;
+
+    public async Task<bool> OwnsProviderAsync(Guid providerId, Guid userId)
+    {
+        var provider = await _providerRepository.GetByIdAsync(providerId);
+        return provider != null && provider.UserId == userId;
+    }
 
     public async Task<Result<PortfolioDto>> GetPortfolioByProviderIdAsync(Guid providerId)
     {
@@ -195,7 +202,10 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
 
         foreach (var p in providersWithCoords)
         {
-            var dist = Domain.Common.GeoLocationUtils.CalculateDistanceKm(latitude, longitude, p.Latitude.Value, p.Longitude.Value);
+            if (p.Latitude is not { } pLat || p.Longitude is not { } pLon)
+                continue;
+
+            var dist = Domain.Common.GeoLocationUtils.CalculateDistanceKm(latitude, longitude, pLat, pLon);
             var isUnlimited = p.ServiceRadiusKm <= 0 || p.ServiceRadiusKm >= 9999;
             var effectiveRadius = isUnlimited ? double.MaxValue : (radiusKm.HasValue && radiusKm.Value > 0 ? radiusKm.Value : p.ServiceRadiusKm);
 
@@ -250,96 +260,69 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
     public static ProviderWeeklySummaryDto CalculateWeeklySummary(ServiceProvider provider, DateTime? referenceDate = null)
     {
         var now = referenceDate ?? DateTime.UtcNow;
-        var currentWeekStart = now.AddDays(-7);
-        var previousWeekStart = now.AddDays(-14);
-
         var appointments = provider.Appointments ?? (ICollection<Appointment>)[];
         var proposals = provider.Proposals ?? (ICollection<Proposal>)[];
 
-        // Serviços concluídos nesta semana (últimos 7 dias)
-        var thisWeekCount = appointments.Count(a =>
-            a.AppointmentStatus == Domain.Enums.AppointmentStatus.Completed &&
-            (a.CompletedAt ?? a.CreatedAt) >= currentWeekStart &&
-            (a.CompletedAt ?? a.CreatedAt) <= now);
+        var thisWeekCount = CountCompletedAppointments(appointments, now.AddDays(-7), now);
+        var lastWeekCount = CountCompletedAppointments(appointments, now.AddDays(-14), now.AddDays(-7));
 
-        // Serviços concluídos na semana anterior (7 a 14 dias atrás)
-        var lastWeekCount = appointments.Count(a =>
-            a.AppointmentStatus == Domain.Enums.AppointmentStatus.Completed &&
-            (a.CompletedAt ?? a.CreatedAt) >= previousWeekStart &&
-            (a.CompletedAt ?? a.CreatedAt) < currentWeekStart);
-
-        // Cálculo de taxa de crescimento e mensagens de desempenho
-        double growthRate;
-        string performanceTitle;
-        string performanceSubtitle;
-        string trendType;
-
-        if (lastWeekCount == 0 && thisWeekCount == 0)
-        {
-            growthRate = 0.0;
-            trendType = "neutral";
-            performanceTitle = "Sem atividades recentes";
-            performanceSubtitle = "Aceite novos chamados para começar a crescer";
-        }
-        else if (lastWeekCount == 0 && thisWeekCount > 0)
-        {
-            growthRate = 100.0;
-            trendType = "positive";
-            performanceTitle = "Ótimo desempenho!";
-            performanceSubtitle = "Você cresceu 100% esta semana";
-        }
-        else
-        {
-            var rawGrowth = ((double)(thisWeekCount - lastWeekCount) / lastWeekCount) * 100.0;
-            growthRate = Math.Round(rawGrowth, 1);
-
-            if (growthRate > 0)
-            {
-                trendType = "positive";
-                performanceTitle = "Ótimo desempenho!";
-                performanceSubtitle = $"Você cresceu {growthRate:0.#}% esta semana";
-            }
-            else if (growthRate == 0)
-            {
-                trendType = "stable";
-                performanceTitle = "Desempenho constante!";
-                performanceSubtitle = "Você manteve o ritmo da semana passada";
-            }
-            else
-            {
-                trendType = "negative";
-                performanceTitle = "Desempenho em queda";
-                performanceSubtitle = $"Você caiu {Math.Abs(growthRate):0.#}% em relação à semana passada";
-            }
-        }
-
-        // Taxa de aceitação
-        var totalProposals = proposals.Count;
-        var acceptedProposals = proposals.Count(p => p.ProposalStatus == Domain.Enums.ProposalStatus.Accepted);
-        double acceptanceRate;
-
-        if (totalProposals > 0)
-        {
-            acceptanceRate = Math.Min(100.0, Math.Round(((double)acceptedProposals / totalProposals) * 100.0, 1));
-        }
-        else if (appointments.Count > 0)
-        {
-            acceptanceRate = 100.0;
-        }
-        else
-        {
-            acceptanceRate = 0.0;
-        }
+        var (growthRate, trendType, title, subtitle) = CalculateGrowthAndTrend(thisWeekCount, lastWeekCount);
+        var acceptanceRate = CalculateAcceptanceRate(proposals, appointments);
 
         return new ProviderWeeklySummaryDto(
             CompletedServices: thisWeekCount,
             AcceptanceRate: acceptanceRate,
             AverageRating: Math.Round(provider.AverageRating, 1),
             GrowthRate: growthRate,
-            PerformanceTitle: performanceTitle,
-            PerformanceSubtitle: performanceSubtitle,
+            PerformanceTitle: title,
+            PerformanceSubtitle: subtitle,
             TrendType: trendType
         );
+    }
+
+    private static int CountCompletedAppointments(IEnumerable<Appointment> appointments, DateTime start, DateTime end) =>
+        appointments.Count(a =>
+            a.AppointmentStatus == Domain.Enums.AppointmentStatus.Completed &&
+            (a.CompletedAt ?? a.CreatedAt) >= start &&
+            (a.CompletedAt ?? a.CreatedAt) <= end);
+
+    private static (double growthRate, string trendType, string title, string subtitle) CalculateGrowthAndTrend(int thisWeekCount, int lastWeekCount)
+    {
+        if (lastWeekCount == 0 && thisWeekCount == 0)
+        {
+            return (0.0, "neutral", "Sem atividades recentes", "Aceite novos chamados para começar a crescer");
+        }
+
+        if (lastWeekCount == 0 && thisWeekCount > 0)
+        {
+            return (100.0, "positive", "Ótimo desempenho!", "Você cresceu 100% esta semana");
+        }
+
+        var rawGrowth = ((double)(thisWeekCount - lastWeekCount) / lastWeekCount) * 100.0;
+        var growthRate = Math.Round(rawGrowth, 1);
+
+        if (growthRate > 0)
+        {
+            return (growthRate, "positive", "Ótimo desempenho!", $"Você cresceu {growthRate:0.#}% esta semana");
+        }
+
+        if (growthRate == 0)
+        {
+            return (0.0, "stable", "Desempenho constante!", "Você manteve o ritmo da semana passada");
+        }
+
+        return (growthRate, "negative", "Desempenho em queda", $"Você caiu {Math.Abs(growthRate):0.#}% em relação à semana passada");
+    }
+
+    private static double CalculateAcceptanceRate(ICollection<Proposal> proposals, ICollection<Appointment> appointments)
+    {
+        var totalProposals = proposals.Count;
+        var acceptedProposals = proposals.Count(p => p.ProposalStatus == Domain.Enums.ProposalStatus.Accepted);
+
+        if (totalProposals > 0)
+            return Math.Min(100.0, Math.Round(((double)acceptedProposals / totalProposals) * 100.0, 1));
+
+        return appointments.Count > 0 ? 100.0 : 0.0;
     }
 
     // ─── Mapping ─────────────────────────────────────────────────────────────

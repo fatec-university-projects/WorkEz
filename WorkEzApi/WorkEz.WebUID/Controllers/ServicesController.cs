@@ -1,46 +1,26 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using WorkEz.Application.DTOs;
 using WorkEz.Application.Services;
-using WorkEz.Domain.Entities;
-using WorkEz.Domain.Enums;
-using WorkEz.Infra.Data.Context;
-using WorkEz.WebUID.WebSockets;
+using WorkEz.Domain.Common;
+using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
 
-public class CreateAddressDto
-{
-    public string? ZipCode { get; set; }
-    public string? Street { get; set; }
-    public string? Number { get; set; }
-    public string? Complement { get; set; }
-    public string? Neighborhood { get; set; }
-    public string? City { get; set; }
-    public string? State { get; set; }
-    public string? AddressType { get; set; }
-    public double? Latitude { get; set; }
-    public double? Longitude { get; set; }
-}
-
-public class CreateServiceRequest
-{
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public Guid? CategoryId { get; set; }
-    public string? ImageUrl { get; set; }
-    public CreateAddressDto? Address { get; set; }
-}
-
+/// <summary>
+/// Controller magra (Thin Controller) para Serviços e Chamados em Clean Architecture.
+/// Responsável unicamente pelo transporte HTTP, extração do usuário autenticado (JWT)
+/// e delegação dos casos de uso para a camada de Application.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class ServicesController(
     IServiceOpportunityApplicationService opportunityService,
-    AppDbContext db,
-    ITrackingNotificationService? trackingNotification = null,
-    IChatNotificationService? chatNotification = null) : ControllerBase
+    IServiceApplicationService serviceAppService
+) : ControllerBase
 {
+    private readonly IServiceOpportunityApplicationService _opportunityService = opportunityService;
+    private readonly IServiceApplicationService _serviceAppService = serviceAppService;
+
     /// <summary>
     /// Retorna chamados em aberto para o prestador.
     /// Se ele tiver categorias definidas, filtra por elas.
@@ -51,7 +31,11 @@ public class ServicesController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOpportunities(Guid userId)
     {
-        var result = await opportunityService.GetOpportunitiesAsync(userId);
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+        if (me.Value != userId && !User.IsAdmin()) return Forbid();
+
+        var result = await _opportunityService.GetOpportunitiesAsync(userId);
         return result.IsSuccess 
             ? Ok(result.Value) 
             : NotFound(new { message = result.Error, code = result.ErrorCode });
@@ -64,42 +48,11 @@ public class ServicesController(
     [ProducesResponseType(typeof(IEnumerable<OpportunityCallDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAcceptedByProviderUser(Guid userId)
     {
-        var provider = await db.Providers.FirstOrDefaultAsync(p => p.UserId == userId);
-        if (provider == null)
-            return Ok(Enumerable.Empty<OpportunityCallDto>());
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-        var appointments = await db.Appointments
-            .Include(a => a.Service)
-            .Include(a => a.Customer)
-                .ThenInclude(c => c.User)
-            .Where(a => a.ProviderId == provider.Id)
-            .OrderByDescending(a => a.CreatedAt)
-            .ToListAsync();
-
-        var list = appointments.Select(a =>
-        {
-            var statusStr = a.Service?.ServiceStatus switch
-            {
-                ServiceStatus.OnTheWay => "on-the-way",
-                ServiceStatus.InProgress => "in-progress",
-                ServiceStatus.WaitingPayment => "waiting-payment",
-                ServiceStatus.Completed => "completed",
-                ServiceStatus.Cancelled => "cancelled",
-                _ => "accepted"
-            };
-
-            return new OpportunityCallDto(
-                Id: a.ServiceId,
-                Category: string.IsNullOrWhiteSpace(a.Service?.Title) ? "Serviço" : a.Service.Title,
-                Description: a.Service?.Description ?? string.Empty,
-                Status: statusStr,
-                Date: ToBrasiliaTime(a.ScheduledDate).ToString("dd'/'MM'/'yyyy"),
-                ClientName: a.Customer?.User?.Name ?? "Cliente",
-                SuggestedPrice: a.FinalPrice
-            );
-        });
-
-        return Ok(list);
+        var result = await _serviceAppService.GetAcceptedByProviderUserAsync(userId, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -108,79 +61,11 @@ public class ServicesController(
     [HttpPost("by-customer/{customerId:guid}")]
     public async Task<IActionResult> CreateService(Guid customerId, [FromBody] CreateServiceRequest request)
     {
-        var customer = await db.Customers.Include(c => c.User).FirstOrDefaultAsync(c => c.Id == customerId);
-        if (customer == null)
-            return NotFound(new { message = "Cliente não encontrado." });
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-        Guid? createdAddressId = null;
-        double? lat = null;
-        double? lon = null;
-
-        if (request.Address != null && !string.IsNullOrWhiteSpace(request.Address.Street))
-        {
-            var address = new Address
-            {
-                Id = Guid.NewGuid(),
-                UserId = customer.UserId,
-                Street = request.Address.Street ?? "",
-                Number = request.Address.Number ?? "S/N",
-                Complement = request.Address.Complement,
-                Neighborhood = request.Address.Neighborhood ?? "",
-                City = request.Address.City ?? "",
-                State = request.Address.State ?? "",
-                ZipCode = request.Address.ZipCode ?? "",
-                AddressType = request.Address.AddressType ?? "Home",
-                Latitude = request.Address.Latitude,
-                Longitude = request.Address.Longitude
-            };
-            db.Addresses.Add(address);
-            await db.SaveChangesAsync();
-
-            createdAddressId = address.Id;
-            lat = address.Latitude;
-            lon = address.Longitude;
-        }
-
-        if (!lat.HasValue || !lon.HasValue)
-        {
-            var customerAddress = await db.Addresses
-                .Where(a => a.UserId == customer.UserId && a.Latitude.HasValue && a.Longitude.HasValue)
-                .FirstOrDefaultAsync();
-
-            if (customerAddress != null)
-            {
-                lat ??= customerAddress.Latitude;
-                lon ??= customerAddress.Longitude;
-                createdAddressId ??= customerAddress.Id;
-            }
-        }
-
-        var categoryId = request.CategoryId;
-        if (!categoryId.HasValue || categoryId.Value == Guid.Empty)
-        {
-            categoryId = await db.Categories.Select(c => (Guid?)c.Id).FirstOrDefaultAsync();
-        }
-
-        var service = new Service
-        {
-            Id = Guid.NewGuid(),
-            CustomerId = customerId,
-            CategoryId = categoryId ?? Guid.Empty,
-            AddressId = createdAddressId,
-            Latitude = lat,
-            Longitude = lon,
-            Title = string.IsNullOrWhiteSpace(request.Title) ? "Chamado de Serviço" : request.Title,
-            Description = request.Description,
-            ImageUrl = request.ImageUrl,
-            ServiceStatus = ServiceStatus.Open,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        db.Services.Add(service);
-        await db.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetById), new { id = service.Id }, new { id = service.Id });
+        var result = await _serviceAppService.CreateServiceAsync(customerId, request, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -189,34 +74,11 @@ public class ServicesController(
     [HttpGet("by-customer/{customerId:guid}")]
     public async Task<IActionResult> GetByCustomer(Guid customerId)
     {
-        var services = await db.Services
-            .Include(s => s.Proposals)
-                .ThenInclude(p => p.Provider)
-                    .ThenInclude(pr => pr.User)
-            .Include(s => s.Appointment)
-            .Where(s => s.CustomerId == customerId)
-            .OrderByDescending(s => s.CreatedAt)
-            .ToListAsync();
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-        var list = services.Select(s =>
-        {
-            var acceptedProposal = s.Proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Accepted);
-            var providerName = acceptedProposal?.Provider?.User?.Name;
-            var price = s.Appointment?.FinalPrice ?? acceptedProposal?.ProposedPrice;
-            var brDate = ToBrasiliaTime(s.CreatedAt);
-
-            return new
-            {
-                id = s.Id,
-                category = string.IsNullOrWhiteSpace(s.Title) ? "Serviço" : s.Title,
-                status = s.ServiceStatus.ToString().ToLower(),
-                date = brDate.ToString("dd'/'MM'/'yyyy"),
-                price,
-                professional = providerName
-            };
-        });
-
-        return Ok(list);
+        var result = await _serviceAppService.GetByCustomerAsync(customerId, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -225,166 +87,11 @@ public class ServicesController(
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var service = await db.Services
-            .Include(s => s.Address)
-            .Include(s => s.Customer)
-                .ThenInclude(c => c.User)
-            .Include(s => s.Proposals)
-                .ThenInclude(p => p.Provider)
-                    .ThenInclude(pr => pr.User)
-            .Include(s => s.Appointment)
-                .ThenInclude(a => a.Provider)
-                    .ThenInclude(pr => pr.User)
-            .FirstOrDefaultAsync(s => s.Id == id);
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-        if (service == null)
-            return NotFound(new { message = "Serviço não encontrado." });
-
-        var acceptedProposal = service.Proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Accepted);
-        var activeProvider = service.Appointment?.Provider ?? acceptedProposal?.Provider;
-        if (activeProvider == null && service.Appointment != null && service.Appointment.ProviderId != Guid.Empty)
-        {
-            activeProvider = await db.Providers.Include(p => p.User).FirstOrDefaultAsync(p => p.Id == service.Appointment.ProviderId);
-        }
-        if (activeProvider == null && acceptedProposal != null && acceptedProposal.ProviderId != Guid.Empty)
-        {
-            activeProvider = await db.Providers.Include(p => p.User).FirstOrDefaultAsync(p => p.Id == acceptedProposal.ProviderId);
-        }
-        if (activeProvider == null && service.ServiceStatus != ServiceStatus.Open)
-        {
-            var latestProp = service.Proposals.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
-            if (latestProp != null)
-            {
-                activeProvider = latestProp.Provider ?? await db.Providers.Include(p => p.User).FirstOrDefaultAsync(p => p.Id == latestProp.ProviderId);
-            }
-        }
-
-        var price = service.Appointment?.FinalPrice ?? acceptedProposal?.ProposedPrice;
-        var clientPhone = service.Customer?.User?.Phone ?? "";
-        var clientPhoto = service.Customer?.User?.ProfilePicture ?? "";
-
-        object? professional = null;
-        if (activeProvider != null)
-        {
-            var user = activeProvider.User;
-            if (user == null && activeProvider.UserId != Guid.Empty)
-            {
-                user = await db.Users.FindAsync(activeProvider.UserId);
-            }
-
-            professional = new
-            {
-                id = activeProvider.Id,
-                userId = activeProvider.UserId,
-                name = user?.Name ?? "Profissional",
-                photo = user?.ProfilePicture ?? "",
-                rating = activeProvider.AverageRating
-            };
-        }
-
-        var brStartTime = ToBrasiliaTime(service.CreatedAt);
-
-        var address = service.Address;
-        if (address == null && service.Customer != null)
-        {
-            address = await db.Addresses
-                .Where(a => a.UserId == service.Customer.UserId)
-                .FirstOrDefaultAsync();
-        }
-
-        string addressText = "Endereço cadastrado";
-        string addressApproximate = "Endereço cadastrado";
-        if (address != null)
-        {
-            var parts = new List<string>();
-            if (!string.IsNullOrWhiteSpace(address.Street))
-            {
-                var streetPart = address.Street;
-                if (!string.IsNullOrWhiteSpace(address.Number))
-                    streetPart += $", {address.Number}";
-                if (!string.IsNullOrWhiteSpace(address.Complement))
-                    streetPart += $" ({address.Complement})";
-                parts.Add(streetPart);
-            }
-            if (!string.IsNullOrWhiteSpace(address.Neighborhood))
-                parts.Add(address.Neighborhood);
-            if (!string.IsNullOrWhiteSpace(address.City))
-                parts.Add(!string.IsNullOrWhiteSpace(address.State) ? $"{address.City}/{address.State}" : address.City);
-
-            if (parts.Count > 0)
-                addressText = string.Join(" - ", parts);
-
-            if (!string.IsNullOrWhiteSpace(address.Neighborhood) && !string.IsNullOrWhiteSpace(address.City))
-                addressApproximate = !string.IsNullOrWhiteSpace(address.State)
-                    ? $"{address.Neighborhood}, {address.City}/{address.State}"
-                    : $"{address.Neighborhood}, {address.City}";
-            else
-                addressApproximate = addressText;
-        }
-
-        string[] images = Array.Empty<string>();
-        if (!string.IsNullOrWhiteSpace(service.ImageUrl))
-        {
-            var trimmed = service.ImageUrl.Trim();
-            if (trimmed.StartsWith("["))
-            {
-                try
-                {
-                    images = JsonSerializer.Deserialize<string[]>(trimmed) ?? Array.Empty<string>();
-                }
-                catch
-                {
-                    images = new[] { service.ImageUrl };
-                }
-            }
-            else
-            {
-                images = new[] { service.ImageUrl };
-            }
-        }
-
-        return Ok(new
-        {
-            id = service.Id,
-            appointmentId = service.Appointment?.Id,
-            providerUserId = activeProvider?.UserId,
-            category = string.IsNullOrWhiteSpace(service.Title) ? "Serviço" : service.Title,
-            description = service.Description,
-            address = addressText,
-            addressApproximate,
-            startTime = brStartTime.ToString("dd'/'MM'/'yyyy 'às' HH:mm"),
-            createdAt = service.CreatedAt.ToString("o"),
-            status = service.ServiceStatus.ToString().ToLower(),
-            clientName = service.Customer?.User?.Name ?? "Cliente",
-            clientPhone,
-            clientPhoto,
-            imageUrl = images.FirstOrDefault() ?? service.ImageUrl,
-            images,
-            price,
-            date = brStartTime.ToString("dd'/'MM'/'yyyy"),
-            professional
-        });
-    }
-
-    private static DateTime ToBrasiliaTime(DateTime utcDate)
-    {
-        try
-        {
-            var tz = TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
-            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDate, DateTimeKind.Utc), tz);
-        }
-        catch
-        {
-            try
-            {
-                var tz = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time");
-                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDate, DateTimeKind.Utc), tz);
-            }
-            catch
-            {
-                return DateTime.SpecifyKind(utcDate, DateTimeKind.Utc).AddHours(-3);
-            }
-        }
+        var result = await _serviceAppService.GetByIdAsync(id, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -394,27 +101,11 @@ public class ServicesController(
     [HttpPatch("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromQuery] bool? status)
     {
-        var service = await db.Services.FindAsync(id);
-        if (service == null)
-            return NotFound(new { message = "Serviço não encontrado." });
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-        if (status == false)
-        {
-            service.ServiceStatus = ServiceStatus.Cancelled;
-            service.Touch();
-            await db.SaveChangesAsync();
-
-            if (trackingNotification != null)
-            {
-                await trackingNotification.NotifyServiceUpdateAsync(id, "status_changed", new { status = "cancelled" });
-            }
-            if (chatNotification != null)
-            {
-                await chatNotification.NotifyChatUpdateAsync(Guid.Empty, id, "service_status_changed", new { status = "cancelled" });
-            }
-        }
-
-        return Ok(new { id = service.Id, status = service.ServiceStatus.ToString().ToLower() });
+        var result = await _serviceAppService.UpdateStatusAsync(id, status, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -424,30 +115,11 @@ public class ServicesController(
     [HttpPatch("{id:guid}/start-displacement")]
     public async Task<IActionResult> StartDisplacement(Guid id)
     {
-        var service = await db.Services.FindAsync(id);
-        if (service == null) return NotFound();
-        service.ServiceStatus = ServiceStatus.OnTheWay;
-        service.Touch();
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-        var appointment = await db.Appointments.FirstOrDefaultAsync(a => a.ServiceId == id);
-        if (appointment != null)
-        {
-            appointment.AppointmentStatus = AppointmentStatus.InProgress;
-            appointment.Touch();
-        }
-
-        await db.SaveChangesAsync();
-
-        if (trackingNotification != null)
-        {
-            await trackingNotification.NotifyServiceUpdateAsync(id, "status_changed", new { status = "on-the-way" });
-        }
-        if (chatNotification != null)
-        {
-            await chatNotification.NotifyChatUpdateAsync(Guid.Empty, id, "service_status_changed", new { status = "on-the-way" });
-        }
-
-        return Ok(new { id = service.Id, status = "on-the-way" });
+        var result = await _serviceAppService.StartDisplacementAsync(id, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -457,30 +129,45 @@ public class ServicesController(
     [HttpPatch("{id:guid}/start")]
     public async Task<IActionResult> StartService(Guid id)
     {
-        var service = await db.Services.FindAsync(id);
-        if (service == null) return NotFound();
-        service.ServiceStatus = ServiceStatus.InProgress;
-        service.Touch();
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-        var appointment = await db.Appointments.FirstOrDefaultAsync(a => a.ServiceId == id);
-        if (appointment != null)
-        {
-            appointment.AppointmentStatus = AppointmentStatus.InProgress;
-            appointment.Touch();
-        }
+        var result = await _serviceAppService.StartServiceAsync(id, me.Value, User.IsAdmin());
+        return ToActionResult(result);
+    }
 
-        await db.SaveChangesAsync();
+    /// <summary>
+    /// Valida o código OTP gerado no app do cliente antes de alterar o status para InProgress.
+    /// </summary>
+    [HttpPost("{id:guid}/validate-checkin")]
+    [ProducesResponseType(typeof(ServiceStatusResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ValidateCheckIn(Guid id, [FromBody] ValidateCheckInRequest request)
+    {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-        if (trackingNotification != null)
-        {
-            await trackingNotification.NotifyServiceUpdateAsync(id, "status_changed", new { status = "in-progress" });
-        }
-        if (chatNotification != null)
-        {
-            await chatNotification.NotifyChatUpdateAsync(Guid.Empty, id, "service_status_changed", new { status = "in-progress" });
-        }
+        var result = await _serviceAppService.ValidateCheckInAsync(id, request.Code, me.Value, User.IsAdmin());
+        return ToActionResult(result);
+    }
 
-        return Ok(new { id = service.Id, status = "in-progress" });
+    /// <summary>
+    /// Upload com carimbo de data/hora (Timestamp) das vistorias (fotos de antes ou depois).
+    /// </summary>
+    [HttpPost("{id:guid}/checklist-photos")]
+    [ProducesResponseType(typeof(ServiceDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ChecklistPhotos(Guid id, [FromBody] ChecklistPhotosRequest request)
+    {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        var result = await _serviceAppService.UploadChecklistPhotosAsync(id, request, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -490,34 +177,23 @@ public class ServicesController(
     [HttpPatch("{id:guid}/complete")]
     public async Task<IActionResult> CompleteService(Guid id, [FromQuery] decimal? price)
     {
-        var service = await db.Services.FindAsync(id);
-        if (service == null) return NotFound();
-        service.ServiceStatus = ServiceStatus.Completed;
-        service.Touch();
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-        var appointment = await db.Appointments.FirstOrDefaultAsync(a => a.ServiceId == id);
-        if (appointment != null)
+        var result = await _serviceAppService.CompleteServiceAsync(id, price, me.Value, User.IsAdmin());
+        return ToActionResult(result);
+    }
+
+    private IActionResult ToActionResult<T>(Result<T> result)
+    {
+        if (result.IsSuccess) return Ok(result.Value);
+
+        return result.ErrorCode switch
         {
-            if (price.HasValue)
-            {
-                appointment.FinalPrice = price.Value;
-            }
-            appointment.CompletedAt = DateTime.UtcNow;
-            appointment.AppointmentStatus = AppointmentStatus.Completed;
-            appointment.Touch();
-        }
-
-        await db.SaveChangesAsync();
-
-        if (trackingNotification != null)
-        {
-            await trackingNotification.NotifyServiceUpdateAsync(id, "status_changed", new { status = "completed" });
-        }
-        if (chatNotification != null)
-        {
-            await chatNotification.NotifyChatUpdateAsync(Guid.Empty, id, "service_status_changed", new { status = "completed" });
-        }
-
-        return Ok(new { id = service.Id, status = "completed" });
+            "FORBIDDEN" => Forbid(),
+            "UNAUTHORIZED" => Unauthorized(),
+            "SERVICE_NOT_FOUND" or "CUSTOMER_NOT_FOUND" or "NOT_FOUND" => NotFound(new { message = result.Error, code = result.ErrorCode }),
+            _ => BadRequest(new { message = result.Error, code = result.ErrorCode })
+        };
     }
 }

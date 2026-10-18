@@ -20,7 +20,7 @@ export default function PaymentMethods() {
           </View>
           <Text style={styles.heroTitle}>Pagamento 100% Seguro</Text>
           <Text style={styles.heroSubtitle}>
-            Todos os pagamentos dentro da plataforma WorkEz são processados com total segurança através do AbacatePay.
+            Todos os pagamentos dentro da plataforma WorkEz são processados com total segurança através do DelFinance BaaS.
           </Text>
         </View>
 
@@ -35,7 +35,7 @@ export default function PaymentMethods() {
             <View style={styles.infoTextWrapper}>
               <Text style={styles.infoLabel}>Proteção de dados</Text>
               <Text style={styles.infoValue}>
-                Não salvamos seus dados de cartão nos nossos servidores. Todo o processamento é feito diretamente pelo ambiente seguro do AbacatePay.
+                Não salvamos seus dados nos nossos servidores. Todo o processamento é feito diretamente pelo ambiente bancário regulado do DelFinance BaaS.
               </Text>
             </View>
           </View>
@@ -69,8 +69,8 @@ export default function PaymentMethods() {
           </View>
         </View>
 
-        <View style={styles.abacateBadge}>
-          <Text style={styles.badgeText}>Parceiro Oficial AbacatePay 🥑</Text>
+        <View style={styles.partnerBadge}>
+          <Text style={styles.badgeText}>BaaS Oficial DelFinance 🛡️</Text>
         </View>
       </ScrollView>
 
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
     marginVertical: 16,
   },
-  abacateBadge: {
+  partnerBadge: {
     backgroundColor: '#ECFDF5',
     paddingVertical: 8,
     paddingHorizontal: 16,

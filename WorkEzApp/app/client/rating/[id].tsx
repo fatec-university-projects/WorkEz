@@ -74,7 +74,7 @@ export default function Rating() {
   };
 
   const handleSendRating = async () => {
-    if (!id || !customer || !service) return;
+    if (!id || !service) return;
     if (rating === 0) {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         window.alert('Por favor, selecione pelo menos 1 estrela.');
@@ -85,6 +85,17 @@ export default function Rating() {
     }
 
     setSending(true);
+
+    let activeCustomerId = customer?.id;
+    if (!activeCustomerId && user?.id) {
+      const custRes = await apiRequest<any>(`/api/Customers/by-user/${user.id}`);
+      activeCustomerId = custRes.data?.id;
+    }
+
+    if (!activeCustomerId) {
+      setSending(false);
+      return;
+    }
 
     const fullComment = selectedTags.length > 0 
       ? `[${selectedTags.join(', ')}] ${comment}`.trim()
@@ -99,7 +110,7 @@ export default function Rating() {
         comment: fullComment ? fullComment : null
       };
 
-      const res = await apiRequest<any>(`/api/Reviews/by-customer/${customer.id}`, {
+      const res = await apiRequest<any>(`/api/Reviews/by-customer/${activeCustomerId}`, {
         method: 'POST',
         body: JSON.stringify(reviewPayload)
       });

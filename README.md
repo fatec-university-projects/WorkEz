@@ -51,7 +51,7 @@ O **WorkEz** é uma plataforma completa para intermediação e contratação de 
 2. **Leilão Transparente de Propostas**: O prestador discrimina custos entre **Mão de Obra** e **Materiais**, permitindo ao cliente comparar ofertas detalhadas.
 3. **Rastreabilidade em Tempo Real**: WebSocket nativo para acompanhamento do deslocamento do prestador no mapa.
 4. **Chat Integrado**: Canal de comunicação bidirecional direto entre cliente e prestador por chamado/proposta.
-5. **Pagamento Seguro com PIX e Taxa Justa**: Cobrança via gateway AbacatePay com retenção de comissão de 15% **exclusivamente sobre o serviço/mão de obra** (materiais 100% repassados ao prestador).
+5. **Pagamento Seguro com PIX e Taxa Justa**: Cobrança via gateway DelFinance BaaS com retenção de comissão de 15% **exclusivamente sobre o serviço/mão de obra** (materiais 100% repassados ao prestador).
 6. **Sistema Completo de Avaliações**: Notas (1 a 5 estrelas), tags de qualidade e comentários auditáveis após a conclusão do serviço.
 
 ---
@@ -98,7 +98,7 @@ graph TB
 
     subgraph ExternalServices["Serviços Externos"]
         ViaCEP["ViaCEP API<br/>(Lookup de Endereços)"]
-        Abacate["AbacatePay Gateway<br/>(Cobrança PIX / Webhooks)"]
+        DelFinance["DelFinance BaaS<br/>(Cobrança PIX / Webhooks)"]
     end
 
     subgraph Backend["Backend API (.NET 10 - WorkEzApi)"]
@@ -124,8 +124,8 @@ graph TB
     App --> Domain
     App --> Data
     Data --> Postgres
-    WebUID -->|"PIX Billing"| Abacate
-    Abacate -->|"Webhook de Confirmação"| WebUID
+    WebUID -->|"PIX Billing"| DelFinance
+    DelFinance -->|"Webhook de Confirmação"| WebUID
 ```
 
 ### Backend (.NET 10 — Clean Architecture + DDD)
@@ -182,7 +182,7 @@ O atendimento de um serviço transita por uma máquina de estados bem definida:
      │ [ Prestador ] Finaliza serviço e confirma valores acordados
      ▼
 ┌────────────────┐
-│ WaitingPayment │ ──> Cobrança PIX gerada via AbacatePay
+│ WaitingPayment │ ──> Cobrança PIX gerada via DelFinance BaaS
 └────────────────┘
      │
      │ [ Cliente ] Realiza pagamento PIX confirmado via Webhook/Polling
@@ -212,7 +212,7 @@ O backend implementa dois canais nativos de WebSockets no ASP.NET Core:
 
 ## 💳 Integração de Pagamentos e Modelo de Taxa Justa
 
-A monetização e a cobrança ocorrem via **AbacatePay**:
+A monetização e a cobrança ocorrem via **DelFinance BaaS**:
 1. Ao enviar a proposta ou concluir o atendimento, os custos são discriminados em:
    - **Mão de Obra (`LaborPrice`)**: Custo do serviço executado pelo profissional.
    - **Materiais (`MaterialsPrice`)**: Custos de peças e suprimentos necessários.
@@ -489,7 +489,7 @@ npm run test:e2e:ui
 
 ### Backend (`WorkEzApi`)
 
-Em desenvolvimento local, a API opera de fábrica utilizando banco **In-Memory** e autenticação JWT padrão configurada em [`appsettings.Development.json`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.WebUID/appsettings.Development.json). Para conectar ao PostgreSQL ou AbacatePay:
+Em desenvolvimento local, a API opera de fábrica utilizando banco **In-Memory** e autenticação JWT padrão configurada em [`appsettings.Development.json`](file:///d:/Projetos/WorkEz/WorkEzApi/WorkEz.WebUID/appsettings.Development.json). Para conectar ao PostgreSQL ou DelFinance:
 
 | Variável / Chave | Descrição | Padrão Local |
 |---|---|---|
@@ -499,9 +499,10 @@ Em desenvolvimento local, a API opera de fábrica utilizando banco **In-Memory**
 | `Jwt__Audience` | Audiência do token JWT | `WorkEzClient` |
 | `Jwt__AccessTokenExpirationMinutes` | Validade do Access Token | `15` |
 | `Jwt__RefreshTokenExpirationDays` | Validade do Refresh Token | `7` |
-| `AbacatePay__ApiKey` | Chave de API do gateway AbacatePay | *Opcional em dev* |
-| `AbacatePay__WebhookSecret` | Chave de validação do Webhook | *Opcional em dev* |
-| `AbacatePay__BaseUrl` | URL base da API AbacatePay | `https://api.abacatepay.com/v1` |
+| `DelFinance__ApiKey` | Chave de API do DelFinance BaaS | *Opcional em dev* |
+| `DelFinance__AccountId` | Identificador da conta DelFinance | `31712` |
+| `DelFinance__WebhookSecret` | Chave de validação do Webhook DelFinance | *Opcional em dev* |
+| `DelFinance__BaseUrl` | URL base da API DelFinance | `https://apisandbox.delbank.com.br` |
 
 ### Frontend (`WorkEzApp`)
 
