@@ -1,23 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Application.DTOs;
 using WorkEz.Application.Services;
-using WorkEz.WebUID.WebSockets;
+using WorkEz.Domain.Common;
+using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
 
 /// <summary>
-/// Dedicated Chat Controller following Clean Architecture and Single Responsibility Principle (SRP).
-/// Handles all chat and real-time messaging concerns independently from Proposal lifecycles.
+/// Controller magra (Thin Controller) para Chat e Mensagens em Clean Architecture.
+/// Responsável pelo transporte HTTP e delegação ao <see cref="IChatApplicationService"/>.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class ChatController(
-    IChatApplicationService chatService,
-    IChatNotificationService? chatNotification = null
-) : ControllerBase
+public class ChatController(IChatApplicationService chatService) : ControllerBase
 {
     private readonly IChatApplicationService _chatService = chatService;
-    private readonly IChatNotificationService? _chatNotification = chatNotification;
 
     /// <summary>
     /// Envia uma mensagem no chat (vinculada a uma proposta e/ou serviço).
@@ -27,18 +24,11 @@ public class ChatController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SendMessage([FromBody] SendChatMessageCommand command)
     {
-        var result = await _chatService.SendMessageAsync(command);
-        if (result.IsSuccess && result.Value != null)
-        {
-            if (_chatNotification != null && (result.Value.ProposalId.HasValue || result.Value.ServiceId.HasValue))
-            {
-                var targetProposalId = result.Value.ProposalId ?? Guid.Empty;
-                await _chatNotification.NotifyChatUpdateAsync(targetProposalId, result.Value.ServiceId, "new_message", result.Value);
-            }
-            return Ok(result.Value);
-        }
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-        return BadRequest(new { message = result.Error, code = result.ErrorCode });
+        var result = await _chatService.SendMessageAsync(command, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -48,8 +38,11 @@ public class ChatController(
     [ProducesResponseType(typeof(IEnumerable<ChatMessageResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMessagesByProposal(Guid proposalId)
     {
-        var messages = await _chatService.GetMessagesByProposalIdAsync(proposalId);
-        return Ok(messages);
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        var result = await _chatService.GetMessagesByProposalIdAsync(proposalId, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -59,8 +52,11 @@ public class ChatController(
     [ProducesResponseType(typeof(IEnumerable<ChatMessageResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMessagesByService(Guid serviceId)
     {
-        var messages = await _chatService.GetMessagesByServiceIdAsync(serviceId);
-        return Ok(messages);
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        var result = await _chatService.GetMessagesByServiceIdAsync(serviceId, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -71,7 +67,23 @@ public class ChatController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetActiveProposalForService(Guid serviceId)
     {
-        var proposal = await _chatService.GetActiveChatProposalByServiceIdAsync(serviceId);
-        return proposal is not null ? Ok(proposal) : NotFound(new { message = "Nenhum chat ativo encontrado para este serviço." });
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        var result = await _chatService.GetActiveChatProposalByServiceIdAsync(serviceId, me.Value, User.IsAdmin());
+        return ToActionResult(result);
+    }
+
+    private IActionResult ToActionResult<T>(Result<T> result)
+    {
+        if (result.IsSuccess) return Ok(result.Value);
+
+        return result.ErrorCode switch
+        {
+            "FORBIDDEN" => Forbid(),
+            "UNAUTHORIZED" => Unauthorized(),
+            "NOT_FOUND" or "SERVICE_NOT_FOUND" or "PROPOSAL_NOT_FOUND" => NotFound(new { message = result.Error, code = result.ErrorCode }),
+            _ => BadRequest(new { message = result.Error, code = result.ErrorCode })
+        };
     }
 }

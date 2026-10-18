@@ -5,9 +5,8 @@ using System.Text.Json;
 
 namespace WorkEz.WebUID.WebSockets;
 
-public interface ITrackingNotificationService
+public interface ITrackingNotificationService : WorkEz.Domain.Interfaces.ITrackingNotificationService
 {
-    Task NotifyServiceUpdateAsync(Guid serviceId, string eventType, object? payload = null);
 }
 
 public class TrackingWebSocketManager : ITrackingNotificationService

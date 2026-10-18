@@ -1,4 +1,4 @@
-import { Clock, MapPin } from 'lucide-react-native';
+import { Clock, MapPin, Navigation } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { WorkEzTheme } from '../constants/theme';
 
@@ -8,6 +8,8 @@ interface ServiceCardProps {
   status: string;
   date: string;
   professional?: string;
+  distanceKm?: number;
+  estimatedDurationMinutes?: number;
   onClick?: () => void;
 }
 
@@ -17,6 +19,8 @@ export function ServiceCard({
   status,
   date,
   professional,
+  distanceKm,
+  estimatedDurationMinutes,
   onClick
 }: ServiceCardProps) {
   const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
@@ -83,6 +87,15 @@ export function ServiceCard({
         </View>
       </View>
 
+      {distanceKm !== undefined && distanceKm !== null && (
+        <View style={styles.distanceBadge}>
+          <Navigation size={13} color="#2563EB" />
+          <Text style={styles.distanceBadgeText}>
+            A {distanceKm.toFixed(1)} km de você{estimatedDurationMinutes ? ` • ~${estimatedDurationMinutes} min de trajeto` : ''}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.footerRow}>
         <View style={styles.footerItem}>
           <Clock size={16} color={WorkEzTheme.colors.textSecondary} />
@@ -124,6 +137,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+  },
+  distanceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginBottom: 10,
+    alignSelf: 'flex-start',
+  },
+  distanceBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1D4ED8',
   },
   headerRow: {
     flexDirection: 'row',

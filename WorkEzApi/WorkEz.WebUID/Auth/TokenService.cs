@@ -5,11 +5,12 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using WorkEz.Domain.Entities;
+using WorkEz.Domain.Interfaces;
 
 namespace WorkEz.WebUID.Auth;
 
 /// <summary>Gera access tokens JWT e refresh tokens opacos.</summary>
-public class TokenService(IOptions<JwtOptions> options)
+public class TokenService(IOptions<JwtOptions> options) : ITokenService
 {
     private readonly JwtOptions _options = options.Value;
 
@@ -43,6 +44,7 @@ public class TokenService(IOptions<JwtOptions> options)
     }
 
     public static string GenerateRefreshToken() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+    string ITokenService.GenerateRefreshToken() => GenerateRefreshToken();
 
     /// <summary>Refresh tokens só são persistidos como hash SHA-256.</summary>
     public static string Hash(string token) =>

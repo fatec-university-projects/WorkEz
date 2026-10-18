@@ -17,9 +17,12 @@ public record ProposalResponseDto(
     DateTime CreatedAt,
     decimal? CounterPrice,
     string? CounterDescription,
-    DateTime? CounterOfferedAt,
+    DateTime? CounterOfferedAt = null,
     decimal? LaborPrice = null,
-    decimal? MaterialsPrice = null
+    decimal? MaterialsPrice = null,
+    string? ProviderPhoto = null,
+    decimal? ProviderRating = null,
+    Guid? ProviderUserId = null
 );
 
 public record ChatMessageDto(

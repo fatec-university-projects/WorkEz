@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Send, AlertCircle, User, Check, X, CornerDownRight, CheckCircle, MessageCircle } from 'lucide-react-native';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
 import { useAuth } from '../../../contexts/AuthContext';
-import { apiRequest, getWebSocketUrl } from '../../../services/api';
+import { apiRequest, getWebSocketUrl, resolveImageUrl } from '../../../services/api';
 
 interface ProposalInfo {
   id: string;
@@ -43,13 +43,13 @@ export default function ProviderChat() {
   const scrollViewRef = useRef<ScrollView>(null);
 
   // 1. Tenta buscar diretamente a proposta
-  const { data: directProposal, error: proposalError } = useFetch<ProposalInfo>(
+  const { data: directProposal, error: proposalError, refetch: refetchDirectProposal } = useFetch<ProposalInfo>(
     id ? `/api/Proposals/${id}` : null
   );
 
   // 2. Se id for serviceId ou queryServiceId fornecido:
   const candidateServiceId = queryServiceId || (proposalError || !directProposal ? (id as string) : undefined);
-  const { data: serviceProposal } = useFetch<ProposalInfo>(
+  const { data: serviceProposal, refetch: refetchServiceProposal } = useFetch<ProposalInfo>(
     candidateServiceId ? `/api/Proposals/chat-by-service/${candidateServiceId}` : null
   );
 
@@ -64,28 +64,29 @@ export default function ProviderChat() {
 
   useFocusEffect(
     useCallback(() => {
-      if (effectiveServiceId) {
-        refetchService();
-      }
-    }, [effectiveServiceId, refetchService])
+      refetchDirectProposal();
+      if (candidateServiceId) refetchServiceProposal();
+      if (effectiveServiceId) refetchService();
+    }, [refetchDirectProposal, candidateServiceId, refetchServiceProposal, effectiveServiceId, refetchService])
   );
+
+  const rawProposalStatus = (liveProposal?.status || directProposal?.status || serviceProposal?.status || '').toLowerCase();
+  const isRejected = rawProposalStatus === 'rejected';
 
   const currentStatus = (liveServiceStatus || service?.status || service?.serviceStatus || '').toLowerCase();
-  const isCompleted = currentStatus === 'completed';
-  const isCancelled = currentStatus === 'cancelled';
-  const isWaitingPayment = currentStatus === 'waiting-payment' || currentStatus === 'waitingpayment';
-  const isInProgress = currentStatus === 'in-progress' || currentStatus === 'inprogress';
-  const isOnTheWay = currentStatus === 'on-the-way' || currentStatus === 'ontheway';
-  const isAccepted = !isCompleted && !isCancelled && (
-    currentStatus === 'accepted' ||
-    isInProgress ||
-    isOnTheWay ||
-    isWaitingPayment ||
-    proposal?.status?.toLowerCase() === 'accepted'
+  const isCompleted = !isRejected && currentStatus === 'completed';
+  const isCancelled = !isRejected && currentStatus === 'cancelled';
+  const isWaitingPayment = !isRejected && (currentStatus === 'waiting-payment' || currentStatus === 'waitingpayment');
+  const isInProgress = !isRejected && (currentStatus === 'in-progress' || currentStatus === 'inprogress');
+  const isOnTheWay = !isRejected && (currentStatus === 'on-the-way' || currentStatus === 'ontheway');
+  const isAccepted = !isCompleted && !isCancelled && !isRejected && (
+    rawProposalStatus === 'accepted' ||
+    ((currentStatus === 'accepted' || isInProgress || isOnTheWay || isWaitingPayment) && rawProposalStatus !== 'rejected')
   );
-  const isFinished = isCompleted || isCancelled;
+  const isFinished = isCompleted || isCancelled || isRejected;
 
   const getHeaderStatusText = () => {
+    if (isRejected) return 'Proposta recusada • Chat encerrado';
     if (isCompleted) return 'Serviço concluído';
     if (isCancelled) return 'Serviço cancelado';
     if (isWaitingPayment) return 'Aguardando pagamento';
@@ -142,11 +143,12 @@ export default function ProviderChat() {
     let isDestroyed = false;
     let reconnectTimeout: any = null;
 
-    const connectWs = () => {
+    const connectWs = async () => {
       if (isDestroyed) return;
-      const wsUrl = getWebSocketUrl(`/ws/chat?proposalId=${activeProposalId}${effectiveServiceId ? `&serviceId=${effectiveServiceId}` : ''}`);
-
       try {
+        const wsUrl = await getWebSocketUrl(`/ws/chat?proposalId=${activeProposalId}${effectiveServiceId ? `&serviceId=${effectiveServiceId}` : ''}`);
+        if (isDestroyed) return;
+
         ws = new WebSocket(wsUrl);
 
         ws.onmessage = (event) => {
@@ -229,7 +231,18 @@ export default function ProviderChat() {
       });
 
       if (res.error) {
-        Alert.alert('Erro ao enviar', res.error);
+        if (res.error.toLowerCase().includes('recusada') || (res as any).code === 'PROPOSAL_REJECTED') {
+          setLiveProposal((prev) =>
+            prev
+              ? { ...prev, status: 'Rejected' }
+              : ({ id: activeProposalId, status: 'Rejected', proposedPrice: 0, providerId: '', serviceId: '' } as ProposalInfo)
+          );
+        }
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert(res.error);
+        } else {
+          Alert.alert('Aviso', res.error);
+        }
         setMessageText(textToSend);
       } else if (res.data) {
         const raw: any = res.data;
@@ -382,13 +395,22 @@ export default function ProviderChat() {
           >
             <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
           </TouchableOpacity>
-          <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
-            <User size={20} color={WorkEzTheme.colors.textSecondary} />
-          </View>
+          {service?.clientPhoto ? (
+            <Image
+              source={{ uri: resolveImageUrl(service.clientPhoto) || service.clientPhoto }}
+              style={styles.avatar}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
+              <User size={20} color={WorkEzTheme.colors.textSecondary} />
+            </View>
+          )}
           <View style={styles.headerInfo}>
             <Text style={styles.clientName}>{service?.clientName || 'Cliente (Solicitante)'}</Text>
             <Text style={[
               styles.statusText,
+              isRejected && { color: '#DC2626', fontWeight: '600' },
               isCompleted && { color: '#059669', fontWeight: '600' },
               isCancelled && { color: '#DC2626', fontWeight: '600' },
               isInProgress && { color: '#2563EB', fontWeight: '600' },
@@ -400,7 +422,7 @@ export default function ProviderChat() {
       </View>
 
       {/* Contra-proposta Banner no Chat */}
-      {isCountered && (
+      {isCountered && !isRejected && (
         <View style={styles.counterBanner}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <CornerDownRight size={18} color="#D97706" />
@@ -438,7 +460,16 @@ export default function ProviderChat() {
       )}
 
       {/* Banner de status contextual */}
-      {isCompleted ? (
+      {isRejected ? (
+        <View style={[styles.alertBanner, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+          <View style={styles.alertRow}>
+            <AlertCircle size={16} color="#DC2626" style={styles.alertIcon} />
+            <Text style={[styles.alertText, { color: '#991B1B' }]}>
+              <Text style={{ fontWeight: '700' }}>Proposta Recusada:</Text> Esta proposta foi recusada. A negociação está encerrada e o chat foi fechado para novas mensagens.
+            </Text>
+          </View>
+        </View>
+      ) : isCompleted ? (
         <View style={[styles.alertBanner, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
           <View style={styles.alertRow}>
             <CheckCircle size={16} color="#059669" style={styles.alertIcon} />
@@ -493,8 +524,10 @@ export default function ProviderChat() {
           </View>
         ) : (!messages || messages.length === 0) ? (
           <View key="chat-empty" style={styles.centerContainer}>
-            <Text style={{ color: '#94A3B8', textAlign: 'center', fontSize: 14 }}>
-              {isAccepted
+            <Text style={{ color: isRejected ? '#991B1B' : '#94A3B8', textAlign: 'center', fontSize: 14, fontWeight: isRejected ? '600' : '400' }}>
+              {isRejected
+                ? 'Esta proposta foi recusada. O chat está fechado para envio de mensagens.'
+                : isAccepted
                 ? 'Inicie a conversa! Envie uma mensagem para alinhar os detalhes da execução do chamado com o cliente.'
                 : 'Inicie a conversa com o cliente para negociar ou confirmar detalhes.'}
             </Text>
@@ -556,7 +589,9 @@ export default function ProviderChat() {
             value={messageText}
             onChangeText={setMessageText}
             placeholder={
-              isCompleted
+              isRejected
+                ? 'Chat fechado (proposta recusada).'
+                : isCompleted
                 ? 'Chat encerrado após a conclusão do serviço.'
                 : isCancelled
                 ? 'Chat encerrado.'

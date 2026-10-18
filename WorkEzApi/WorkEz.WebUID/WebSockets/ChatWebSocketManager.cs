@@ -5,9 +5,8 @@ using System.Text.Json;
 
 namespace WorkEz.WebUID.WebSockets;
 
-public interface IChatNotificationService
+public interface IChatNotificationService : WorkEz.Domain.Interfaces.IChatNotificationService
 {
-    Task NotifyChatUpdateAsync(Guid proposalId, Guid? serviceId, string eventType, object? payload = null);
 }
 
 public class ChatWebSocketManager : IChatNotificationService
@@ -121,4 +120,22 @@ public class ChatWebSocketManager : IChatNotificationService
             }
         }
     }
+
+    public bool HasActiveSubscribers(Guid? proposalId, Guid? serviceId)
+    {
+        if (proposalId.HasValue && _socketsByProposal.TryGetValue(proposalId.Value, out var pSockets) && !pSockets.IsEmpty)
+        {
+            if (pSockets.Values.Any(s => s.State == WebSocketState.Open))
+                return true;
+        }
+
+        if (serviceId.HasValue && _socketsByService.TryGetValue(serviceId.Value, out var sSockets) && !sSockets.IsEmpty)
+        {
+            if (sSockets.Values.Any(s => s.State == WebSocketState.Open))
+                return true;
+        }
+
+        return false;
+    }
 }
+

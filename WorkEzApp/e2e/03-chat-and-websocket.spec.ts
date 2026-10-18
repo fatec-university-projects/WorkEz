@@ -11,11 +11,15 @@ test.describe('Fluxo 3: Chat em Tempo Real e Negociação Integrada', () => {
     await injectAuth(page, customer);
 
     // Obtém perfis
-    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`);
+    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
+    });
     const customerProfile = await customerProfileRes.json();
     const serviceCall = await createTestServiceCall(customerProfile.id, customer.tokens.accessToken);
 
-    const providerProfileRes = await fetch(`${API_BASE_URL}/api/ServiceProviders/by-user/${provider.tokens.user.id}`);
+    const providerProfileRes = await fetch(`${API_BASE_URL}/api/ServiceProviders/by-user/${provider.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${provider.tokens.accessToken}` },
+    });
     const providerProfile = await providerProfileRes.json();
 
     // Envia proposta
@@ -60,7 +64,9 @@ test.describe('Fluxo 3: Chat em Tempo Real e Negociação Integrada', () => {
 
     await injectAuth(page, provider);
 
-    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`);
+    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
+    });
     const customerProfile = await customerProfileRes.json();
     const serviceCall = await createTestServiceCall(customerProfile.id, customer.tokens.accessToken);
 

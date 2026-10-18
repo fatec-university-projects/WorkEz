@@ -173,3 +173,6 @@ WorkEzApp/.env
 **/wwwroot/uploads/*
 !**/wwwroot/uploads/.gitkeep
 uploads/
+
+
+features/*

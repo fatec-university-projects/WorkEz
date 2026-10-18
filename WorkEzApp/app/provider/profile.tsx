@@ -221,6 +221,15 @@ export default function ProviderProfile() {
               >
                 Editar perfil
               </Button>
+
+              <Button
+                variant="secondary"
+                fullWidth
+                style={{ marginTop: 10, backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}
+                onPress={() => router.push('/provider/work-area' as any)}
+              >
+                Configurar área de atuação no mapa
+              </Button>
             </View>
 
             {/* ── Portfólio ── */}

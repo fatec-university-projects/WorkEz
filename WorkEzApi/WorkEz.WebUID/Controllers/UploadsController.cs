@@ -12,6 +12,12 @@ public record Base64UploadRequest(string? Data, string? Filename);
 [Route("api/[controller]")]
 public class UploadsController(IWebHostEnvironment env) : ControllerBase
 {
+    // Apenas imagens: o arquivo é servido como estático no mesmo domínio da API,
+    // então aceitar .html/.svg/.exe permitiria hospedar conteúdo malicioso (XSS/malware).
+    private static readonly HashSet<string> AllowedExtensions =
+        new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic" };
+    private const long MaxUploadBytes = 10 * 1024 * 1024; // 10 MB
+
     private string GetUploadsFolder()
     {
         var root = env.WebRootPath;
@@ -39,9 +45,18 @@ public class UploadsController(IWebHostEnvironment env) : ControllerBase
             return BadRequest(new { message = "Nenhum arquivo enviado." });
         }
 
+        if (file.Length > MaxUploadBytes)
+        {
+            return BadRequest(new { message = "Arquivo maior que o limite de 10 MB." });
+        }
+
         var uploadsFolder = GetUploadsFolder();
         var ext = Path.GetExtension(file.FileName);
         if (string.IsNullOrWhiteSpace(ext)) ext = ".jpg";
+        if (!AllowedExtensions.Contains(ext))
+        {
+            return BadRequest(new { message = "Tipo de arquivo não permitido. Envie uma imagem (jpg, png, webp, gif, heic)." });
+        }
 
         var fileName = $"{Guid.NewGuid():N}{ext}";
         var filePath = Path.Combine(uploadsFolder, fileName);
@@ -93,6 +108,10 @@ public class UploadsController(IWebHostEnvironment env) : ControllerBase
         try
         {
             var bytes = Convert.FromBase64String(rawData);
+            if (bytes.Length > MaxUploadBytes)
+            {
+                return BadRequest(new { message = "Arquivo maior que o limite de 10 MB." });
+            }
             var fileName = $"{Guid.NewGuid():N}{ext}";
             var filePath = Path.Combine(uploadsFolder, fileName);
 

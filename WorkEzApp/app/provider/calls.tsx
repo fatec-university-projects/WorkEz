@@ -26,6 +26,8 @@ interface Call {
   status: 'pending' | 'open' | 'accepted' | 'on-the-way' | 'ontheway' | 'in-progress' | 'inprogress' | 'waiting-payment' | 'waitingpayment' | 'completed' | 'cancelled';
   date: string;
   clientName: string;
+  distanceKm?: number;
+  estimatedDurationMinutes?: number;
 }
 
 interface ProposalItem {
@@ -361,12 +363,17 @@ export default function ProviderCalls() {
                       {/* Botão de Chat para negociação */}
                       <View style={{ marginTop: 10, flexDirection: 'row', gap: 8 }}>
                         <TouchableOpacity
-                          style={[styles.btnAction, styles.btnChat, { flex: 1 }]}
+                          style={[
+                            styles.btnAction,
+                            styles.btnChat,
+                            { flex: 1 },
+                            isRejected && { backgroundColor: '#F8FAFC', borderColor: '#CBD5E1' }
+                          ]}
                           onPress={() => router.push(`/provider/chat/${proposal.id}` as any)}
                         >
-                          <MessageCircle size={16} color="#2563EB" />
-                          <Text style={{ color: '#2563EB', fontWeight: '600', fontSize: 13 }}>
-                            Conversar / Barganhar no Chat
+                          <MessageCircle size={16} color={isRejected ? '#64748B' : '#2563EB'} />
+                          <Text style={{ color: isRejected ? '#64748B' : '#2563EB', fontWeight: '600', fontSize: 13 }}>
+                            {isRejected ? 'Ver Histórico do Chat (Encerrado)' : 'Conversar / Barganhar no Chat'}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -396,6 +403,8 @@ export default function ProviderCalls() {
                 status={call.status}
                 date={call.date}
                 professional={call.clientName}
+                distanceKm={call.distanceKm}
+                estimatedDurationMinutes={call.estimatedDurationMinutes}
                 onClick={() => {
                   if (activeTab === 'opportunities') {
                     router.push(`/provider/new-call/${call.id}` as any);

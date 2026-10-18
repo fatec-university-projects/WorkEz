@@ -5,7 +5,7 @@ import { Button } from '../../../components/Button';
 import { View, Text, TouchableOpacity, Image, TextInput, ActivityIndicator, Alert, ScrollView, Platform } from 'react-native';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useFetch } from '../../../hooks/useFetch';
-import { apiRequest } from '../../../services/api';
+import { apiRequest, resolveImageUrl } from '../../../services/api';
 import { WorkEzTheme } from '../../../constants/theme';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 
@@ -39,9 +39,11 @@ export default function Rating() {
         if (match) {
           const parsedTags = match[1].split(',').map((t: string) => t.trim());
           setSelectedTags(parsedTags);
-          setComment(match[2] === 'Serviço avaliado pelo cliente.' ? '' : match[2]);
+          const raw = match[2]?.trim() || '';
+          setComment(raw === 'Serviço avaliado pelo cliente.' || raw === 'Nenhum comentário deixado.' ? '' : raw);
         } else {
-          setComment(existingReview.comment === 'Serviço avaliado pelo cliente.' ? '' : existingReview.comment);
+          const raw = existingReview.comment.trim();
+          setComment(raw === 'Serviço avaliado pelo cliente.' || raw === 'Nenhum comentário deixado.' ? '' : raw);
         }
       }
     }
@@ -72,7 +74,7 @@ export default function Rating() {
   };
 
   const handleSendRating = async () => {
-    if (!id || !customer || !service) return;
+    if (!id || !service) return;
     if (rating === 0) {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         window.alert('Por favor, selecione pelo menos 1 estrela.');
@@ -84,6 +86,17 @@ export default function Rating() {
 
     setSending(true);
 
+    let activeCustomerId = customer?.id;
+    if (!activeCustomerId && user?.id) {
+      const custRes = await apiRequest<any>(`/api/Customers/by-user/${user.id}`);
+      activeCustomerId = custRes.data?.id;
+    }
+
+    if (!activeCustomerId) {
+      setSending(false);
+      return;
+    }
+
     const fullComment = selectedTags.length > 0 
       ? `[${selectedTags.join(', ')}] ${comment}`.trim()
       : comment.trim();
@@ -94,10 +107,10 @@ export default function Rating() {
         appointmentId: service.appointmentId,
         reviewedUserId: service.providerUserId || service.professional?.userId || service.professional?.id,
         rating: rating,
-        comment: fullComment || 'Serviço avaliado pelo cliente.'
+        comment: fullComment ? fullComment : null
       };
 
-      const res = await apiRequest<any>(`/api/Reviews/by-customer/${customer.id}`, {
+      const res = await apiRequest<any>(`/api/Reviews/by-customer/${activeCustomerId}`, {
         method: 'POST',
         body: JSON.stringify(reviewPayload)
       });
@@ -173,7 +186,7 @@ export default function Rating() {
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0] items-center">
           {service.professional?.photo ? (
             <Image
-              source={{ uri: service.professional.photo }}
+              source={{ uri: resolveImageUrl(service.professional.photo) || service.professional.photo }}
               className="w-20 h-20 rounded-full object-cover mb-3"
             />
           ) : (

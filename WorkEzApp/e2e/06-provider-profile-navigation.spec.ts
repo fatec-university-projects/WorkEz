@@ -9,7 +9,9 @@ test.describe('Fluxo 6: Navegação para o Perfil do Prestador via Chat e Acompa
 
     await injectAuth(page, customer);
 
-    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`);
+    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
+    });
     const customerProfile = await customerProfileRes.json();
     const serviceCall = await createTestServiceCall(customerProfile.id, customer.tokens.accessToken);
 
@@ -51,7 +53,9 @@ test.describe('Fluxo 6: Navegação para o Perfil do Prestador via Chat e Acompa
 
     await injectAuth(page, customer);
 
-    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`);
+    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
+    });
     const customerProfile = await customerProfileRes.json();
     const serviceCall = await createTestServiceCall(customerProfile.id, customer.tokens.accessToken);
 

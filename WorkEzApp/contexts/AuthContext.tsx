@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService, StoredUser } from '../services/authService';
 import { apiRequest } from '../services/api';
+import { notificationService } from '../services/notificationService';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const storedUser = await authService.getUser();
         setUser(storedUser);
+        if (storedUser?.id) {
+          notificationService.registerDeviceWithBackend(storedUser.id).catch(() => {});
+        }
       } catch {
         setUser(null);
       } finally {
@@ -42,11 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = (userData: StoredUser) => {
     setUser(userData);
+    if (userData?.id) {
+      notificationService.registerDeviceWithBackend(userData.id).catch(() => {});
+    }
   };
 
   const signOut = async () => {
     setIsLoading(true);
     try {
+      await notificationService.unregisterDeviceFromBackend().catch(() => {});
       await authService.logout();
     } finally {
       setUser(null);
