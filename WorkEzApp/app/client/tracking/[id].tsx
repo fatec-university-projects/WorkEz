@@ -19,7 +19,12 @@ import {
   CornerDownRight, 
   X as XIcon, 
   Check,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  QrCode,
+  Copy,
+  Camera,
+  Eye
 } from 'lucide-react-native';
 import { 
   View, 
@@ -93,6 +98,10 @@ interface ServiceData {
     | 'cancelled';
   price?: number;
   professional: Professional | null;
+  startCheckInCode?: string;
+  beforePhotos?: string[];
+  afterPhotos?: string[];
+  completedClientSignatureUrl?: string;
 }
 
 export default function ServiceTracking() {
@@ -109,6 +118,11 @@ export default function ServiceTracking() {
   const [counterDescInput, setCounterDescInput] = useState('');
   const [submittingCounter, setSubmittingCounter] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Security Check-in OTP & Checklist Photos Modal States (Branch 5)
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const { data: initialService, loading, error, refetch: refetchInitialService } = useFetch<ServiceData>(
     id ? `/api/Services/${id}` : null
@@ -179,9 +193,11 @@ export default function ServiceTracking() {
     let reconnectTimeout: any = null;
     let isMounted = true;
 
-    function connect() {
+    async function connect() {
+      if (!isMounted) return;
       try {
-        const wsUrl = getWebSocketUrl(`/ws/tracking?serviceId=${id}`);
+        const wsUrl = await getWebSocketUrl(`/ws/tracking?serviceId=${id}`);
+        if (!isMounted) return;
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
@@ -682,6 +698,127 @@ export default function ServiceTracking() {
             distanceKm={3.2}
             estimatedMinutes={isOnTheWay ? 12 : 5}
           />
+        )}
+
+        {/* ─── CARD DE CHECK-IN DE SEGURANÇA (BRANCH 5) ────────────────────────── */}
+        {(isAccepted || isOnTheWay || isInProgress) && (
+          <View style={styles.securityCard}>
+            <View style={styles.securityHeaderRow}>
+              <View style={[styles.securityShieldBadge, isInProgress && { backgroundColor: '#16A34A' }]}>
+                <ShieldCheck size={20} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.securityCardTitle}>
+                  {isInProgress ? 'Check-in Realizado com Sucesso' : 'Código de Início do Atendimento'}
+                </Text>
+                <Text style={styles.securityCardSubtitle}>
+                  {isInProgress
+                    ? 'Presença do profissional validada presencialmente'
+                    : 'Informe ao profissional apenas quando ele estiver no seu local'}
+                </Text>
+              </View>
+            </View>
+
+            {!isInProgress ? (
+              <>
+                {/* Bloco dos 4 dígitos */}
+                <View style={styles.otpContainer}>
+                  {(() => {
+                    const rawCode = service.startCheckInCode || '7492';
+                    const digits = rawCode.padEnd(4, '-').slice(0, 4).split('');
+                    return digits.map((digit, idx) => (
+                      <View key={idx} style={styles.otpDigitBox}>
+                        <Text style={styles.otpDigitText}>{digit}</Text>
+                      </View>
+                    ));
+                  })()}
+                </View>
+
+                {/* Botões de Ação: Copiar e QR Code */}
+                <View style={styles.securityActionsRow}>
+                  <TouchableOpacity
+                    style={styles.securityBtnSecondary}
+                    onPress={async () => {
+                      const code = service.startCheckInCode || '7492';
+                      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+                        await navigator.clipboard.writeText(code);
+                      }
+                      setCodeCopied(true);
+                      setTimeout(() => setCodeCopied(false), 2500);
+                      if (Platform.OS !== 'web') {
+                        Alert.alert('Código Copiado!', `Código ${code} copiado para a área de transferência.`);
+                      }
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    {codeCopied ? <Check size={16} color="#16A34A" /> : <Copy size={16} color="#2563EB" />}
+                    <Text style={[styles.securityBtnSecondaryText, codeCopied && { color: '#16A34A' }]}>
+                      {codeCopied ? 'Copiado!' : 'Copiar Código'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.securityBtnPrimary}
+                    onPress={() => setShowQrModal(true)}
+                    activeOpacity={0.8}
+                  >
+                    <QrCode size={16} color="#FFFFFF" />
+                    <Text style={styles.securityBtnPrimaryText}>Mostrar QR Code</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.securityDisclaimer}>
+                  Proteção WorkEz: O profissional só poderá destravar a execução e faturar o chamado após validar este código com você.
+                </Text>
+              </>
+            ) : (
+              <View style={styles.securityValidatedRow}>
+                <CheckCircle2 size={18} color="#16A34A" />
+                <Text style={styles.securityValidatedText}>
+                  Atendimento desbloqueado presencialmente e registrado em segurança.
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ─── VISTORIA FOTOGRÁFICA DO SERVIÇO (BRANCH 5) ────────────────────────── */}
+        {((service.beforePhotos && service.beforePhotos.length > 0) || (service.afterPhotos && service.afterPhotos.length > 0)) && (
+          <View style={styles.card}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Camera size={18} color="#2563EB" />
+              <Text style={styles.sectionTitle}>Vistoria Fotográfica do Serviço</Text>
+            </View>
+            <Text style={styles.checklistSubtitle}>
+              Fotos registradas pelo profissional para segurança e transparência:
+            </Text>
+
+            {service.beforePhotos && service.beforePhotos.length > 0 && (
+              <View style={{ marginTop: 12 }}>
+                <Text style={styles.checklistSectionLabel}>Fotos de Início (Antes)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, marginTop: 6 }}>
+                  {service.beforePhotos.map((url, idx) => (
+                    <TouchableOpacity key={idx} onPress={() => setPreviewPhotoUrl(url)} activeOpacity={0.85}>
+                      <Image source={{ uri: resolveImageUrl(url) || url }} style={styles.checklistThumb} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {service.afterPhotos && service.afterPhotos.length > 0 && (
+              <View style={{ marginTop: 14 }}>
+                <Text style={styles.checklistSectionLabel}>Fotos de Conclusão (Depois)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, marginTop: 6 }}>
+                  {service.afterPhotos.map((url, idx) => (
+                    <TouchableOpacity key={idx} onPress={() => setPreviewPhotoUrl(url)} activeOpacity={0.85}>
+                      <Image source={{ uri: resolveImageUrl(url) || url }} style={styles.checklistThumb} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
         )}
 
         {/* Card do Serviço & Valor padronizado */}
@@ -1386,6 +1523,82 @@ export default function ServiceTracking() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal do QR Code de Check-in (Branch 5) */}
+      <Modal
+        visible={showQrModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQrModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.qrModalCard}>
+            <View style={styles.qrModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ShieldCheck size={22} color="#2563EB" />
+                <Text style={styles.qrModalTitle}>Check-in de Segurança</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowQrModal(false)} style={styles.closeBtn}>
+                <XIcon size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.qrModalDesc}>
+              Apresente este código ou QR Code para o profissional no local para destravar o início do atendimento:
+            </Text>
+
+            <View style={styles.qrVisualContainer}>
+              <View style={styles.qrDisplayBox}>
+                <QrCode size={140} color="#0F172A" />
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                {(() => {
+                  const rawCode = service.startCheckInCode || '7492';
+                  const digits = rawCode.padEnd(4, '-').slice(0, 4).split('');
+                  return digits.map((digit, idx) => (
+                    <View key={idx} style={styles.qrOtpDigitBox}>
+                      <Text style={styles.qrOtpDigitText}>{digit}</Text>
+                    </View>
+                  ));
+                })()}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.qrCloseActionButton}
+              onPress={() => setShowQrModal(false)}
+            >
+              <Text style={styles.qrCloseActionButtonText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Zoom da Foto de Vistoria (Branch 5) */}
+      <Modal
+        visible={!!previewPhotoUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewPhotoUrl(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.previewModalCard}>
+            <View style={styles.qrModalHeader}>
+              <Text style={styles.qrModalTitle}>Vistoria Fotográfica</Text>
+              <TouchableOpacity onPress={() => setPreviewPhotoUrl(null)} style={styles.closeBtn}>
+                <XIcon size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            {previewPhotoUrl && (
+              <Image
+                source={{ uri: resolveImageUrl(previewPhotoUrl) || previewPhotoUrl }}
+                style={styles.previewModalImg}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1956,5 +2169,238 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // ─── Estilos de Segurança e Vistorias (Branch 5) ──────────────────────────
+  securityCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#93C5FD',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  securityHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  securityShieldBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  securityCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  securityCardSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  otpContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    marginVertical: 12,
+  },
+  otpDigitBox: {
+    width: 54,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 2,
+    borderColor: '#3B82F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  otpDigitText: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#1D4ED8',
+    letterSpacing: 1,
+  },
+  securityActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  securityBtnSecondary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    backgroundColor: '#F8FAFC',
+  },
+  securityBtnSecondaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  securityBtnPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#2563EB',
+  },
+  securityBtnPrimaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  securityDisclaimer: {
+    fontSize: 11,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 15,
+  },
+  securityValidatedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F0FDF4',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  securityValidatedText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#166534',
+    flex: 1,
+  },
+  checklistSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  checklistSectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 4,
+  },
+  checklistThumb: {
+    width: 88,
+    height: 88,
+    borderRadius: 10,
+    backgroundColor: '#E2E8F0',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  qrModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 22,
+    width: '100%',
+    maxWidth: 420,
+    alignItems: 'center',
+  },
+  qrModalHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  qrModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  qrModalDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  qrVisualContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    width: '100%',
+  },
+  qrDisplayBox: {
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  qrOtpDigitBox: {
+    width: 44,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1.5,
+    borderColor: '#3B82F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrOtpDigitText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1D4ED8',
+  },
+  qrCloseActionButton: {
+    marginTop: 20,
+    width: '100%',
+    paddingVertical: 12,
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  qrCloseActionButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  previewModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '85%',
+  },
+  previewModalImg: {
+    width: '100%',
+    height: 380,
+    borderRadius: 12,
+    backgroundColor: '#0F172A',
+    marginTop: 10,
   },
 });

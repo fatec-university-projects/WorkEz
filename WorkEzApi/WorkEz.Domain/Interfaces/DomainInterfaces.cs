@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using WorkEz.Domain.Common;
 using WorkEz.Domain.Entities;
+using WorkEz.Domain.Enums;
 
 namespace WorkEz.Domain.Interfaces;
 
@@ -45,6 +46,7 @@ public interface IServiceProviderRepository : IBaseRepository<ServiceProvider>
 public interface IAppointmentRepository : IBaseRepository<Appointment>
 {
     Task<Appointment?> GetByServiceIdAsync(Guid serviceId);
+    Task<IEnumerable<Appointment>> GetByProviderIdWithDetailsAsync(Guid providerId);
 }
 
 public interface IChatMessageRepository : IBaseRepository<ChatMessage>
@@ -74,4 +76,89 @@ public interface IDomainEvent
 public interface IBaseMessageBroker
 {
     Task PublishAsync<TEvent>(TEvent domainEvent, CancellationToken cancellationToken = default) where TEvent : class, IDomainEvent;
+}
+
+public interface ITrackingNotificationService
+{
+    Task NotifyServiceUpdateAsync(Guid serviceId, string eventType, object? payload = null);
+}
+
+public interface IChatNotificationService
+{
+    Task NotifyChatUpdateAsync(Guid proposalId, Guid? serviceId, string eventType, object? payload = null);
+    bool HasActiveSubscribers(Guid? proposalId, Guid? serviceId);
+}
+
+public interface ICategoryRepository : IBaseRepository<Category>
+{
+    Task<IEnumerable<Category>> GetAllOrderedByNameAsync();
+    Task<IEnumerable<Category>> GetByProviderIdAsync(Guid providerId);
+    Task UpdateProviderCategoriesAsync(Guid providerId, IEnumerable<Guid> categoryIds);
+}
+
+public interface ICustomerRepository : IBaseRepository<Customer>
+{
+    Task<Customer?> GetByUserIdWithUserAsync(Guid userId);
+    Task<Customer?> GetByIdWithUserAsync(Guid id);
+}
+
+public interface IReviewRepository : IBaseRepository<Review>
+{
+    Task<Review?> GetByServiceOrAppointmentAsync(Guid serviceId, Guid? appointmentId, Guid reviewerUserId);
+    Task<Review?> GetByAppointmentAndReviewerAsync(Guid appointmentId, Guid reviewerUserId);
+    Task<Review?> GetReviewByServiceAsync(Guid serviceId);
+    Task<Review?> GetReviewByAppointmentAsync(Guid appointmentId);
+    Task<IEnumerable<Review>> GetReviewsByReviewedUserIdAsync(Guid userId);
+    Task<List<int>> GetRatingsForUserAsync(Guid userId);
+}
+
+public interface IUserRepository : IBaseRepository<User>
+{
+    Task<User?> GetByEmailAsync(string email);
+    Task<bool> IsEmailInUseAsync(string email, Guid excludeUserId);
+}
+
+public interface IRefreshTokenRepository : IBaseRepository<RefreshToken>
+{
+    Task<RefreshToken?> GetByTokenWithUserAsync(string token);
+    Task<RefreshToken?> GetByTokenAsync(string token);
+}
+
+public interface ITokenService
+{
+    string CreateAccessToken(User user);
+    string GenerateRefreshToken();
+    DateTime RefreshTokenExpiresAt { get; }
+    int AccessTokenLifetimeSeconds { get; }
+}
+
+public interface IPasswordHasher
+{
+    string HashPassword(string password);
+    bool VerifyPassword(string password, string passwordHash);
+}
+
+public interface IWalletTransactionRepository : IBaseRepository<WalletTransaction>
+{
+    Task<IEnumerable<WalletTransaction>> GetByProviderIdAsync(Guid providerId);
+    Task<IEnumerable<WalletTransaction>> GetByProviderIdFilteredAsync(
+        Guid providerId,
+        WalletTransactionType? type = null,
+        DateTime? startDate = null,
+        DateTime? endDate = null,
+        int skip = 0,
+        int take = 20);
+    Task<int> CountByProviderIdFilteredAsync(
+        Guid providerId,
+        WalletTransactionType? type = null,
+        DateTime? startDate = null,
+        DateTime? endDate = null);
+    Task<WalletTransaction?> GetEscrowHoldByServiceIdAsync(Guid serviceId);
+    Task<WalletTransaction?> GetEscrowReleaseByServiceIdAsync(Guid serviceId);
+}
+
+public interface IWithdrawalRequestRepository : IBaseRepository<WithdrawalRequest>
+{
+    Task<IEnumerable<WithdrawalRequest>> GetByProviderIdAsync(Guid providerId);
+    Task<WithdrawalRequest?> GetLatestByProviderIdAsync(Guid providerId);
 }

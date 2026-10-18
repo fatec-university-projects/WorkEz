@@ -92,11 +92,7 @@ namespace WorkEz.Domain.Services
                 return Result<Proposal>.Failure($"Não é possível enviar propostas para um serviço com status '{service.ServiceStatus}'.", "INVALID_SERVICE_STATUS");
             }
 
-            decimal finalLabor = laborPrice ?? (proposedPrice - (materialsPrice ?? 0m));
-            if (finalLabor < 0) finalLabor = proposedPrice;
-            decimal finalMaterials = materialsPrice ?? 0m;
-            decimal totalProposed = finalLabor + finalMaterials;
-            if (totalProposed <= 0) totalProposed = proposedPrice;
+            var (finalLabor, finalMaterials, totalProposed) = CalculateProposalPrices(proposedPrice, laborPrice, materialsPrice);
 
             var existingProposal = await _proposalRepository.GetExistingProposalAsync(service.Id, provider.Id);
             if (existingProposal != null)
@@ -160,29 +156,8 @@ namespace WorkEz.Domain.Services
             service.ServiceStatus = ServiceStatus.Accepted;
             _serviceRepository.Update(service);
 
-            var pendingProposals = await _proposalRepository.GetPendingProposalsByServiceIdAsync(service.Id);
-            foreach (var pending in pendingProposals)
-            {
-                if (pending.Id != proposal.Id)
-                {
-                    pending.ProposalStatus = ProposalStatus.Rejected;
-                    _proposalRepository.Update(pending);
-                }
-            }
-
-            var appointment = new Appointment
-            {
-                ServiceId = service.Id,
-                ProposalId = proposal.Id,
-                CustomerId = service.CustomerId,
-                ProviderId = proposal.ProviderId,
-                AppointmentStatus = AppointmentStatus.Confirmed,
-                FinalPrice = proposal.ProposedPrice,
-                ScheduledDate = service.DesiredDate ?? DateTime.UtcNow.AddDays(1),
-                ConfirmationCode = new Random().Next(1000, 9999).ToString()
-            };
-
-            await _appointmentRepository.AddAsync(appointment);
+            await RejectOtherPendingProposalsAsync(service.Id, proposal.Id);
+            var appointment = await CreateAppointmentAsync(service, proposal, proposal.ProposedPrice);
             await _proposalRepository.SaveChangesAsync();
 
             await _messageBroker.PublishAsync(new ProposalAcceptedEvent(Guid.NewGuid(), DateTime.UtcNow, proposal.Id, service.Id, service.CustomerId, proposal.ProviderId, proposal.ProposedPrice, appointment.Id));
@@ -274,26 +249,8 @@ namespace WorkEz.Domain.Services
             service.ServiceStatus = ServiceStatus.Accepted;
             _serviceRepository.Update(service);
 
-            // Rejeita demais propostas pendentes
-            var pending = await _proposalRepository.GetPendingProposalsByServiceIdAsync(service.Id);
-            foreach (var p in pending.Where(p => p.Id != proposal.Id))
-            {
-                p.ProposalStatus = ProposalStatus.Rejected;
-                _proposalRepository.Update(p);
-            }
-
-            var appointment = new Appointment
-            {
-                ServiceId = service.Id,
-                ProposalId = proposal.Id,
-                CustomerId = service.CustomerId,
-                ProviderId = proposal.ProviderId,
-                AppointmentStatus = AppointmentStatus.Confirmed,
-                FinalPrice = finalPrice,
-                ScheduledDate = service.DesiredDate ?? DateTime.UtcNow.AddDays(1),
-                ConfirmationCode = new Random().Next(1000, 9999).ToString()
-            };
-            await _appointmentRepository.AddAsync(appointment);
+            await RejectOtherPendingProposalsAsync(service.Id, proposal.Id);
+            await CreateAppointmentAsync(service, proposal, finalPrice);
             await _proposalRepository.SaveChangesAsync();
 
             return Result<Proposal>.Success(proposal);
@@ -319,6 +276,53 @@ namespace WorkEz.Domain.Services
             await _proposalRepository.SaveChangesAsync();
 
             return Result<Proposal>.Success(proposal);
+        }
+
+        private static (decimal Labor, decimal Materials, decimal Total) CalculateProposalPrices(
+            decimal proposedPrice,
+            decimal? laborPrice,
+            decimal? materialsPrice)
+        {
+            decimal finalLabor = laborPrice ?? (proposedPrice - (materialsPrice ?? 0m));
+            if (finalLabor < 0) finalLabor = proposedPrice;
+            decimal finalMaterials = materialsPrice ?? 0m;
+            decimal totalProposed = finalLabor + finalMaterials;
+            if (totalProposed <= 0) totalProposed = proposedPrice;
+            return (finalLabor, finalMaterials, totalProposed);
+        }
+
+        private async Task RejectOtherPendingProposalsAsync(Guid serviceId, Guid acceptedProposalId)
+        {
+            var pendingProposals = await _proposalRepository.GetPendingProposalsByServiceIdAsync(serviceId);
+            foreach (var pending in pendingProposals)
+            {
+                if (pending.Id != acceptedProposalId)
+                {
+                    pending.ProposalStatus = ProposalStatus.Rejected;
+                    _proposalRepository.Update(pending);
+                }
+            }
+        }
+
+        private async Task<Appointment> CreateAppointmentAsync(Service service, Proposal proposal, decimal finalPrice)
+        {
+            var code = service.StartCheckInCode ?? service.GenerateStartCheckInCode();
+            _serviceRepository.Update(service);
+
+            var appointment = new Appointment
+            {
+                ServiceId = service.Id,
+                ProposalId = proposal.Id,
+                CustomerId = service.CustomerId,
+                ProviderId = proposal.ProviderId,
+                AppointmentStatus = AppointmentStatus.Confirmed,
+                FinalPrice = finalPrice,
+                ScheduledDate = service.DesiredDate ?? DateTime.UtcNow.AddDays(1),
+                ConfirmationCode = code
+            };
+
+            await _appointmentRepository.AddAsync(appointment);
+            return appointment;
         }
     }
 }

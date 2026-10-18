@@ -10,11 +10,15 @@ test.describe('Fluxo 4: Execução do Serviço, Conclusão e Avaliação Real', 
     // Injeta auth na sessão do navegador
     await injectAuth(page, customer);
 
-    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`);
+    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
+    });
     const customerProfile = await customerProfileRes.json();
     const serviceCall = await createTestServiceCall(customerProfile.id, customer.tokens.accessToken);
 
-    const providerProfileRes = await fetch(`${API_BASE_URL}/api/ServiceProviders/by-user/${provider.tokens.user.id}`);
+    const providerProfileRes = await fetch(`${API_BASE_URL}/api/ServiceProviders/by-user/${provider.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${provider.tokens.accessToken}` },
+    });
     const providerProfile = await providerProfileRes.json();
 
     // 1. Prestador envia proposta e cliente aceita
@@ -82,13 +86,18 @@ test.describe('Fluxo 4: Execução do Serviço, Conclusão e Avaliação Real', 
     // Clica em Enviar avaliação
     const submitBtn = page.getByRole('button', { name: 'Enviar avaliação' });
     await expect(submitBtn).toBeVisible();
-    await submitBtn.click();
+    await Promise.all([
+      page.waitForResponse(resp => resp.url().includes('/api/Reviews/by-customer') && resp.status() === 200, { timeout: 15000 }),
+      submitBtn.click(),
+    ]);
 
     // Aguarda o processamento
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(500);
 
     // 4. Confere API de reviews do prestador
-    const reviewsRes = await fetch(`${API_BASE_URL}/api/Reviews/by-user/${provider.tokens.user.id}`);
+    const reviewsRes = await fetch(`${API_BASE_URL}/api/Reviews/by-user/${provider.tokens.user.id}`, {
+      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
+    });
     const reviews = await reviewsRes.json();
     expect(reviews.length).toBeGreaterThan(0);
     expect(reviews[0].comment).toContain('Excelente profissional');

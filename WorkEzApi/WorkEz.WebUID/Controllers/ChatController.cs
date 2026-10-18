@@ -1,30 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using WorkEz.Application.DTOs;
 using WorkEz.Application.Services;
-using WorkEz.Domain.Enums;
-using WorkEz.Infra.Data.Context;
-using WorkEz.WebUID.WebSockets;
+using WorkEz.Domain.Common;
+using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
 
 /// <summary>
-/// Dedicated Chat Controller following Clean Architecture and Single Responsibility Principle (SRP).
-/// Handles all chat and real-time messaging concerns independently from Proposal lifecycles.
+/// Controller magra (Thin Controller) para Chat e Mensagens em Clean Architecture.
+/// Responsável pelo transporte HTTP e delegação ao <see cref="IChatApplicationService"/>.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class ChatController(
-    IChatApplicationService chatService,
-    AppDbContext db,
-    IChatNotificationService? chatNotification = null,
-    IPushNotificationService? pushNotification = null
-) : ControllerBase
+public class ChatController(IChatApplicationService chatService) : ControllerBase
 {
     private readonly IChatApplicationService _chatService = chatService;
-    private readonly AppDbContext _db = db;
-    private readonly IChatNotificationService? _chatNotification = chatNotification;
-    private readonly IPushNotificationService? _pushNotification = pushNotification;
 
     /// <summary>
     /// Envia uma mensagem no chat (vinculada a uma proposta e/ou serviço).
@@ -34,132 +24,12 @@ public class ChatController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SendMessage([FromBody] SendChatMessageCommand command)
     {
-        var result = await _chatService.SendMessageAsync(command);
-        if (result.IsSuccess && result.Value != null)
-        {
-            var msg = result.Value;
-            var isWsActive = _chatNotification?.HasActiveSubscribers(msg.ProposalId, msg.ServiceId) ?? false;
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
 
-            if (_chatNotification != null && (msg.ProposalId.HasValue || msg.ServiceId.HasValue))
-            {
-                var targetProposalId = msg.ProposalId ?? Guid.Empty;
-                await _chatNotification.NotifyChatUpdateAsync(targetProposalId, msg.ServiceId, "new_message", msg);
-            }
-
-            // Dispara notificação push para o destinatário da mensagem
-            if (_pushNotification != null)
-            {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        Guid? recipientUserId = null;
-
-                        if (command.IsFromProvider)
-                        {
-                            // Prestador enviou mensagem: destinatário é o Cliente
-                            if (msg.ServiceId.HasValue && msg.ServiceId.Value != Guid.Empty)
-                            {
-                                var service = await _db.Services
-                                    .Include(s => s.Customer)
-                                    .FirstOrDefaultAsync(s => s.Id == msg.ServiceId.Value);
-
-                                if (service?.Customer != null && service.Customer.UserId != Guid.Empty)
-                                {
-                                    recipientUserId = service.Customer.UserId;
-                                }
-                                else if (service != null)
-                                {
-                                    var customer = await _db.Customers.FindAsync(service.CustomerId);
-                                    recipientUserId = customer?.UserId;
-                                }
-                            }
-
-                            if (!recipientUserId.HasValue && msg.ProposalId.HasValue && msg.ProposalId.Value != Guid.Empty)
-                            {
-                                var proposal = await _db.Proposals
-                                    .Include(p => p.Service)
-                                        .ThenInclude(s => s.Customer)
-                                    .FirstOrDefaultAsync(p => p.Id == msg.ProposalId.Value);
-
-                                recipientUserId = proposal?.Service?.Customer?.UserId;
-                            }
-                        }
-                        else
-                        {
-                            // Cliente enviou mensagem: destinatário é o Prestador
-                            if (msg.ProposalId.HasValue && msg.ProposalId.Value != Guid.Empty)
-                            {
-                                var proposal = await _db.Proposals
-                                    .Include(p => p.Provider)
-                                    .FirstOrDefaultAsync(p => p.Id == msg.ProposalId.Value);
-
-                                if (proposal?.Provider != null && proposal.Provider.UserId != Guid.Empty)
-                                {
-                                    recipientUserId = proposal.Provider.UserId;
-                                }
-                                else if (proposal != null)
-                                {
-                                    var prov = await _db.Providers.FindAsync(proposal.ProviderId);
-                                    recipientUserId = prov?.UserId;
-                                }
-                            }
-
-                            if (!recipientUserId.HasValue && msg.ServiceId.HasValue && msg.ServiceId.Value != Guid.Empty)
-                            {
-                                var appointment = await _db.Appointments
-                                    .Include(a => a.Provider)
-                                    .FirstOrDefaultAsync(a => a.ServiceId == msg.ServiceId.Value);
-
-                                if (appointment?.Provider != null && appointment.Provider.UserId != Guid.Empty)
-                                {
-                                    recipientUserId = appointment.Provider.UserId;
-                                }
-                                else
-                                {
-                                    var acceptedProposal = await _db.Proposals
-                                        .Include(p => p.Provider)
-                                        .FirstOrDefaultAsync(p => p.ServiceId == msg.ServiceId.Value &&
-                                            (p.ProposalStatus == ProposalStatus.Accepted || p.ProposalStatus == ProposalStatus.NegotiationOpen));
-
-                                    recipientUserId = acceptedProposal?.Provider?.UserId;
-                                }
-                            }
-                        }
-
-                        if (recipientUserId.HasValue && recipientUserId.Value != Guid.Empty && recipientUserId.Value != command.SenderId)
-                        {
-                            var senderUser = await _db.Users.FindAsync(command.SenderId);
-                            var senderName = senderUser?.Name ?? (command.IsFromProvider ? "Prestador" : "Cliente");
-                            var preview = command.Content.Length > 80 ? command.Content[..77] + "..." : command.Content;
-
-                            await _pushNotification.SendToUserAsync(
-                                recipientUserId.Value,
-                                $"💬 Mensagem de {senderName}",
-                                preview,
-                                new
-                                {
-                                    type = "chat_message",
-                                    proposalId = msg.ProposalId,
-                                    serviceId = msg.ServiceId,
-                                    senderName = senderName
-                                }
-                            );
-                        }
-                    }
-                    catch
-                    {
-                        // Falhas de push em background não devem impactar a resposta do chat
-                    }
-                });
-            }
-
-            return Ok(result.Value);
-        }
-
-        return BadRequest(new { message = result.Error, code = result.ErrorCode });
+        var result = await _chatService.SendMessageAsync(command, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
-
 
     /// <summary>
     /// Retorna as mensagens de chat associadas a uma proposta.
@@ -168,8 +38,11 @@ public class ChatController(
     [ProducesResponseType(typeof(IEnumerable<ChatMessageResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMessagesByProposal(Guid proposalId)
     {
-        var messages = await _chatService.GetMessagesByProposalIdAsync(proposalId);
-        return Ok(messages);
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        var result = await _chatService.GetMessagesByProposalIdAsync(proposalId, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -179,8 +52,11 @@ public class ChatController(
     [ProducesResponseType(typeof(IEnumerable<ChatMessageResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMessagesByService(Guid serviceId)
     {
-        var messages = await _chatService.GetMessagesByServiceIdAsync(serviceId);
-        return Ok(messages);
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        var result = await _chatService.GetMessagesByServiceIdAsync(serviceId, me.Value, User.IsAdmin());
+        return ToActionResult(result);
     }
 
     /// <summary>
@@ -191,7 +67,23 @@ public class ChatController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetActiveProposalForService(Guid serviceId)
     {
-        var proposal = await _chatService.GetActiveChatProposalByServiceIdAsync(serviceId);
-        return proposal is not null ? Ok(proposal) : NotFound(new { message = "Nenhum chat ativo encontrado para este serviço." });
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        var result = await _chatService.GetActiveChatProposalByServiceIdAsync(serviceId, me.Value, User.IsAdmin());
+        return ToActionResult(result);
+    }
+
+    private IActionResult ToActionResult<T>(Result<T> result)
+    {
+        if (result.IsSuccess) return Ok(result.Value);
+
+        return result.ErrorCode switch
+        {
+            "FORBIDDEN" => Forbid(),
+            "UNAUTHORIZED" => Unauthorized(),
+            "NOT_FOUND" or "SERVICE_NOT_FOUND" or "PROPOSAL_NOT_FOUND" => NotFound(new { message = result.Error, code = result.ErrorCode }),
+            _ => BadRequest(new { message = result.Error, code = result.ErrorCode })
+        };
     }
 }

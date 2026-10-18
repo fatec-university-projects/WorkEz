@@ -147,11 +147,12 @@ export default function ClientChat() {
     let isDestroyed = false;
     let reconnectTimeout: any = null;
 
-    const connectWs = () => {
+    const connectWs = async () => {
       if (isDestroyed) return;
-      const wsUrl = getWebSocketUrl(`/ws/chat?proposalId=${activeProposalId}${effectiveServiceId ? `&serviceId=${effectiveServiceId}` : ''}`);
-
       try {
+        const wsUrl = await getWebSocketUrl(`/ws/chat?proposalId=${activeProposalId}${effectiveServiceId ? `&serviceId=${effectiveServiceId}` : ''}`);
+        if (isDestroyed) return;
+
         ws = new WebSocket(wsUrl);
 
         ws.onmessage = (event) => {

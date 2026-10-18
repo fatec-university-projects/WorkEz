@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CheckCircle2, DollarSign, User, Wrench, AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle2, DollarSign, User, Wrench, AlertCircle, Camera, Plus, Trash2 } from 'lucide-react-native';
 import { 
   View, 
   Text, 
@@ -10,11 +10,14 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   Platform, 
-  ScrollView 
+  ScrollView,
+  Image 
 } from 'react-native';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
-import { apiRequest } from '../../../services/api';
+import { apiRequest, uploadChecklistPhotos } from '../../../services/api';
+import { imageService } from '../../../services/imageService';
+import * as ImagePicker from 'expo-image-picker';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 
 export default function InformValue() {
@@ -22,6 +25,10 @@ export default function InformValue() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Vistoria de Conclusão: até 3 fotos do serviço finalizado (Branch 5)
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Busca dados do serviço para pré-preencher o valor acordado
   const { data: service, loading } = useFetch<any>(
@@ -33,6 +40,56 @@ export default function InformValue() {
       setValue(Number(service.price).toFixed(2));
     }
   }, [service]);
+
+  const pickPhoto = async () => {
+    if (photos.length >= 3) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert('Você pode anexar no máximo 3 fotos de conclusão.');
+      } else {
+        Alert.alert('Limite atingido', 'Você pode anexar no máximo 3 fotos de conclusão.');
+      }
+      return;
+    }
+
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert('Precisamos de permissão para acessar a galeria ou fotos!');
+        } else {
+          Alert.alert('Permissão necessária', 'Precisamos de permissão para acessar a galeria ou fotos!');
+        }
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setUploadingPhoto(true);
+        try {
+          const url = await imageService.uploadImage(asset.uri, asset.base64);
+          setPhotos(prev => [...prev, url].slice(0, 3));
+        } catch (e) {
+          console.error(e);
+          Alert.alert('Erro', 'Falha ao processar a imagem selecionada.');
+        } finally {
+          setUploadingPhoto(false);
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao selecionar foto:', err);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -58,6 +115,12 @@ export default function InformValue() {
 
     setSaving(true);
     try {
+      // 1. Salva fotos de conclusão (Vistoria Depois) com timestamp se houver fotos anexadas
+      if (photos.length > 0) {
+        await uploadChecklistPhotos(id, 'after', photos);
+      }
+
+      // 2. Finaliza serviço e registra o valor final
       const res = await apiRequest<any>(`/api/Services/${id}/complete?price=${priceNum}`, {
         method: 'POST'
       });
@@ -121,6 +184,62 @@ export default function InformValue() {
             ) : null}
           </View>
         )}
+
+        {/* Card de Fotos da Vistoria de Conclusão (Branch 5) */}
+        <View style={styles.inputCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Camera size={18} color="#2563EB" />
+              <Text style={styles.cardTitle}>Vistoria do Serviço Finalizado</Text>
+            </View>
+            <View style={styles.photoCountBadge}>
+              <Text style={styles.photoCountBadgeText}>{photos.length}/3 fotos</Text>
+            </View>
+          </View>
+          <Text style={styles.cardSubtitle}>
+            Anexe até 3 fotos do serviço pronto como comprovação para o cliente visualizar antes de pagar.
+          </Text>
+
+          {/* Grid de fotos anexadas */}
+          <View style={styles.photosGrid}>
+            {photos.map((uri, index) => (
+              <View key={index} style={styles.photoThumbWrapper}>
+                <Image source={{ uri }} style={styles.photoThumbImg} />
+                <TouchableOpacity
+                  style={styles.photoRemoveBtn}
+                  onPress={() => removePhoto(index)}
+                  activeOpacity={0.7}
+                >
+                  <Trash2 size={13} color="#FFFFFF" />
+                </TouchableOpacity>
+                <View style={styles.photoIndexBadge}>
+                  <Text style={styles.photoIndexText}>{index + 1}</Text>
+                </View>
+              </View>
+            ))}
+
+            {photos.length < 3 && (
+              <TouchableOpacity
+                style={styles.addPhotoCardBtn}
+                onPress={pickPhoto}
+                disabled={uploadingPhoto}
+                activeOpacity={0.75}
+              >
+                {uploadingPhoto ? (
+                  <ActivityIndicator size="small" color="#2563EB" />
+                ) : (
+                  <>
+                    <View style={styles.addPhotoIconCircle}>
+                      <Plus size={20} color="#2563EB" />
+                    </View>
+                    <Text style={styles.addPhotoBtnText}>Adicionar Foto</Text>
+                    <Text style={styles.addPhotoBtnSub}>Câmera ou Galeria</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
         {/* Card do Input de Valor */}
         <View style={styles.inputCard}>
@@ -352,5 +471,97 @@ const styles = StyleSheet.create({
   },
   btnDisabled: {
     opacity: 0.65,
+  },
+  // ─── Estilos de Fotos e Vistoria (Branch 5) ──────────────────────────
+  photoCountBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  photoCountBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
+  photosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 10,
+  },
+  photoThumbWrapper: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#0F172A',
+  },
+  photoThumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  photoRemoveBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(220, 38, 38, 0.85)',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoIndexBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoIndexText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  addPhotoCardBtn: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 6,
+  },
+  addPhotoIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  addPhotoBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
+  addPhotoBtnSub: {
+    fontSize: 9,
+    color: '#60A5FA',
+    marginTop: 1,
   },
 });

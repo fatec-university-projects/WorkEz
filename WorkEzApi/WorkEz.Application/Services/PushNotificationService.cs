@@ -154,43 +154,52 @@ public class PushNotificationService : IPushNotificationService
         // Processa em lotes de 100 conforme recomendação oficial da Expo
         foreach (var chunk in realExpoTokens.Chunk(100))
         {
-            var messages = chunk.Select(token => new
+            var success = await SendChunkToExpoAsync(chunk, title, body, data);
+            if (success)
             {
-                to = token,
-                sound = "default",
-                priority = "high",
-                channelId = "default",
-                title,
-                body,
-                data
-            }).ToList();
-
-            try
-            {
-                var response = await _httpClient.PostAsJsonAsync(ExpoPushEndpoint, messages);
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseJson = await response.Content.ReadAsStringAsync();
-                    _logger.LogInformation("[PushNotification] Expo Push response: {Response}", responseJson);
-
-                    // Verifica se tokens inválidos retornaram 'DeviceNotRegistered' para autolimpeza
-                    await HandleExpoTicketReceiptsAsync(responseJson, chunk);
-                    successCount += chunk.Length;
-                }
-                else
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogWarning("[PushNotification] Expo Push API returned error HTTP {StatusCode}: {Error}",
-                        response.StatusCode, errorContent);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[PushNotification] Exception while sending push batch to Expo API");
+                successCount += chunk.Length;
             }
         }
 
         return successCount + simulatedTokens.Count;
+    }
+
+    private async Task<bool> SendChunkToExpoAsync(string[] chunk, string title, string body, object? data)
+    {
+        var messages = chunk.Select(token => new
+        {
+            to = token,
+            sound = "default",
+            priority = "high",
+            channelId = "default",
+            title,
+            body,
+            data
+        }).ToList();
+
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(ExpoPushEndpoint, messages);
+            if (response.IsSuccessStatusCode)
+            {
+                var responseJson = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("[PushNotification] Expo Push response: {Response}", responseJson);
+
+                // Verifica se tokens inválidos retornaram 'DeviceNotRegistered' para autolimpeza
+                await HandleExpoTicketReceiptsAsync(responseJson, chunk);
+                return true;
+            }
+
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning("[PushNotification] Expo Push API returned error HTTP {StatusCode}: {Error}",
+                response.StatusCode, errorContent);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PushNotification] Exception while sending push batch to Expo API");
+            return false;
+        }
     }
 
     private static bool IsValidExpoToken(string token)

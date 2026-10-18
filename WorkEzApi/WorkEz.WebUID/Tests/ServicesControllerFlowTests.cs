@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -7,6 +9,7 @@ using WorkEz.Domain.Common;
 using WorkEz.Domain.Entities;
 using WorkEz.Domain.Enums;
 using WorkEz.Infra.Data.Context;
+using WorkEz.Infra.Data.Repositories;
 using WorkEz.WebUID.Controllers;
 using WorkEz.WebUID.WebSockets;
 using ServiceProviderEntity = WorkEz.Domain.Entities.ServiceProvider;
@@ -36,7 +39,7 @@ public class ServicesControllerFlowTests
         }
     }
 
-    private AppDbContext CreateInMemoryDbContext()
+    private static AppDbContext CreateInMemoryDbContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -44,13 +47,51 @@ public class ServicesControllerFlowTests
         return new AppDbContext(options);
     }
 
+    private static ServicesController CreateController(
+        AppDbContext db,
+        FakeTrackingNotificationService? fakeTracker = null,
+        FakeOpportunityService? fakeOpp = null)
+    {
+        var serviceRepo = new ServiceRepository(db);
+        var apptRepo = new AppointmentRepository(db);
+        var providerRepo = new ServiceProviderRepository(db);
+        var customerRepo = new BaseRepository<Customer>(db);
+        var addressRepo = new BaseRepository<Address>(db);
+        var userRepo = new BaseRepository<User>(db);
+
+        var serviceAppService = new ServiceApplicationService(
+            serviceRepo,
+            apptRepo,
+            providerRepo,
+            customerRepo,
+            addressRepo,
+            userRepo,
+            fakeTracker
+        );
+
+        return new ServicesController(fakeOpp ?? new FakeOpportunityService(), serviceAppService);
+    }
+
+    private static void Authenticate(ControllerBase controller, Guid userId, string role = "Customer")
+    {
+        var identity = new ClaimsIdentity(
+            [new Claim("sub", userId.ToString()), new Claim("role", role)],
+            "TestAuth");
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(identity)
+            }
+        };
+    }
+
     [Fact]
     public async Task GetAcceptedByProviderUser_ShouldReturnOnlyAppointmentsForGivenProvider()
     {
         using var db = CreateInMemoryDbContext();
         var fakeTracker = new FakeTrackingNotificationService();
-        var fakeOpp = new FakeOpportunityService();
-        var controller = new ServicesController(fakeOpp, db, fakeTracker);
+        var controller = CreateController(db, fakeTracker);
 
         var providerUser = new User { Id = Guid.NewGuid(), Name = "Luis Prestador", Role = UserRole.ServiceProvider };
         var provider = new ServiceProviderEntity { Id = Guid.NewGuid(), UserId = providerUser.Id };
@@ -78,6 +119,8 @@ public class ServicesControllerFlowTests
         db.Appointments.Add(appt1);
         await db.SaveChangesAsync();
 
+        Authenticate(controller, providerUser.Id, "ServiceProvider");
+
         var actionResult = await controller.GetAcceptedByProviderUser(providerUser.Id);
         var okResult = Assert.IsType<OkObjectResult>(actionResult);
         var list = Assert.IsAssignableFrom<IEnumerable<OpportunityCallDto>>(okResult.Value);
@@ -94,14 +137,39 @@ public class ServicesControllerFlowTests
     {
         using var db = CreateInMemoryDbContext();
         var fakeTracker = new FakeTrackingNotificationService();
-        var fakeOpp = new FakeOpportunityService();
-        var controller = new ServicesController(fakeOpp, db, fakeTracker);
+        var controller = CreateController(db, fakeTracker);
 
-        var service = new Service { Id = Guid.NewGuid(), ServiceStatus = ServiceStatus.Accepted, Title = "Reparo" };
-        var appt = new Appointment { Id = Guid.NewGuid(), ServiceId = service.Id, AppointmentStatus = AppointmentStatus.Confirmed };
+        var providerUser = new User { Id = Guid.NewGuid(), Name = "Prestador 1", Role = UserRole.ServiceProvider };
+        var provider = new ServiceProviderEntity { Id = Guid.NewGuid(), UserId = providerUser.Id, User = providerUser };
+        db.Users.Add(providerUser);
+        db.Providers.Add(provider);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente 1" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        db.Users.Add(customerUser);
+        db.Customers.Add(customer);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            ServiceStatus = ServiceStatus.Accepted,
+            Title = "Reparo"
+        };
+        var appt = new Appointment
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProviderId = provider.Id,
+            Provider = provider,
+            AppointmentStatus = AppointmentStatus.Confirmed
+        };
         db.Services.Add(service);
         db.Appointments.Add(appt);
         await db.SaveChangesAsync();
+
+        Authenticate(controller, providerUser.Id, "ServiceProvider");
 
         var result = await controller.StartDisplacement(service.Id);
         var okResult = Assert.IsType<OkObjectResult>(result);
@@ -126,12 +194,39 @@ public class ServicesControllerFlowTests
     {
         using var db = CreateInMemoryDbContext();
         var fakeTracker = new FakeTrackingNotificationService();
-        var fakeOpp = new FakeOpportunityService();
-        var controller = new ServicesController(fakeOpp, db, fakeTracker);
+        var controller = CreateController(db, fakeTracker);
 
-        var service = new Service { Id = Guid.NewGuid(), ServiceStatus = ServiceStatus.OnTheWay, Title = "Manutenção" };
+        var providerUser = new User { Id = Guid.NewGuid(), Name = "Prestador 1", Role = UserRole.ServiceProvider };
+        var provider = new ServiceProviderEntity { Id = Guid.NewGuid(), UserId = providerUser.Id, User = providerUser };
+        db.Users.Add(providerUser);
+        db.Providers.Add(provider);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente 1" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        db.Users.Add(customerUser);
+        db.Customers.Add(customer);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            ServiceStatus = ServiceStatus.OnTheWay,
+            Title = "Manutenção"
+        };
+        var appt = new Appointment
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProviderId = provider.Id,
+            Provider = provider,
+            AppointmentStatus = AppointmentStatus.InProgress
+        };
         db.Services.Add(service);
+        db.Appointments.Add(appt);
         await db.SaveChangesAsync();
+
+        Authenticate(controller, providerUser.Id, "ServiceProvider");
 
         var result = await controller.StartService(service.Id);
         Assert.IsType<OkObjectResult>(result);
@@ -149,14 +244,40 @@ public class ServicesControllerFlowTests
     {
         using var db = CreateInMemoryDbContext();
         var fakeTracker = new FakeTrackingNotificationService();
-        var fakeOpp = new FakeOpportunityService();
-        var controller = new ServicesController(fakeOpp, db, fakeTracker);
+        var controller = CreateController(db, fakeTracker);
 
-        var service = new Service { Id = Guid.NewGuid(), ServiceStatus = ServiceStatus.InProgress, Title = "Instalação Ar" };
-        var appt = new Appointment { Id = Guid.NewGuid(), ServiceId = service.Id, FinalPrice = 500m, AppointmentStatus = AppointmentStatus.InProgress };
+        var providerUser = new User { Id = Guid.NewGuid(), Name = "Prestador 1", Role = UserRole.ServiceProvider };
+        var provider = new ServiceProviderEntity { Id = Guid.NewGuid(), UserId = providerUser.Id, User = providerUser };
+        db.Users.Add(providerUser);
+        db.Providers.Add(provider);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente 1" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        db.Users.Add(customerUser);
+        db.Customers.Add(customer);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            ServiceStatus = ServiceStatus.InProgress,
+            Title = "Instalação Ar"
+        };
+        var appt = new Appointment
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProviderId = provider.Id,
+            Provider = provider,
+            FinalPrice = 500m,
+            AppointmentStatus = AppointmentStatus.InProgress
+        };
         db.Services.Add(service);
         db.Appointments.Add(appt);
         await db.SaveChangesAsync();
+
+        Authenticate(controller, providerUser.Id, "ServiceProvider");
 
         // Prestador conclui e informa o valor final (ex: R$ 850,00)
         var result = await controller.CompleteService(service.Id, 850m);
@@ -180,12 +301,25 @@ public class ServicesControllerFlowTests
     {
         using var db = CreateInMemoryDbContext();
         var fakeTracker = new FakeTrackingNotificationService();
-        var fakeOpp = new FakeOpportunityService();
-        var controller = new ServicesController(fakeOpp, db, fakeTracker);
+        var controller = CreateController(db, fakeTracker);
 
-        var service = new Service { Id = Guid.NewGuid(), ServiceStatus = ServiceStatus.Open, Title = "Vistoria" };
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente 1" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        db.Users.Add(customerUser);
+        db.Customers.Add(customer);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            ServiceStatus = ServiceStatus.Open,
+            Title = "Vistoria"
+        };
         db.Services.Add(service);
         await db.SaveChangesAsync();
+
+        Authenticate(controller, customerUser.Id, "Customer");
 
         var result = await controller.UpdateStatus(service.Id, false);
         Assert.IsType<OkObjectResult>(result);
@@ -203,8 +337,7 @@ public class ServicesControllerFlowTests
     {
         using var db = CreateInMemoryDbContext();
         var fakeTracker = new FakeTrackingNotificationService();
-        var fakeOpp = new FakeOpportunityService();
-        var controller = new ServicesController(fakeOpp, db, fakeTracker);
+        var controller = CreateController(db, fakeTracker);
 
         var customerUser = new User { Id = Guid.NewGuid(), Name = "Mariana Silva", Phone = "(11) 98888-7777" };
         var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
@@ -240,18 +373,20 @@ public class ServicesControllerFlowTests
         db.Appointments.Add(appt);
         await db.SaveChangesAsync();
 
+        Authenticate(controller, customerUser.Id, "Customer");
+
         var actionResult = await controller.GetById(service.Id);
         var okResult = Assert.IsType<OkObjectResult>(actionResult);
-        dynamic data = okResult.Value!;
+        var data = Assert.IsType<ServiceDetailDto>(okResult.Value);
 
-        Assert.Equal(service.Id, (Guid)data.id);
-        Assert.Equal("Troca de Chuveiro", (string)data.category);
-        Assert.Equal("Mariana Silva", (string)data.clientName);
-        Assert.Equal("(11) 98888-7777", (string)data.clientPhone);
-        Assert.Equal(180m, (decimal)data.price);
-        Assert.Equal("Endereço cadastrado", (string)data.address);
-        Assert.NotNull(data.professional);
-        Assert.Equal("Carlos Técnico", (string)data.professional.name);
+        Assert.Equal(service.Id, data.Id);
+        Assert.Equal("Troca de Chuveiro", data.Category);
+        Assert.Equal("Mariana Silva", data.ClientName);
+        Assert.Equal("(11) 98888-7777", data.ClientPhone);
+        Assert.Equal(180m, data.Price);
+        Assert.Equal("Endereço cadastrado", data.Address);
+        Assert.NotNull(data.Professional);
+        Assert.Equal("Carlos Técnico", data.Professional.Name);
     }
 
     [Fact]
@@ -259,8 +394,7 @@ public class ServicesControllerFlowTests
     {
         using var db = CreateInMemoryDbContext();
         var fakeTracker = new FakeTrackingNotificationService();
-        var fakeOpp = new FakeOpportunityService();
-        var controller = new ServicesController(fakeOpp, db, fakeTracker);
+        var controller = CreateController(db, fakeTracker);
 
         var customerUser = new User
         {
@@ -302,19 +436,20 @@ public class ServicesControllerFlowTests
         db.Services.Add(service);
         await db.SaveChangesAsync();
 
+        Authenticate(controller, customerUser.Id, "Customer");
+
         var actionResult = await controller.GetById(service.Id);
         var okResult = Assert.IsType<OkObjectResult>(actionResult);
-        dynamic data = okResult.Value!;
+        var data = Assert.IsType<ServiceDetailDto>(okResult.Value);
 
-        Assert.Equal(service.Id, (Guid)data.id);
-        Assert.Equal("https://example.com/profiles/luis.png", (string)data.clientPhoto);
-        Assert.Equal("https://example.com/img1.jpg", (string)data.imageUrl);
-        string[] images = (string[])data.images;
-        Assert.Equal(2, images.Length);
-        Assert.Equal("https://example.com/img1.jpg", images[0]);
-        Assert.Equal("https://example.com/img2.jpg", images[1]);
-        Assert.Equal("Rua das Palmeiras, 450 (Bloco B) - Jardim América - São José dos Campos/SP", (string)data.address);
-        Assert.Equal("Jardim América, São José dos Campos/SP", (string)data.addressApproximate);
+        Assert.Equal(service.Id, data.Id);
+        Assert.Equal("https://example.com/profiles/luis.png", data.ClientPhoto);
+        Assert.Equal("[\"https://example.com/img1.jpg\",\"https://example.com/img2.jpg\"]", data.ImageUrl);
+        Assert.Equal(2, data.Images.Length);
+        Assert.Equal("https://example.com/img1.jpg", data.Images[0]);
+        Assert.Equal("https://example.com/img2.jpg", data.Images[1]);
+        Assert.Equal("Rua das Palmeiras, 450 (Bloco B) - Jardim América - São José dos Campos/SP", data.Address);
+        Assert.Equal("Jardim América, São José dos Campos/SP", data.AddressApproximate);
     }
 
     [Fact]
@@ -322,8 +457,7 @@ public class ServicesControllerFlowTests
     {
         using var db = CreateInMemoryDbContext();
         var fakeTracker = new FakeTrackingNotificationService();
-        var fakeOpp = new FakeOpportunityService();
-        var controller = new ServicesController(fakeOpp, db, fakeTracker);
+        var controller = CreateController(db, fakeTracker);
 
         var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente Teste" };
         var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
@@ -370,14 +504,66 @@ public class ServicesControllerFlowTests
         db.Proposals.Add(proposal);
         await db.SaveChangesAsync();
 
+        Authenticate(controller, customerUser.Id, "Customer");
+
         var actionResult = await controller.GetById(service.Id);
         var okResult = Assert.IsType<OkObjectResult>(actionResult);
-        dynamic data = okResult.Value!;
+        var data = Assert.IsType<ServiceDetailDto>(okResult.Value);
 
-        Assert.NotNull(data.professional);
-        Assert.Equal("Prestador Teste", (string)data.professional.name);
-        Assert.Equal("https://example.com/provider-avatar.jpg", (string)data.professional.photo);
-        Assert.Equal(4.8m, (decimal)data.professional.rating);
+        Assert.NotNull(data.Professional);
+        Assert.Equal("Prestador Teste", data.Professional.Name);
+        Assert.Equal("https://example.com/provider-avatar.jpg", data.Professional.Photo);
+        Assert.Equal(4.8m, data.Professional.Rating);
+    }
+
+    [Fact]
+    public async Task StartDisplacement_ShouldReturnForbid_WhenUserIsNotAssignedProvider()
+    {
+        using var db = CreateInMemoryDbContext();
+        var fakeTracker = new FakeTrackingNotificationService();
+        var controller = CreateController(db, fakeTracker);
+
+        var providerUser1 = new User { Id = Guid.NewGuid(), Name = "Prestador 1" };
+        var provider1 = new ServiceProviderEntity { Id = Guid.NewGuid(), UserId = providerUser1.Id, User = providerUser1 };
+        var attackerUser = new User { Id = Guid.NewGuid(), Name = "Atacante" };
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente 1" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        db.Users.AddRange(providerUser1, attackerUser, customerUser);
+        db.Customers.Add(customer);
+        db.Providers.Add(provider1);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            ServiceStatus = ServiceStatus.Accepted
+        };
+        var appt = new Appointment { Id = Guid.NewGuid(), ServiceId = service.Id, ProviderId = provider1.Id, Provider = provider1 };
+        db.Services.Add(service);
+        db.Appointments.Add(appt);
+        await db.SaveChangesAsync();
+
+        // Atacante tenta iniciar deslocamento de chamado de outro
+        Authenticate(controller, attackerUser.Id, "ServiceProvider");
+
+        var result = await controller.StartDisplacement(service.Id);
+        Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task CompleteService_ShouldReturnUnauthorized_WhenNotAuthenticated()
+    {
+        using var db = CreateInMemoryDbContext();
+        var fakeTracker = new FakeTrackingNotificationService();
+        var controller = CreateController(db, fakeTracker);
+
+        var service = new Service { Id = Guid.NewGuid(), ServiceStatus = ServiceStatus.InProgress };
+        db.Services.Add(service);
+        await db.SaveChangesAsync();
+
+        // Não autenticado
+        var result = await controller.CompleteService(service.Id, 100m);
+        Assert.IsType<UnauthorizedResult>(result);
     }
 }
-

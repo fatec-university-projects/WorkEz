@@ -1,17 +1,28 @@
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Application.Services;
+using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
 
 /// <summary>
 /// ServiceProvidersController — Clean Architecture.
 /// Gerencia perfil do prestador e portfólio de imagens.
+/// Leitura do perfil público: qualquer usuário autenticado. Escrita e dados privados: só o próprio prestador (ou Admin).
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class ServiceProvidersController(IPortfolioApplicationService portfolioService) : ControllerBase
 {
     private readonly IPortfolioApplicationService _portfolioService = portfolioService;
+
+    private bool IsSelfOrAdmin(Guid userId) => User.GetUserId() == userId || User.IsAdmin();
+
+    private async Task<bool> OwnsProviderOrAdminAsync(Guid providerId)
+    {
+        if (User.IsAdmin()) return true;
+        var userId = User.GetUserId();
+        return userId is not null && await _portfolioService.OwnsProviderAsync(providerId, userId.Value);
+    }
 
     /// <summary>
     /// Busca perfil do prestador pelo UserId.
@@ -49,6 +60,9 @@ public class ServiceProvidersController(IPortfolioApplicationService portfolioSe
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UpdateProvider(Guid providerId, [FromBody] UpdateProviderRequest request)
     {
+        if (!await OwnsProviderOrAdminAsync(providerId))
+            return Forbid();
+
         var result = await _portfolioService.UpdateProviderAsync(providerId, request.ProfessionalDescription);
         return result.IsSuccess
             ? Ok(result.Value)
@@ -63,6 +77,9 @@ public class ServiceProvidersController(IPortfolioApplicationService portfolioSe
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetWeeklySummaryByUserId(Guid userId)
     {
+        if (!IsSelfOrAdmin(userId))
+            return Forbid();
+
         var result = await _portfolioService.GetWeeklySummaryByUserIdAsync(userId);
         return result.IsSuccess
             ? Ok(result.Value)
@@ -77,6 +94,9 @@ public class ServiceProvidersController(IPortfolioApplicationService portfolioSe
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetWeeklySummaryById(Guid providerId)
     {
+        if (!await OwnsProviderOrAdminAsync(providerId))
+            return Forbid();
+
         var result = await _portfolioService.GetWeeklySummaryByProviderIdAsync(providerId);
         return result.IsSuccess
             ? Ok(result.Value)
@@ -107,6 +127,9 @@ public class ServiceProvidersController(IPortfolioApplicationService portfolioSe
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AddPortfolioImage(Guid userId, [FromBody] AddPortfolioImageBodyRequest body)
     {
+        if (!IsSelfOrAdmin(userId))
+            return Forbid();
+
         var result = await _portfolioService.AddImageAsync(new AddPortfolioImageRequest(userId, body.ImageUrl));
         return result.IsSuccess
             ? Ok(result.Value!.Images)
@@ -121,6 +144,9 @@ public class ServiceProvidersController(IPortfolioApplicationService portfolioSe
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> RemovePortfolioImage(Guid userId, [FromBody] RemovePortfolioImageBodyRequest body)
     {
+        if (!IsSelfOrAdmin(userId))
+            return Forbid();
+
         var result = await _portfolioService.RemoveImageAsync(new RemovePortfolioImageRequest(userId, body.ImageUrl));
         return result.IsSuccess
             ? Ok(result.Value!.Images)
@@ -137,6 +163,9 @@ public class ServiceProvidersController(IPortfolioApplicationService portfolioSe
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UpdateLocation(Guid providerId, [FromBody] WorkEz.Application.DTOs.UpdateProviderLocationRequest request)
     {
+        if (!await OwnsProviderOrAdminAsync(providerId))
+            return Forbid();
+
         var result = await _portfolioService.UpdateLocationAsync(providerId, request.Latitude, request.Longitude, request.ServiceRadiusKm);
         return result.IsSuccess
             ? Ok(result.Value)
