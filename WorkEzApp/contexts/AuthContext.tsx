@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService, StoredUser } from '../services/authService';
+import { apiRequest } from '../services/api';
+import { notificationService } from '../services/notificationService';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const storedUser = await authService.getUser();
         setUser(storedUser);
+        if (storedUser?.id) {
+          notificationService.registerDeviceWithBackend(storedUser.id).catch(() => {});
+        }
       } catch {
         setUser(null);
       } finally {
@@ -41,11 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = (userData: StoredUser) => {
     setUser(userData);
+    if (userData?.id) {
+      notificationService.registerDeviceWithBackend(userData.id).catch(() => {});
+    }
   };
 
   const signOut = async () => {
     setIsLoading(true);
     try {
+      await notificationService.unregisterDeviceFromBackend().catch(() => {});
       await authService.logout();
     } finally {
       setUser(null);
@@ -53,9 +62,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Recarrega o usuário do storage (útil após atualização de perfil)
+  // Recarrega o usuário do storage e sincroniza com o backend (útil após atualização de perfil)
   const refreshUser = async () => {
-    const storedUser = await authService.getUser();
+    let storedUser = await authService.getUser();
+    if (storedUser) {
+      try {
+        const res = await apiRequest<any>(`/api/Users/${storedUser.id}`);
+        if (res.data) {
+          storedUser = {
+            ...storedUser,
+            name: res.data.name || storedUser.name,
+            email: res.data.email || storedUser.email,
+            photo: res.data.profilePicture || storedUser.photo,
+            profilePicture: res.data.profilePicture || storedUser.profilePicture,
+          };
+          await authService.updateLocalProfile(storedUser);
+        }
+      } catch {}
+    }
     setUser(storedUser);
   };
 

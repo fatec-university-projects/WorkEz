@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, User, Mail, Lock, Phone, FileText } from 'lucide-react-native';
+import { User, Mail, Lock, Phone, FileText } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import {
   View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator,
@@ -170,17 +171,12 @@ export default function ProviderSignUp() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
+      <ScreenHeader
+        title="Cadastro de prestador"
+        subtitle="Preencha seus dados para começar"
+        showBack
+      />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Cadastro de prestador</Text>
-        <Text style={styles.subtitle}>Preencha seus dados para começar</Text>
-
         <View style={styles.formContainer}>
           {/* Nome */}
           <View style={styles.inputWrapper}>
@@ -299,24 +295,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: 24,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginBottom: 32,
-    marginTop: 8,
-  },
-  title: {
-    ...WorkEzTheme.typography['2xl'],
-    fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
-    marginBottom: 32,
+    paddingTop: 16,
   },
   formContainer: {
     gap: 16,

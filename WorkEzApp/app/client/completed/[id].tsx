@@ -1,17 +1,34 @@
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useCallback } from 'react';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { CheckCircle, ShieldCheck, Star, User } from 'lucide-react-native';
 import { Button } from '../../../components/Button';
 import { Badge } from '../../../components/Badge';
 import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../../constants/theme';
+import { resolveImageUrl } from '../../../services/api';
 
 export default function ServiceCompleted() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams();
 
-  const { data: service, loading, error } = useFetch<any>(
+  const { data: service, loading, error, refetch: refetchService } = useFetch<any>(
     id ? `/api/Services/${id}` : null
+  );
+
+  const { data: serviceReview, refetch: refetchReview } = useFetch<any>(
+    id ? `/api/Reviews/by-service/${id}` : null
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        refetchService();
+        refetchReview();
+      }
+    }, [id, refetchService, refetchReview])
   );
 
   if (loading) {
@@ -36,7 +53,10 @@ export default function ServiceCompleted() {
   const priceVal = service.price || 150.00;
 
   return (
-    <ScrollView style={{ backgroundColor: '#F8FAFC' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+    <ScrollView
+      style={{ backgroundColor: '#F8FAFC' }}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingTop: insets.top > 0 ? insets.top + 20 : 24, paddingBottom: 24 }}
+    >
       <View className="flex flex-col items-center justify-center p-6">
         <View className="w-full max-w-md">
           <View className="text-center mb-8">
@@ -55,7 +75,7 @@ export default function ServiceCompleted() {
             <View className="flex-row items-center gap-3 mb-4">
               {service.professional?.photo ? (
                 <Image
-                  source={{ uri: service.professional.photo }}
+                  source={{ uri: resolveImageUrl(service.professional.photo) || service.professional.photo }}
                   className="w-16 h-16 rounded-full object-cover"
                 />
               ) : (
@@ -97,7 +117,7 @@ export default function ServiceCompleted() {
               onPress={() => router.push(`/client/rating/${id}` as any)}
             >
               <Star className="w-5 h-5 inline mr-2" />
-              Avaliar profissional
+              {serviceReview ? 'Editar avaliação' : 'Avaliar profissional'}
             </Button>
 
             <Button

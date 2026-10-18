@@ -3,24 +3,14 @@ import { ArrowLeft, ShieldCheck, CreditCard, QrCode, Lock } from 'lucide-react-n
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { Button } from '../../components/Button';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 export default function PaymentMethods() {
   const router = useRouter();
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Formas de pagamento</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Formas de pagamento" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Safe banner */}
@@ -30,7 +20,7 @@ export default function PaymentMethods() {
           </View>
           <Text style={styles.heroTitle}>Pagamento 100% Seguro</Text>
           <Text style={styles.heroSubtitle}>
-            Todos os pagamentos dentro da plataforma WorkEz são processados com total segurança através do AbacatePay.
+            Todos os pagamentos dentro da plataforma WorkEz são processados com total segurança através do DelFinance BaaS.
           </Text>
         </View>
 
@@ -45,7 +35,7 @@ export default function PaymentMethods() {
             <View style={styles.infoTextWrapper}>
               <Text style={styles.infoLabel}>Proteção de dados</Text>
               <Text style={styles.infoValue}>
-                Não salvamos seus dados de cartão nos nossos servidores. Todo o processamento é feito diretamente pelo ambiente seguro do AbacatePay.
+                Não salvamos seus dados nos nossos servidores. Todo o processamento é feito diretamente pelo ambiente bancário regulado do DelFinance BaaS.
               </Text>
             </View>
           </View>
@@ -79,8 +69,8 @@ export default function PaymentMethods() {
           </View>
         </View>
 
-        <View style={styles.abacateBadge}>
-          <Text style={styles.badgeText}>Parceiro Oficial AbacatePay 🥑</Text>
+        <View style={styles.partnerBadge}>
+          <Text style={styles.badgeText}>BaaS Oficial DelFinance 🛡️</Text>
         </View>
       </ScrollView>
 
@@ -210,7 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
     marginVertical: 16,
   },
-  abacateBadge: {
+  partnerBadge: {
     backgroundColor: '#ECFDF5',
     paddingVertical: 8,
     paddingHorizontal: 16,

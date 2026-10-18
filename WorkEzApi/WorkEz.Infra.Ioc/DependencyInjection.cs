@@ -31,9 +31,45 @@ public static class DependencyInjection
         services.AddScoped<IProposalRepository, ProposalRepository>();
         services.AddScoped<IServiceRepository, ServiceRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
+        services.AddScoped<IServiceProviderRepository, ServiceProviderRepository>();
+        services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+        services.AddScoped<IUserDeviceTokenRepository, UserDeviceTokenRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<IReviewRepository, ReviewRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IWalletTransactionRepository, WalletTransactionRepository>();
+        services.AddScoped<IWithdrawalRequestRepository, WithdrawalRequestRepository>();
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
+
+        services.AddHttpClient<IPushNotificationService, PushNotificationService>();
+        services.AddHttpClient<IDelFinanceClient, DelFinanceClient>((client, sp) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<DelFinanceClient>>();
+            var settings = new WorkEz.Application.DTOs.DelFinanceSettings
+            {
+                BaseUrl = config["DelFinance:BaseUrl"] ?? "https://apisandbox.delbank.com.br",
+                ApiKey = config["DelFinance:ApiKey"] ?? "PJPyJ2xGmyB9oDHyNIUwNOt1dgpgolBwcE16ybaKD5rYEc8ujLtarBP0nNw2FKdgK+5YJFciFwTdORlZsdaTzjEbKN5ut+Ag4xGy69bbtXJmzkzRDHry9ubYbMW4xFMb",
+                AccountId = config["DelFinance:AccountId"] ?? "31712",
+                WebhookSecret = config["DelFinance:WebhookSecret"] ?? "workez-delfinance-webhook-secret"
+            };
+            return new DelFinanceClient(client, logger, settings);
+        });
 
         services.AddScoped<IProposalDomainService, ProposalDomainService>();
         services.AddScoped<IProposalApplicationService, ProposalApplicationService>();
+        services.AddScoped<IPortfolioApplicationService, PortfolioApplicationService>();
+        services.AddScoped<IChatApplicationService, ChatApplicationService>();
+        services.AddScoped<IServiceOpportunityApplicationService, ServiceOpportunityApplicationService>();
+        services.AddScoped<IServiceApplicationService, ServiceApplicationService>();
+        services.AddScoped<ICategoryApplicationService, CategoryApplicationService>();
+        services.AddScoped<ICustomerApplicationService, CustomerApplicationService>();
+        services.AddScoped<IReviewApplicationService, ReviewApplicationService>();
+        services.AddScoped<IUserApplicationService, UserApplicationService>();
+        services.AddScoped<IAuthApplicationService, AuthApplicationService>();
+        services.AddScoped<IWalletApplicationService, WalletApplicationService>();
 
         return services;
     }

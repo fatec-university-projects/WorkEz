@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Star, Award, ShieldCheck, Image as ImageIcon, User } from 'lucide-react-native';
+import { ArrowLeft, Star, Award, ShieldCheck, Image as ImageIcon, User, Clock, Check, Briefcase, X } from 'lucide-react-native';
 import { Badge } from '../../../components/Badge';
 import { RatingCard } from '../../../components/RatingCard';
 import { Button } from '../../../components/Button';
-import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useFetch } from '../../../hooks/useFetch';
+import { apiRequest, resolveImageUrl } from '../../../services/api';
+import { ScreenHeader } from '../../../components/ScreenHeader';
 
 interface Review {
   clientName: string;
@@ -24,6 +26,7 @@ interface ProfessionalData {
   verified: boolean;
   rating: number;
   servicesCompleted: number;
+  experience: string | null;
   specialties: string[];
   description: string;
   portfolio: string[];
@@ -33,9 +36,104 @@ interface ProfessionalData {
 
 export default function ProfessionalProfile() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id, serviceId } = useLocalSearchParams<{ id: string; serviceId?: string }>();
 
-  const { data: professional, loading, error, refetch } = useFetch<ProfessionalData>(id ? `/api/ServiceProviders/${id}` : null);
+  const [rawData, setRawData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const fetchProfile = useCallback(async () => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Tenta buscar direto por providerId (ServiceProvider.Id)
+      let res = await apiRequest<any>(`/api/ServiceProviders/${id}`);
+
+      // 2. Se não encontrar (ex: 404), tenta por userId
+      if (res.error || !res.data) {
+        const fallbackRes = await apiRequest<any>(`/api/ServiceProviders/by-user/${id}`);
+        if (fallbackRes.data) {
+          res = fallbackRes;
+        }
+      }
+
+      if (res.data) {
+        setRawData(res.data);
+        setError(null);
+      } else {
+        setError(res.error || 'Profissional não encontrado.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao carregar perfil do profissional.');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  const { data: rawReviews } = useFetch<any[]>(
+    rawData?.userId ? `/api/Reviews/by-user/${rawData.userId}` : null
+  );
+
+  const { data: rawCategories } = useFetch<any[]>(
+    rawData?.id ? `/api/ProviderCategories/by-provider/${rawData.id}/categories` : null
+  );
+
+  const parseExperienceAndBio = (rawDesc?: string) => {
+    if (!rawDesc) return { experience: null, bio: 'Descrição não informada.' };
+    const expMatch = rawDesc.match(/\[(?:Experiência|Experiencia):\s*([^\]]+)\]/i);
+    let exp = expMatch ? expMatch[1].trim() : null;
+    if (exp && !exp.toLowerCase().includes('ano')) {
+      const num = parseInt(exp);
+      exp = `${exp} ${num === 1 ? 'ano' : 'anos'}`;
+    }
+    const cleanBio = rawDesc.replace(/\[(?:Experiência|Experiencia):\s*[^\]]+\]/gi, '').trim();
+    return {
+      experience: exp,
+      bio: cleanBio || 'Descrição não informada.'
+    };
+  };
+
+  const { experience, bio } = parseExperienceAndBio(rawData?.professionalDescription ?? rawData?.description);
+
+  const rawSpecialties = (rawData?.specialties && rawData.specialties.length > 0)
+    ? rawData.specialties
+    : (rawCategories || []);
+
+  const specialtiesList: string[] = rawSpecialties
+    .map((s: any) => typeof s === 'string' ? s : (s.name || s.title))
+    .filter(Boolean);
+
+  const professional: ProfessionalData | null = rawData ? {
+    id: rawData.id,
+    name: rawData.name || 'Profissional',
+    photo: rawData.photo || null,
+    verified: rawData.documentVerified ?? rawData.verified ?? false,
+    rating: rawData.averageRating ?? rawData.rating ?? 0,
+    servicesCompleted: rawData.completedServicesCount ?? rawData.servicesCompleted ?? 0,
+    experience: experience,
+    specialties: specialtiesList,
+    description: bio,
+    portfolio: rawData.portfolio ?? [],
+    reviewsCount: rawReviews ? rawReviews.length : (rawData.reviewsCount ?? 0),
+    reviews: (rawReviews || []).map((r: any) => ({
+      clientName: r.clientName || 'Cliente',
+      clientPhoto: r.clientPhoto || null,
+      rating: r.rating || 0,
+      comment: r.comment || '',
+      date: r.createdAt ? new Date(r.createdAt).toLocaleDateString('pt-BR') : 'Recentemente',
+      tags: r.tags || [],
+    })),
+  } : null;
 
   if (loading) {
     return (
@@ -59,20 +157,7 @@ export default function ProfessionalProfile() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.iconButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Perfil do profissional
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title="Perfil do profissional" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
@@ -80,7 +165,7 @@ export default function ProfessionalProfile() {
             <View style={styles.photoWrapper}>
               {professional.photo ? (
                 <Image
-                  source={{ uri: professional.photo }}
+                  source={{ uri: resolveImageUrl(professional.photo) || professional.photo }}
                   style={styles.photo}
                 />
               ) : (
@@ -98,27 +183,56 @@ export default function ProfessionalProfile() {
               ) : null}
               <View style={styles.statsRow}>
                 <View style={styles.ratingRow}>
-                  <Star size={20} color={WorkEzTheme.colors.warning} fill={WorkEzTheme.colors.warning} />
+                  <Star size={18} color={WorkEzTheme.colors.warning} fill={WorkEzTheme.colors.warning} />
                   <Text style={styles.ratingText}>{professional.rating.toFixed(1)}</Text>
                 </View>
-                <Text style={styles.servicesText}>{professional.servicesCompleted} serviços</Text>
+                <Text style={styles.servicesText}>• {professional.servicesCompleted} serviços concluídos</Text>
               </View>
+
+              {professional.experience ? (
+                <View style={styles.experiencePill}>
+                  <Clock size={13} color="#0F766E" />
+                  <Text style={styles.experiencePillText}>
+                    {professional.experience} de experiência
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
-          <View style={styles.specialtiesRow}>
-            {professional.specialties.map((specialty, index) => (
-              <View key={index} style={styles.specialtyBadge}>
-                <Text style={styles.specialtyText}>
-                  {specialty}
-                </Text>
-              </View>
-            ))}
+          {/* Categorias e Especialidades */}
+          <View style={styles.specialtiesSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Briefcase size={16} color="#475569" />
+              <Text style={styles.sectionSubtitle}>Especialidades</Text>
+            </View>
+            <View style={styles.specialtiesRow}>
+              {professional.specialties.length > 0 ? (
+                professional.specialties.map((specialty, index) => (
+                  <View key={index} style={styles.specialtyBadge}>
+                    <Check size={12} color="#2563EB" />
+                    <Text style={styles.specialtyText}>
+                      {specialty}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <View style={[styles.specialtyBadge, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
+                  <Text style={[styles.specialtyText, { color: '#64748B' }]}>
+                    Serviços Gerais
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
-          <Text style={styles.descriptionText}>
-            {professional.description}
-          </Text>
+          {/* Biografia / Sobre */}
+          <View style={styles.bioSection}>
+            <Text style={styles.sectionSubtitle}>Sobre o profissional</Text>
+            <Text style={styles.descriptionText}>
+              {professional.description}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -126,16 +240,26 @@ export default function ProfessionalProfile() {
             <ImageIcon size={20} color={WorkEzTheme.colors.text} />
             <Text style={styles.cardTitle}>Portfólio</Text>
           </View>
-          <View style={styles.portfolioGrid}>
-            {professional.portfolio.map((img, index) => (
-              <View key={index} style={styles.portfolioImageWrapper}>
-                <Image
-                  source={{ uri: img }}
-                  style={styles.portfolioImage}
-                />
-              </View>
-            ))}
-          </View>
+          {professional.portfolio && professional.portfolio.length > 0 ? (
+            <View style={styles.portfolioGrid}>
+              {professional.portfolio.map((img, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.portfolioImageWrapper}
+                  onPress={() => setSelectedImage(img)}
+                  activeOpacity={0.85}
+                >
+                  <Image
+                    source={{ uri: img }}
+                    style={styles.portfolioImage}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyPortfolioText}>Nenhuma foto no portfólio ainda.</Text>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -177,9 +301,31 @@ export default function ProfessionalProfile() {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Button fullWidth onPress={() => router.push(`/client/tracking/${professional.id}`)}>Acompanhar serviço</Button>
-      </View>
+      {/* Modal de visualização 100% da imagem */}
+      <Modal
+        visible={!!selectedImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedImage(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalClose}
+            onPress={() => setSelectedImage(null)}
+            accessibilityLabel="Fechar foto"
+          >
+            <X size={24} color="#FFF" />
+          </TouchableOpacity>
+          {selectedImage && (
+            <Image
+              source={{ uri: selectedImage }}
+              style={styles.modalImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -294,26 +440,72 @@ const styles = StyleSheet.create({
     ...WorkEzTheme.typography.base,
     color: WorkEzTheme.colors.textSecondary,
   },
+  experiencePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: '#F0FDFA',
+    borderWidth: 1,
+    borderColor: '#99F6E4',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  experiencePillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0F766E',
+  },
+  specialtiesSection: {
+    marginTop: 8,
+    marginBottom: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#334155',
+  },
   specialtiesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: WorkEzTheme.spacing.sm,
-    marginBottom: WorkEzTheme.spacing.md,
+    gap: 8,
   },
   specialtyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: WorkEzTheme.spacing.md,
-    paddingVertical: 6,
-    borderRadius: WorkEzTheme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   specialtyText: {
-    ...WorkEzTheme.typography.sm,
+    fontSize: 13,
+    fontWeight: '600',
     color: '#1D4ED8',
   },
+  bioSection: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
   descriptionText: {
-    ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
-    lineHeight: 24,
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 22,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -339,13 +531,49 @@ const styles = StyleSheet.create({
   },
   portfolioImageWrapper: {
     width: '31%',
-    height: 96,
+    height: 110,
     borderRadius: WorkEzTheme.borderRadius.lg,
     overflow: 'hidden',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   portfolioImage: {
     width: '100%',
     height: '100%',
+    resizeMode: 'contain',
+  },
+  emptyPortfolioText: {
+    ...WorkEzTheme.typography.sm,
+    color: WorkEzTheme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalClose: {
+    position: 'absolute',
+    top: 52,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  modalImage: {
+    width: '100%',
+    height: '80%',
+    resizeMode: 'contain',
+    borderRadius: WorkEzTheme.borderRadius.lg,
   },
   reviewsCountText: {
     ...WorkEzTheme.typography.sm,

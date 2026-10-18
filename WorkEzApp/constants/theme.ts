@@ -2,7 +2,8 @@ import { Platform } from 'react-native';
 
 export const WorkEzTheme = {
   colors: {
-    primary: '#26FFF5', // Accent cyan
+    primary: '#26FFF5', // Accent cyan (para fundos, badges, detalhes visuais)
+    primaryText: '#0F766E', // Versão com alto contraste para textos e lances
     background: '#FFFFFF',
     backgroundAlt: '#F1F5F9', // slate-100
     backgroundCard: '#FFFFFF',
@@ -42,6 +43,37 @@ export const WorkEzTheme = {
       semibold: '600' as const,
       bold: '700' as const,
     }
+  },
+  header: {
+    container: {
+      backgroundColor: '#FFFFFF',
+      borderBottomWidth: 1,
+      borderBottomColor: '#E2E8F0',
+      paddingHorizontal: 20,
+      paddingBottom: 14,
+    },
+    title: {
+      fontSize: 20,
+      lineHeight: 28,
+      fontWeight: '700' as const,
+      color: '#0F172A',
+      letterSpacing: -0.3,
+    },
+    subtitle: {
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: '400' as const,
+      color: '#64748B',
+      marginTop: 2,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: '#F1F5F9',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
   }
 };
 

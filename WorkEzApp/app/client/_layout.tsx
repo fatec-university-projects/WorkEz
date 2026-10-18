@@ -13,6 +13,7 @@ const ROUTES_WITHOUT_NAV = [
   '/client/payment',
   '/client/completed',
   '/client/rating',
+  '/client/chat',
 ];
 
 // ─── Route Guard — Área do Cliente ───────────────────────────────────────────
@@ -57,8 +58,8 @@ export default function ClientLayout() {
   }
 
   return (
-    <View className="flex-1 bg-[#F8FAFC]">
-      <View className="flex-1">
+    <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <View style={{ flex: 1 }}>
         <Slot />
       </View>
       {showNav && <BottomNav type="client" />}

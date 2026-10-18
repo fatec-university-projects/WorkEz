@@ -7,6 +7,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 interface Reference {
   name: string;
@@ -37,21 +38,12 @@ export default function References() {
 
   return (
     <View style={styles.container}>
+      <ScreenHeader
+        title="Referências profissionais"
+        subtitle="Contatos que comprovam sua experiência"
+        showBack
+      />
       <ScrollView contentContainerStyle={styles.content}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-          activeOpacity={0.8}
-        >
-          <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>
-          Referências profissionais
-        </Text>
-        <Text style={styles.subtitle}>
-          Adicione contatos que possam comprovar sua experiência
-        </Text>
 
         {loading ? (
           <View style={styles.centerContainer}>
@@ -202,7 +194,7 @@ const styles = StyleSheet.create({
   },
   addBtnText: {
     ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.primary,
+    color: '#0F766E',
     fontWeight: WorkEzTheme.typography.fontWeight.medium,
   },
   infoBanner: {

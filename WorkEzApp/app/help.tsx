@@ -1,9 +1,12 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, MessageCircle, Mail, Phone, HelpCircle } from 'lucide-react-native';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { MessageCircle, Mail, Phone, HelpCircle } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '../components/ScreenHeader';
 
 export default function Help() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const faqs = [
     {
@@ -21,79 +24,227 @@ export default function Help() {
   ];
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
-          </TouchableOpacity>
-          <Text className="text-xl font-semibold text-[#0F172A]">
-            Ajuda e suporte
-          </Text>
-        </View>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Ajuda e suporte" showBack />
 
-      <View className="p-6 space-y-6">
-        <View className="bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] rounded-2xl p-6 text-white text-center">
-          <HelpCircle className="w-12 h-12 mx-auto mb-3" />
-          <Text className="text-xl font-bold mb-2">Como podemos ajudar?</Text>
-          <Text className="text-white/90 text-sm">
-            Estamos aqui para resolver suas dúvidas
-          </Text>
-        </View>
+      <ScrollView 
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom > 0 ? insets.bottom + 24 : 32 }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.contentWrap}>
+          {/* Banner Azul Principal */}
+          <View style={styles.heroBanner}>
+            <View style={styles.heroIconCircle}>
+              <HelpCircle size={32} color="#FFFFFF" />
+            </View>
+            <Text style={styles.heroTitle}>Como podemos ajudar?</Text>
+            <Text style={styles.heroSubtitle}>
+              Estamos aqui para resolver suas dúvidas e garantir sua segurança.
+            </Text>
+          </View>
 
-        <View className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]">
-          <Text className="font-semibold text-[#0F172A] mb-4">
-            Perguntas frequentes
-          </Text>
+          {/* Card Perguntas Frequentes */}
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>
+              Perguntas frequentes
+            </Text>
 
-          <View className="space-y-4">
-            {faqs.map((faq, index) => (
-              <View key={index} className="pb-4 border-b border-[#E2E8F0] last:border-0">
-                <Text className="font-medium text-[#0F172A] mb-2">
-                  {faq.question}
-                </Text>
-                <Text className="text-sm text-[#94A3B8]">{faq.answer}</Text>
-              </View>
-            ))}
+            <View style={styles.faqList}>
+              {faqs.map((faq, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.faqItem, 
+                    index === faqs.length - 1 && styles.faqItemLast
+                  ]}
+                >
+                  <Text style={styles.faqQuestion}>
+                    {faq.question}
+                  </Text>
+                  <Text style={styles.faqAnswer}>{faq.answer}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Card Fale Conosco */}
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>
+              Fale conosco
+            </Text>
+
+            <View style={styles.channelsList}>
+              <TouchableOpacity 
+                style={styles.channelItem}
+                activeOpacity={0.7}
+              >
+                <View style={styles.channelIconWrap}>
+                  <MessageCircle size={20} color="#2563EB" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.channelTitle}>Chat ao vivo</Text>
+                  <Text style={styles.channelSubtitle}>Seg-Sex, 8h-18h</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.channelItem}
+                activeOpacity={0.7}
+              >
+                <View style={styles.channelIconWrap}>
+                  <Mail size={20} color="#2563EB" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.channelTitle}>E-mail</Text>
+                  <Text style={styles.channelSubtitle}>suporte@workez.com.br</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.channelItem}
+                activeOpacity={0.7}
+              >
+                <View style={styles.channelIconWrap}>
+                  <Phone size={20} color="#2563EB" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.channelTitle}>Telefone</Text>
+                  <Text style={styles.channelSubtitle}>0800 123 4567</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-
-        <View className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]">
-          <Text className="font-semibold text-[#0F172A] mb-4">
-            Fale conosco
-          </Text>
-
-          <View className="space-y-3">
-            <TouchableOpacity className="w-full flex-row items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#EFF6FF] transition-colors">
-              <MessageCircle className="w-5 h-5 text-[#2563EB]" />
-              <View className="text-left flex-1">
-                <Text className="font-medium text-[#0F172A]">Chat ao vivo</Text>
-                <Text className="text-sm text-[#94A3B8]">Seg-Sex, 8h-18h</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="w-full flex-row items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#EFF6FF] transition-colors">
-              <Mail className="w-5 h-5 text-[#2563EB]" />
-              <View className="text-left flex-1">
-                <Text className="font-medium text-[#0F172A]">E-mail</Text>
-                <Text className="text-sm text-[#94A3B8]">suporte@workez.com.br</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="w-full flex-row items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#EFF6FF] transition-colors">
-              <Phone className="w-5 h-5 text-[#2563EB]" />
-              <View className="text-left flex-1">
-                <Text className="font-medium text-[#0F172A]">Telefone</Text>
-                <Text className="text-sm text-[#94A3B8]">0800 123 4567</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  contentWrap: {
+    padding: 16,
+    maxWidth: 720,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  heroBanner: {
+    backgroundColor: '#2563EB',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  heroIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  heroTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  heroSubtitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 320,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 14,
+  },
+  faqList: {
+    gap: 12,
+  },
+  faqItem: {
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  faqItemLast: {
+    borderBottomWidth: 0,
+    paddingBottom: 0,
+  },
+  faqQuestion: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  faqAnswer: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 19,
+  },
+  channelsList: {
+    gap: 10,
+  },
+  channelItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F8FAFC',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  channelIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  channelTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  channelSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 1,
+  },
+});

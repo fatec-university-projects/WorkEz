@@ -14,6 +14,8 @@ import { authService } from '../../services/authService';
 import { imageService } from '../../services/imageService';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface CustomerProfile {
   id: string;
@@ -25,6 +27,7 @@ interface CustomerProfile {
 
 export default function EditProfile() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, refreshUser } = useAuth();
 
   const { data: profile, loading: loadingProfile, error: profileError } = useFetch<CustomerProfile>(
@@ -75,14 +78,15 @@ export default function EditProfile() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const selectedUri = result.assets[0].uri;
+      const asset = result.assets[0];
       setUploading(true);
 
       try {
-        const imageUrl = await imageService.uploadImage(selectedUri);
+        const imageUrl = await imageService.uploadImage(asset.uri, asset.base64);
         setPhoto(imageUrl);
       } catch (err) {
         console.error(err);
@@ -124,9 +128,12 @@ export default function EditProfile() {
         Alert.alert('Erro', response.error);
       } else {
         // Update local cache
+        const savedPic = response.data?.profilePicture || payload.profilePicture || null;
         await authService.updateLocalProfile({
           name: payload.name,
-          email: payload.email
+          email: payload.email,
+          photo: savedPic,
+          profilePicture: savedPic
         });
         await refreshUser();
         Alert.alert('Sucesso', 'Perfil atualizado com sucesso!', [
@@ -146,20 +153,15 @@ export default function EditProfile() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Dados pessoais</Text>
-        </View>
-      </View>
+      <ScreenHeader title="Dados pessoais" showBack />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 110 + (insets.bottom > 0 ? insets.bottom : 20) }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {loadingProfile ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
@@ -244,15 +246,16 @@ export default function EditProfile() {
 
             <View style={styles.saveBtn}>
               <Button
-                variant="secondary"
+                variant="primary"
                 fullWidth
                 onPress={handleSave}
                 disabled={saving || uploading}
               >
                 {saving ? (
-                  <ActivityIndicator color="#2563EB" />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
+                    <Save size={20} color="#FFFFFF" />
                     <Text style={styles.saveBtnText}>Salvar Alterações</Text>
                   </>
                 )}
@@ -385,19 +388,11 @@ const styles = StyleSheet.create({
     paddingLeft: 48,
   },
   saveBtnText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontWeight: '700',
     fontSize: 16,
   },
   saveBtn: {
     marginTop: 16,
-    borderWidth: 1,
-    backgroundColor: '#2563EB',
-    fontWeight: '600',
-    fontSize: 16,
-    display: 'flex',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 8,
   },
 });

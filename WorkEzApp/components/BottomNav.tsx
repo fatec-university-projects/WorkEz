@@ -1,6 +1,7 @@
 import { Href, usePathname, useRouter } from 'expo-router';
 import { Briefcase, Heart, Home, User, Wallet } from 'lucide-react-native';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface NavItem {
   icon: typeof Home;
@@ -15,6 +16,7 @@ interface BottomNavProps {
 export function BottomNav({ type }: BottomNavProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
 
   const clientNav: NavItem[] = [
     { icon: Home, label: 'Início', path: '/client' },
@@ -30,10 +32,11 @@ export function BottomNav({ type }: BottomNavProps) {
   ];
 
   const items = type === 'client' ? clientNav : providerNav;
+  const paddingBottom = insets.bottom > 0 ? insets.bottom + 4 : 16;
 
   return (
     <View style={styles.container}>
-      <View style={styles.navContent}>
+      <View style={[styles.navContent, { paddingBottom }]}>
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === (item.path as string);

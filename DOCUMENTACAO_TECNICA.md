@@ -58,7 +58,7 @@ Conectar **clientes** que precisam de serviços domésticos e profissionais (enc
 | **Autenticação** | Registro, login, logout, refresh token, recuperação de senha |
 | **Cliente** | Solicitar serviço ("Chamar agora"), descrever problema, anexar fotos, acompanhar status, pagar via PIX, avaliar prestador |
 | **Prestador** | Cadastro, definir categorias/área de atuação, ver oportunidades, aceitar chamados, executar serviço, informar valor, carteira de ganhos |
-| **Pagamentos** | Integração AbacatePay (PIX), webhook, polling de status, carteira com comissão de 15% |
+| **Pagamentos** | Integração DelFinance BaaS (PIX), webhook, polling de status, carteira com comissão de 15% |
 | **Comunicação** | Conversas e mensagens por serviço (API implementada; UI parcial) |
 | **Moderação** | Avaliações, denúncias (reports), notificações |
 | **Administração** | Gestão de categorias, usuários, agendamentos, denúncias |
@@ -69,7 +69,7 @@ Conectar **clientes** que precisam de serviços domésticos e profissionais (enc
 2. O prestador **aceita** o chamado diretamente (`POST /api/services/{id}/accept`), criando automaticamente uma **proposta aceita** e um **agendamento** (`Appointment`).
 3. O ciclo de status do serviço segue: `Open` → `Accepted` → `OnTheWay` → `InProgress` → `WaitingPayment` → `Completed`.
 4. O valor final é informado pelo prestador na conclusão (`PATCH /complete?price=`).
-5. O cliente paga via **PIX** (AbacatePay); após confirmação, o serviço é marcado como `Completed`.
+5. O cliente paga via **PIX** (DelFinance BaaS); após confirmação, o serviço é marcado como `Completed`.
 6. A plataforma retém **15% de comissão** sobre pagamentos confirmados (calculado na carteira do prestador).
 7. Cada usuário possui um **papel único** (`Customer`, `ServiceProvider` ou `Admin`) determinado no registro.
 8. Endereço exato pode ser mantido aproximado até o cliente liberar a localização (`LocationReleased`).
@@ -82,7 +82,7 @@ Conectar **clientes** que precisam de serviços domésticos e profissionais (enc
 | App mobile Expo (Android/iOS) | Push notifications nativas |
 | PostgreSQL + EF Core Migrations | Geolocalização real (nearby-services é placeholder) |
 | JWT + Refresh Token | Envio de e-mail (reset de senha retorna token na API) |
-| AbacatePay PIX | UI Admin no mobile |
+| DelFinance BaaS PIX | UI Admin no mobile |
 | Upload de imagens via ImgBB | Proposta com negociação de preço (aceite direto com preço fixo R$ 150) |
 | Swagger / OpenAPI | Testes automatizados completos (pasta referenciada no README, não analisada em profundidade) |
 
@@ -97,7 +97,7 @@ Conectar **clientes** que precisam de serviços domésticos e profissionais (enc
 - **Frontend:** Aplicativo mobile React Native (Expo)
 - **Backend:** API REST monolítica ASP.NET Core
 - **Banco de dados:** PostgreSQL (Neon DB em produção)
-- **Serviços externos:** AbacatePay (pagamentos), ImgBB (imagens), ViaCEP (endereços)
+- **Serviços externos:** DelFinance BaaS (pagamentos e carteira digital), ImgBB (imagens), ViaCEP (endereços)
 
 ### Padrões arquiteturais adotados
 
@@ -140,7 +140,7 @@ sequenceDiagram
     API->>API: Service (opcional)
     API->>DB: EF Core / Npgsql
     DB-->>API: Entidades
-    API->>Ext: AbacatePay / (ImgBB direto do App)
+    API->>Ext: DelFinance BaaS / (ImgBB direto do App)
     Ext-->>API: Resposta
     API-->>App: JSON (camelCase)
 ```
@@ -164,7 +164,7 @@ graph TD
     end
 
     subgraph Externos["Integrações Externas"]
-        F[AbacatePay<br/>PIX]
+        F[DelFinance BaaS<br/>PIX / Escrow]
         G[ImgBB<br/>Imagens]
         H[ViaCEP<br/>Endereços]
     end
@@ -185,7 +185,7 @@ graph TD
 | Serviço | Finalidade | Quem consome |
 |---------|------------|--------------|
 | **PostgreSQL (Neon)** | Persistência relacional | API |
-| **AbacatePay** | Cobrança PIX, webhook | API |
+| **DelFinance** | BaaS PIX, cobrança dinâmica, transferências e webhook | API |
 | **ImgBB** | Hospedagem de imagens | App (direto) |
 | **ViaCEP** | Autocompletar endereço por CEP | App (direto) |
 | **Render.com** | Hospedagem da API | Infraestrutura |
@@ -286,9 +286,8 @@ WorkEzApp/
 │   ├── use-color-scheme.ts
 │   └── use-theme-color.ts
 ├── services/
-│   ├── api.ts                    # Cliente HTTP + refresh token
+│   ├── api.ts                    # Cliente HTTP + refresh token + DelFinance BaaS
 │   ├── authService.ts            # Login, registro, logout
-│   ├── paymentService.ts         # PIX via API
 │   ├── imageService.ts           # Upload ImgBB
 │   └── storage.ts                # Wrapper AsyncStorage
 ├── constants/
@@ -436,7 +435,7 @@ WorkEzApp/
 | Filas | Não implementado |
 | Auth | JWT Bearer + BCrypt |
 | Documentação | Swashbuckle (Swagger) |
-| Pagamentos | AbacatePay REST API |
+| Pagamentos | DelFinance BaaS REST API |
 
 ### Estrutura de Pastas
 
@@ -736,7 +735,7 @@ Claims extras emitidos como `permission` no JWT.
 |-------|------|------------|
 | `Id` | UUID | PK |
 | `AppointmentId` | UUID | FK, UNIQUE |
-| `AbacatePayPaymentId` | VARCHAR(200) | NULL |
+| `ExternalPaymentId` | VARCHAR(200) | NULL |
 | `ExternalId` | VARCHAR(200) | NULL |
 | `PaymentUrl` | VARCHAR(1000) | NULL |
 | `ReceiptUrl` | VARCHAR(1000) | NULL |
@@ -876,7 +875,7 @@ erDiagram
 #### Conclusão e pagamento
 
 1. `PATCH /complete?price=` → `WaitingPayment`, atualiza `Appointment.FinalPrice`
-2. `POST /api/payments/{appointmentId}` → cria `Payment` + billing AbacatePay
+2. `POST /api/wallet/charge-pix` ou `POST /api/payments/{appointmentId}` → cria cobrança DelFinance BaaS
 3. Webhook ou polling → `PaymentStatus.Paid`
 4. `PATCH /pay` (manual) ou lógica futura → `Service.Completed`
 
@@ -1071,7 +1070,7 @@ stateDiagram-v2
 ```
 
 #### Atores
-Cliente, Prestador, API, AbacatePay
+Cliente, Prestador, API, DelFinance
 
 #### Passo a passo (cliente)
 1. `/client` → seleciona categoria
@@ -1362,9 +1361,9 @@ Convenção: JSON camelCase, enums como strings.
 
 #### GET `/api/payments/by-appointment/{appointmentId}` — JWT
 #### GET `/api/payments/{id}` — JWT
-#### GET `/api/payments/{id}/status` — JWT, polling AbacatePay
+#### GET `/api/payments/{id}/status` — JWT, polling DelFinance BaaS
 #### POST `/api/payments/{appointmentId}` — Customer, cria PIX billing
-#### POST `/api/payments/webhook` — Anônimo, HMAC AbacatePay
+#### POST `/api/payments/webhook` — Anônimo, webhook DelFinance BaaS
 #### GET `/api/Providers/{providerId}/wallet` — ServiceProvider, carteira
 
 ---
@@ -1443,19 +1442,21 @@ GET, PUT perfil admin.
 
 ## 10. Integrações Externas
 
-### AbacatePay (Pagamentos PIX)
+### DelFinance (Banking as a Service - BaaS PIX)
 
 | Aspecto | Detalhe |
 |---------|---------|
-| **Arquivo** | `api/Services/AbacatePayService.cs` |
-| **Base URL** | `https://api.abacatepay.com/v1` |
-| **Auth** | Bearer token (`AbacatePay:ApiKey`) |
-| **Criar cobrança** | `POST billing/create` |
-| **Consultar status** | `GET billing/{billingId}` |
-| **Webhook** | `POST /api/payments/webhook` com header `x-abacatepay-signature` (HMAC-SHA256) |
-| **Valores** | Enviados em centavos (integer) |
-| **Método** | PIX only (`Methods: ["PIX"]`) |
-| **Comissão** | 15% calculada na carteira (não enviada ao gateway) |
+| **Interface / Implementação** | `IDelFinanceClient` / `DelFinanceClient` |
+| **Base URL** | `https://apisandbox.delbank.com.br` |
+| **Auth** | Bearer API Key (`DelFinance:ApiKey`) |
+| **Account ID** | Identificador de Conta BaaS (`DelFinance:AccountId`) |
+| **Criar cobrança PIX dinâmica** | `POST /pix/qrcodes/dynamic` (com correlationId e expiração) |
+| **Consulta chave DICT** | `POST /pix/dict/keys/init` (validação de titularidade e PSP) |
+| **Transferência/Saque PIX** | `POST /pix/transfers` (com endToEndId e idempotência) |
+| **Webhook** | `POST /api/wallet/webhook/delfinance` (eventos `PIX_RECEIVED`, `PIX_PAYMENT_EFFECTIVE`, `PIX_PAYMENT_ERROR`) |
+| **Valores** | Decimal em reais (R$) |
+| **Custódia (Escrow)** | Retenção segura até conclusão do serviço |
+| **Comissão** | 15% retida pela plataforma sobre mão de obra |
 
 ### ImgBB (Armazenamento de imagens)
 
@@ -1484,7 +1485,7 @@ GET, PUT perfil admin.
 
 | Origem | Rota | Validação |
 |--------|------|-----------|
-| AbacatePay | `POST /api/payments/webhook` | HMAC SHA256 |
+| DelFinance | `POST /api/wallet/webhook/delfinance` | HMAC SHA256 / Webhook Secret |
 
 **Não há:** e-mail (SendGrid/SES), push (FCM/APNs), SMS, gateway alternativo.
 
@@ -1540,7 +1541,7 @@ GET, PUT perfil admin.
 | Segredo | Onde configurado | Risco |
 |---------|------------------|-------|
 | JWT SecretKey | env var / render.yaml | **Exposto em render.yaml no repositório** |
-| AbacatePay ApiKey | env var / render.yaml | **Exposto em render.yaml** |
+| DelFinance ApiKey | env var / render.yaml | **Exposto em render.yaml** |
 | DB Password | render.yaml | **Exposto em render.yaml** |
 | ImgBB API Key | hardcoded em imageService.ts | **Crítico** |
 | Password reset HMAC key | hardcoded em AuthController | **Crítico** |
@@ -1609,14 +1610,15 @@ graph LR
 | `Jwt__Audience` | WorkEzClient |
 | `Jwt__AccessTokenExpirationMinutes` | 15 |
 | `Jwt__RefreshTokenExpirationDays` | 7 |
-| `AbacatePay__ApiKey` | API key gateway |
-| `AbacatePay__BaseUrl` | URL base AbacatePay |
-| `AbacatePay__WebhookSecret` | Segredo HMAC webhook |
+| `DelFinance__ApiKey` | API key DelFinance BaaS |
+| `DelFinance__AccountId` | Identificador da conta DelFinance |
+| `DelFinance__BaseUrl` | URL base DelFinance |
+| `DelFinance__WebhookSecret` | Segredo HMAC webhook |
 | `ASPNETCORE_ENVIRONMENT` | Production |
 
 ### Monitoramento e Logs
 
-- Logs padrão ASP.NET Core (`ILogger` em AbacatePayService)
+- Logs padrão ASP.NET Core (`ILogger` em DelFinanceClient)
 - Sem APM (Datadog, Application Insights) configurado
 - Health check: `GET /health`
 - Render free tier — cold starts possíveis
@@ -1686,7 +1688,7 @@ graph LR
 | `TokenService` | `ITokenService` | JWT + refresh token |
 | `PasswordHasherService` | `IPasswordHasherService` | BCrypt hash/verify |
 | `UserService` | `IUserService` | CRUD usuários |
-| `AbacatePayService` | `IPaymentService` | Gateway PIX |
+| `DelFinanceClient` | `IDelFinanceClient` | Gateway BaaS PIX |
 | `CategoryService` | `ICategoryService` | Categorias |
 | `ServiceService` | `IServiceService` | Serviços CRUD |
 | `ProposalService` | `IProposalService` | Propostas |
@@ -1714,9 +1716,8 @@ graph LR
 
 | Módulo | Funções principais |
 |--------|-------------------|
-| `api.ts` | `apiRequest()`, `tryRefreshToken()` |
+| `api.ts` | `apiRequest()`, `tryRefreshToken()`, `generateEscrowPixCheckout()`, `requestWithdrawal()` |
 | `authService.ts` | `login`, `registerCustomer`, `registerProvider`, `logout`, `getUser`, `decodeJwt` |
-| `paymentService.ts` | `createPayment`, `getPaymentStatus`, `getPaymentByAppointment` |
 | `imageService.ts` | `uploadImage(uri)` → URL ImgBB |
 | `storage.ts` | Wrapper `safeStorage` sobre AsyncStorage |
 
@@ -1744,11 +1745,10 @@ graph TD
     AuthContext --> authService
     authService --> api
     useFetch --> api
-    paymentService --> api
+    payment --> api
     describe --> imageService
     describe --> ViaCEP
     searching --> api
-    payment --> paymentService
     new-call --> api
     client_layout --> AuthContext
     provider_layout --> AuthContext
@@ -1829,7 +1829,7 @@ graph TD
 | DbContext | `api/Data/AppDbContext.cs` |
 | Auth | `api/Controllers/AuthController.cs` |
 | JWT | `api/Services/TokenService.cs` |
-| Pagamentos | `api/Services/AbacatePayService.cs` |
+| Pagamentos | `WorkEzApi/WorkEz.Infra.Data/ExternalServices/DelFinanceClient.cs` |
 | Workflow serviços | `api/Controllers/ServicesController.cs` |
 | Config | `api/appsettings.json` |
 | Deploy | `render.yaml` |

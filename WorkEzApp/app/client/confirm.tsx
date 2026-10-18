@@ -4,6 +4,8 @@ import { Button } from '../../components/Button';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../constants/theme';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { resolveImageUrl } from '../../services/api';
 
 export default function ConfirmCall() {
   const router = useRouter();
@@ -20,6 +22,8 @@ export default function ConfirmCall() {
     neighborhood,
     city,
     state,
+    latitude,
+    longitude,
     images
   } = useLocalSearchParams<{
     category: string;
@@ -32,27 +36,25 @@ export default function ConfirmCall() {
     neighborhood: string;
     city: string;
     state: string;
+    latitude?: string;
+    longitude?: string;
     images: string;
   }>();
 
-  const parsedImages: string[] = images ? JSON.parse(images) : [];
+  const parsedImages: string[] = (() => {
+    if (!images) return [];
+    if (Array.isArray(images)) return images;
+    try {
+      const p = JSON.parse(images);
+      return Array.isArray(p) ? p : [p];
+    } catch {
+      return [images];
+    }
+  })();
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Confirmar chamado
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title="Confirmar chamado" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.summaryCard}>
@@ -109,7 +111,7 @@ export default function ConfirmCall() {
                   <View style={styles.imagesGrid}>
                     {parsedImages.map((imgUrl, idx) => (
                       <View key={idx} style={styles.imageThumbContainer}>
-                        <Image source={{ uri: imgUrl }} style={styles.imageThumb} />
+                        <Image source={{ uri: resolveImageUrl(imgUrl) || imgUrl }} style={styles.imageThumb} />
                       </View>
                     ))}
                   </View>
@@ -143,6 +145,8 @@ export default function ConfirmCall() {
                 neighborhood,
                 city,
                 state,
+                latitude,
+                longitude,
                 images
               }
             } as any)}
