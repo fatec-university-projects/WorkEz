@@ -81,6 +81,8 @@ interface ServiceData {
   category: string;
   description?: string;
   address?: string;
+  latitude?: number;
+  longitude?: number;
   startTime?: string;
   date?: string;
   createdAt?: string;
@@ -193,6 +195,15 @@ export default function ServiceTracking() {
     let reconnectTimeout: any = null;
     let isMounted = true;
 
+    // Polling redundante a cada 4s para garantir sincronização contínua
+    const pollTimer = setInterval(() => {
+      if (isMounted) {
+        silentFetchProposals();
+        silentFetchService();
+        refetchServiceReview();
+      }
+    }, 4000);
+
     async function connect() {
       if (!isMounted) return;
       try {
@@ -232,6 +243,7 @@ export default function ServiceTracking() {
 
     return () => {
       isMounted = false;
+      clearInterval(pollTimer);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (ws) {
         ws.onclose = null;

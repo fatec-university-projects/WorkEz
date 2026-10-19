@@ -20,6 +20,7 @@ import { apiRequest, resolveImageUrl } from '../../../services/api';
 import { WorkEzTheme } from '../../../constants/theme';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
+import { ImageViewerModal } from '../../../components/ImageViewerModal';
 
 export default function NewCall() {
   const router = useRouter();
@@ -31,6 +32,8 @@ export default function NewCall() {
   const [materialsPrice, setMaterialsPrice] = useState('');
   const [description, setDescription] = useState('');
   const [estimatedTime, setEstimatedTime] = useState('');
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   // Cálculos dinâmicos em tempo real
   const laborNum = parseFloat(laborPrice.replace(',', '.')) || 0;
@@ -204,12 +207,20 @@ export default function NewCall() {
                       {attachedImages.map((imgUri, idx) => {
                         const resolved = resolveImageUrl(imgUri) || imgUri;
                         return (
-                          <Image
+                          <TouchableOpacity
                             key={idx}
-                            source={{ uri: resolved }}
-                            style={styles.serviceImage}
-                            resizeMode="cover"
-                          />
+                            onPress={() => {
+                              setViewerIndex(idx);
+                              setViewerVisible(true);
+                            }}
+                            activeOpacity={0.85}
+                          >
+                            <Image
+                              source={{ uri: resolved }}
+                              style={styles.serviceImage}
+                              resizeMode="cover"
+                            />
+                          </TouchableOpacity>
                         );
                       })}
                     </ScrollView>
@@ -395,6 +406,15 @@ export default function NewCall() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Visualizador de Fotos em Tela Cheia */}
+      <ImageViewerModal
+        visible={viewerVisible}
+        images={attachedImages}
+        initialIndex={viewerIndex}
+        title="Fotos Enviadas pelo Cliente"
+        onClose={() => setViewerVisible(false)}
+      />
     </View>
   );
 }

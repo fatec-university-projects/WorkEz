@@ -96,56 +96,62 @@ export default function Login() {
         subtitle="Acesse sua conta para continuar"
         showBack
       />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.formContainer}>
-          <View style={styles.inputWrapper}>
-            <Mail size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
-            <Input
-              placeholder="Seu e-mail"
-              value={email}
-              onChangeText={(val) => {
-                setEmail(val);
-                setErrors((e) => ({ ...e, email: undefined }));
-                setApiError(null);
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              error={errors.email}
-              style={styles.inputWithIcon}
-            />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.mainContent}>
+          <View style={styles.formContainer}>
+            <View style={styles.inputWrapper}>
+              <Mail size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+              <Input
+                placeholder="Seu e-mail"
+                value={email}
+                onChangeText={(val) => {
+                  setEmail(val);
+                  setErrors((e) => ({ ...e, email: undefined }));
+                  setApiError(null);
+                }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                error={errors.email}
+                style={styles.inputWithIcon}
+              />
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <Lock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+              <Input
+                secureTextEntry
+                placeholder="Sua senha"
+                value={password}
+                onChangeText={(val) => {
+                  setPassword(val);
+                  setErrors((e) => ({ ...e, password: undefined }));
+                  setApiError(null);
+                }}
+                autoComplete="password"
+                error={errors.password}
+                style={styles.inputWithIcon}
+              />
+            </View>
+
+            <TouchableOpacity onPress={() => Alert.alert('Em breve', 'Recuperação de senha disponível em breve.')}>
+              <Text style={styles.forgotPasswordText}>
+                Esqueci minha senha
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Lock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
-            <Input
-              secureTextEntry
-              placeholder="Sua senha"
-              value={password}
-              onChangeText={(val) => {
-                setPassword(val);
-                setErrors((e) => ({ ...e, password: undefined }));
-                setApiError(null);
-              }}
-              autoComplete="password"
-              error={errors.password}
-              style={styles.inputWithIcon}
-            />
-          </View>
-
-          <TouchableOpacity onPress={() => Alert.alert('Em breve', 'Recuperação de senha disponível em breve.')}>
-            <Text style={styles.forgotPasswordText}>
-              Esqueci minha senha
-            </Text>
-          </TouchableOpacity>
+          {/* Erro da API */}
+          {apiError ? (
+            <View style={styles.apiErrorContainer}>
+              <Text style={styles.apiErrorText}>{apiError}</Text>
+            </View>
+          ) : null}
         </View>
-
-        {/* Erro da API */}
-        {apiError ? (
-          <View style={styles.apiErrorContainer}>
-            <Text style={styles.apiErrorText}>{apiError}</Text>
-          </View>
-        ) : null}
 
         <View style={styles.footerContainer}>
           <Button variant="secondary" fullWidth onPress={handleLogin} disabled={loading}>
@@ -178,6 +184,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
     paddingTop: 16,
+    justifyContent: 'space-between',
+  },
+  mainContent: {
+    gap: 16,
   },
   formContainer: {
     gap: 16,

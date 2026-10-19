@@ -43,6 +43,8 @@ import { imageService } from '../../../services/imageService';
 import * as ImagePicker from 'expo-image-picker';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ImageViewerModal } from '../../../components/ImageViewerModal';
+import { ServiceLocationMap } from '../../../components/ServiceLocationMap';
 
 interface ServiceDetail {
   id: string;
@@ -50,6 +52,8 @@ interface ServiceDetail {
   description: string;
   address?: string;
   addressApproximate?: string;
+  latitude?: number;
+  longitude?: number;
   startTime?: string;
   createdAt?: string;
   date?: string;
@@ -81,6 +85,10 @@ export default function AcceptedService() {
   // Photos state (Branch 5)
   const [uploadingBefore, setUploadingBefore] = useState(false);
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+  const [viewerImages, setViewerImages] = useState<string[]>([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerTitle, setViewerTitle] = useState('Visualizar Foto');
+  const [viewerVisible, setViewerVisible] = useState(false);
 
   const { data: service, loading, error, refetch } = useFetch<ServiceDetail>(
     id ? `/api/Services/${id}` : null
@@ -113,13 +121,18 @@ export default function AcceptedService() {
     }, [id, refetch])
   );
 
-  // Conexão WebSocket em tempo real para sincronizar status instantaneamente
+  // Conexão WebSocket em tempo real para sincronizar status instantaneamente + Polling de redundância
   useEffect(() => {
     if (!id) return;
 
     let ws: WebSocket | null = null;
     let reconnectTimeout: any = null;
     let isMounted = true;
+
+    // Polling redundante a cada 4 segundos para garantir atualização em tempo real se o socket oscilar
+    const pollTimer = setInterval(() => {
+      if (isMounted) refetch();
+    }, 4000);
 
     async function connect() {
       if (!isMounted) return;
@@ -149,6 +162,10 @@ export default function AcceptedService() {
             reconnectTimeout = setTimeout(connect, 4000);
           }
         };
+
+        ws.onerror = (e) => {
+          console.log('[Provider Accepted WS] Erro socket:', e);
+        };
       } catch (e) {
         console.warn('[Provider Accepted WS] Erro ao conectar socket:', e);
       }
@@ -158,6 +175,7 @@ export default function AcceptedService() {
 
     return () => {
       isMounted = false;
+      clearInterval(pollTimer);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (ws) {
         ws.onclose = null;
@@ -559,7 +577,16 @@ export default function AcceptedService() {
               {service?.beforePhotos && service.beforePhotos.length > 0 ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                   {service.beforePhotos.map((url, idx) => (
-                    <TouchableOpacity key={idx} onPress={() => setPreviewPhotoUrl(url)} activeOpacity={0.85}>
+                    <TouchableOpacity
+                      key={idx}
+                      onPress={() => {
+                        setViewerImages(service.beforePhotos!);
+                        setViewerIndex(idx);
+                        setViewerTitle('Vistoria Inicial (Antes)');
+                        setViewerVisible(true);
+                      }}
+                      activeOpacity={0.85}
+                    >
                       <Image source={{ uri: resolveImageUrl(url) || url }} style={styles.checklistThumb} />
                     </TouchableOpacity>
                   ))}
@@ -577,7 +604,16 @@ export default function AcceptedService() {
                 <Text style={styles.checklistPhotoSectionTitle}>Fotos de Conclusão (Depois)</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 4 }}>
                   {service.afterPhotos.map((url, idx) => (
-                    <TouchableOpacity key={idx} onPress={() => setPreviewPhotoUrl(url)} activeOpacity={0.85}>
+                    <TouchableOpacity
+                      key={idx}
+                      onPress={() => {
+                        setViewerImages(service.afterPhotos!);
+                        setViewerIndex(idx);
+                        setViewerTitle('Vistoria de Conclusão (Depois)');
+                        setViewerVisible(true);
+                      }}
+                      activeOpacity={0.85}
+                    >
                       <Image source={{ uri: resolveImageUrl(url) || url }} style={styles.checklistThumb} />
                     </TouchableOpacity>
                   ))}
@@ -614,12 +650,22 @@ export default function AcceptedService() {
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
                 {attachedImages.map((uri, idx) => (
-                  <Image
+                  <TouchableOpacity
                     key={idx}
-                    source={{ uri: resolveImageUrl(uri) || uri }}
-                    style={{ width: 120, height: 120, borderRadius: 10 }}
-                    resizeMode="cover"
-                  />
+                    onPress={() => {
+                      setViewerImages(attachedImages);
+                      setViewerIndex(idx);
+                      setViewerTitle('Fotos Enviadas pelo Cliente');
+                      setViewerVisible(true);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Image
+                      source={{ uri: resolveImageUrl(uri) || uri }}
+                      style={{ width: 120, height: 120, borderRadius: 10 }}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
@@ -685,21 +731,16 @@ export default function AcceptedService() {
           </TouchableOpacity>
         </View>
 
-        {/* Card de Localização */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Local de Atendimento</Text>
-          <View style={styles.addressRow}>
-            <View style={styles.addressIconWrap}>
-              <MapPin size={20} color="#2563EB" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.addressTitle}>Endereço do Chamado</Text>
-              <Text style={styles.addressValue}>
-                {service.address || 'Endereço cadastrado pelo cliente'}
-              </Text>
-            </View>
-          </View>
-        </View>
+        {/* Card de Localização com Mapa Interativo e Opções de GPS / Maps */}
+        <ServiceLocationMap
+          address={service.address}
+          addressApproximate={service.addressApproximate}
+          latitude={service.latitude}
+          longitude={service.longitude}
+          clientName={service.clientName}
+          title="Local de Atendimento"
+          height={220}
+        />
 
         {/* Linha do Tempo / Próximos Passos Dinâmicos */}
         <View style={styles.card}>
@@ -1004,31 +1045,14 @@ export default function AcceptedService() {
         </View>
       </Modal>
 
-      {/* Modal de Zoom da Foto (Branch 5) */}
-      <Modal
-        visible={!!previewPhotoUrl}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPreviewPhotoUrl(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.checkInModalCard}>
-            <View style={styles.checkInModalHeader}>
-              <Text style={styles.checkInModalTitle}>Vistoria do Atendimento</Text>
-              <TouchableOpacity onPress={() => setPreviewPhotoUrl(null)} style={styles.closeBtn}>
-                <XIcon size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-            {previewPhotoUrl && (
-              <Image
-                source={{ uri: resolveImageUrl(previewPhotoUrl) || previewPhotoUrl }}
-                style={styles.previewFullImg}
-                resizeMode="contain"
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
+      {/* Visualizador de Fotos em Tela Cheia */}
+      <ImageViewerModal
+        visible={viewerVisible}
+        images={viewerImages}
+        initialIndex={viewerIndex}
+        title={viewerTitle}
+        onClose={() => setViewerVisible(false)}
+      />
     </View>
   );
 }

@@ -5,18 +5,23 @@ import { safeStorage as AsyncStorage } from './storage';
 const STORAGE_KEY_ACCESS = '@workez_access_token';
 const STORAGE_KEY_REFRESH = '@workez_refresh_token';
 const PRODUCTION_API_URL = 'https://workez-api.onrender.com';
+const LOCAL_API_URL = 'http://localhost:5065';
 
 function resolveApiBaseUrl(): string {
-  let url = (process.env.EXPO_PUBLIC_API_URL || PRODUCTION_API_URL).replace(/\/+$/, '');
+  // Em modo de desenvolvimento (__DEV__), o padrão é a API local (http://localhost:5065)
+  const defaultUrl = __DEV__ ? LOCAL_API_URL : PRODUCTION_API_URL;
+  let url = (process.env.EXPO_PUBLIC_API_URL || defaultUrl).replace(/\/+$/, '');
 
-  // Se estiver em dispositivo móvel (físico ou emulador) e a URL configurada for localhost/127.0.0.1:
-  // Tenta resolver automaticamente para o IP da máquina host onde o Metro Bundler está rodando.
+  // Se estiver em dispositivo móvel (físico ou emulador) e a URL contiver localhost/127.0.0.1:
+  // Resolve automaticamente para o IP da máquina host onde o Metro Bundler está rodando.
   if (Platform.OS !== 'web' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
     const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest?.debuggerHost;
     const hostIp = hostUri ? hostUri.split(':')[0] : null;
 
     if (hostIp) {
       url = url.replace('localhost', hostIp).replace('127.0.0.1', hostIp);
+    } else if (Platform.OS === 'android') {
+      url = url.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
     }
   }
 
@@ -30,7 +35,8 @@ if (__DEV__) {
 }
 
 export async function getWebSocketUrl(path: string): Promise<string> {
-  const base = API_BASE_URL.replace(/^http/, 'ws');
+  const currentApiUrl = resolveApiBaseUrl();
+  const base = currentApiUrl.replace(/^http/, 'ws');
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const token = await AsyncStorage.getItem(STORAGE_KEY_ACCESS);
   if (!token) {
@@ -97,7 +103,17 @@ export async function apiRequest<T>(
 
     if (response && response.status === 401) {
       await (AsyncStorage as any).multiRemove([STORAGE_KEY_ACCESS, STORAGE_KEY_REFRESH]);
-      return { data: null, error: 'Sessão expirada. Faça login novamente.', status: 401 };
+      const errorBody = await response.json().catch(() => null);
+      const isAuthEndpoint = endpoint.toLowerCase().includes('/auth/');
+      const defaultMsg = isAuthEndpoint || !token
+        ? 'E-mail ou senha incorretos.'
+        : 'Sessão expirada. Faça login novamente.';
+
+      return {
+        data: null,
+        error: errorBody?.message || defaultMsg,
+        status: 401,
+      };
     }
 
     if (response) {

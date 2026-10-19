@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ServiceCard } from '../../components/ServiceCard';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Platform } from 'react-native';
@@ -74,6 +74,16 @@ export default function ProviderCalls() {
       refetchAcc();
     }, [refetchOps, refetchProps, refetchAcc])
   );
+
+  // Auto-refresh em segundo plano a cada 5s para que novos chamados e aceites apareçam sem sair da tela
+  useEffect(() => {
+    const timer = setInterval(() => {
+      refetchOps();
+      refetchProps();
+      refetchAcc();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [refetchOps, refetchProps, refetchAcc]);
 
   const handleAcceptCounter = async (proposalId: string) => {
     if (!user) return;

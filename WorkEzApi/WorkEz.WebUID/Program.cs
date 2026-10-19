@@ -32,10 +32,12 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSingleton<TrackingWebSocketManager>();
-builder.Services.AddSingleton<ITrackingNotificationService>(sp => sp.GetRequiredService<TrackingWebSocketManager>());
+builder.Services.AddSingleton<WorkEz.WebUID.WebSockets.ITrackingNotificationService>(sp => sp.GetRequiredService<TrackingWebSocketManager>());
+builder.Services.AddSingleton<WorkEz.Domain.Interfaces.ITrackingNotificationService>(sp => sp.GetRequiredService<TrackingWebSocketManager>());
 
 builder.Services.AddSingleton<ChatWebSocketManager>();
-builder.Services.AddSingleton<IChatNotificationService>(sp => sp.GetRequiredService<ChatWebSocketManager>());
+builder.Services.AddSingleton<WorkEz.WebUID.WebSockets.IChatNotificationService>(sp => sp.GetRequiredService<ChatWebSocketManager>());
+builder.Services.AddSingleton<WorkEz.Domain.Interfaces.IChatNotificationService>(sp => sp.GetRequiredService<ChatWebSocketManager>());
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -136,13 +138,22 @@ app.Use(async (context, next) =>
             return;
         }
 
-        // 2. Autorização: só participantes do chamado/proposta podem escutar.
+        // 2. Autorização: participante do chamado OU da proposta pode escutar.
         var db = context.RequestServices.GetRequiredService<AppDbContext>();
-        var allowed = auth.Principal!.IsAdmin()
-            || ((!serviceId.HasValue || await db.IsServiceParticipantAsync(serviceId.Value, userId.Value))
-                && (!proposalId.HasValue || await db.IsProposalParticipantAsync(proposalId.Value, userId.Value)));
+        var isParticipant = false;
+        if (serviceId.HasValue && await db.IsServiceParticipantAsync(serviceId.Value, userId.Value))
+        {
+            isParticipant = true;
+        }
+        else if (proposalId.HasValue && await db.IsProposalParticipantAsync(proposalId.Value, userId.Value))
+        {
+            isParticipant = true;
+        }
+
+        var allowed = auth.Principal!.IsAdmin() || isParticipant;
         if (!allowed)
         {
+            app.Logger.LogWarning("[WebSocket] Acesso negado para {Path}. UserId={UserId}, ServiceId={ServiceId}, ProposalId={ProposalId}", context.Request.Path, userId, serviceId, proposalId);
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }

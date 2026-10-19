@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ServiceCard } from '../../components/ServiceCard';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
@@ -36,6 +36,15 @@ export default function MyServices() {
       }
     }, [customer, refetch])
   );
+
+  // Sincronização em segundo plano a cada 5s para que status atualizem sem precisar sair da tela
+  useEffect(() => {
+    if (!customer) return;
+    const timer = setInterval(() => {
+      refetch();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [customer, refetch]);
 
   const services = useMemo(() => {
     const defaultGrouping: Record<'in-progress' | 'completed' | 'cancelled', Service[]> = {

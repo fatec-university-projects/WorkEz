@@ -19,6 +19,7 @@ import { apiRequest, uploadChecklistPhotos } from '../../../services/api';
 import { imageService } from '../../../services/imageService';
 import * as ImagePicker from 'expo-image-picker';
 import { ScreenHeader } from '../../../components/ScreenHeader';
+import { ImageViewerModal } from '../../../components/ImageViewerModal';
 
 export default function InformValue() {
   const router = useRouter();
@@ -29,6 +30,8 @@ export default function InformValue() {
   // Vistoria de Conclusão: até 3 fotos do serviço finalizado (Branch 5)
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   // Busca dados do serviço para pré-preencher o valor acordado
   const { data: service, loading } = useFetch<any>(
@@ -204,7 +207,15 @@ export default function InformValue() {
           <View style={styles.photosGrid}>
             {photos.map((uri, index) => (
               <View key={index} style={styles.photoThumbWrapper}>
-                <Image source={{ uri }} style={styles.photoThumbImg} />
+                <TouchableOpacity
+                  onPress={() => {
+                    setViewerIndex(index);
+                    setViewerVisible(true);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Image source={{ uri }} style={styles.photoThumbImg} />
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.photoRemoveBtn}
                   onPress={() => removePhoto(index)}
@@ -284,6 +295,15 @@ export default function InformValue() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Visualizador de Fotos */}
+      <ImageViewerModal
+        visible={viewerVisible}
+        images={photos}
+        initialIndex={viewerIndex}
+        title="Fotos da Conclusão"
+        onClose={() => setViewerVisible(false)}
+      />
     </View>
   );
 }

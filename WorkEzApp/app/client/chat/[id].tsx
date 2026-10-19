@@ -58,7 +58,7 @@ export default function ClientChat() {
   const activeProposalId = proposal?.id || (id as string);
 
   // 3. Busca os dados do serviço para acompanhar o ciclo de vida
-  const effectiveServiceId = queryServiceId || proposal?.serviceId || (proposal as any)?.ServiceId;
+  const effectiveServiceId = queryServiceId || proposal?.serviceId || (proposal as any)?.ServiceId || candidateServiceId;
   const { data: service, refetch: refetchService } = useFetch<any>(
     effectiveServiceId ? `/api/Services/${effectiveServiceId}` : null
   );
@@ -98,14 +98,35 @@ export default function ClientChat() {
     return `Lance: R$ ${proposal?.proposedPrice ? proposal.proposedPrice.toFixed(2).replace('.', ',') : '...'}${proposal?.counterPrice ? ` • Contra-oferta: R$ ${proposal.counterPrice.toFixed(2).replace('.', ',')}` : ''}`;
   };
 
-  // 4. Carga inicial de mensagens (sem loop de polling)
+  // 4. Carga inicial de mensagens (resiliente a serviceId e proposalId)
   useEffect(() => {
-    if (!activeProposalId) return;
+    if (!activeProposalId && !effectiveServiceId) return;
     let isCurrent = true;
 
     const loadInitialMessages = async () => {
       try {
-        const res = await apiRequest<any[]>(`/api/Proposals/${activeProposalId}/chat`);
+        let res: { data: any[] | null; error: string | null } = { data: null, error: null };
+
+        // 1. Tenta buscar pelo serviço se temos effectiveServiceId
+        if (effectiveServiceId) {
+          res = await apiRequest<any[]>(`/api/Chat/services/${effectiveServiceId}`);
+        }
+
+        // 2. Se não retornou mensagens pelo serviço e temos activeProposalId, tenta por proposta
+        if ((!res.data || res.data.length === 0) && activeProposalId) {
+          const propRes = await apiRequest<any[]>(`/api/Chat/proposals/${activeProposalId}`);
+          if (propRes.data && propRes.data.length > 0) {
+            res = propRes;
+          } else {
+            const legacyRes = await apiRequest<any[]>(`/api/Proposals/${activeProposalId}/chat`);
+            if (legacyRes.data) {
+              res = legacyRes;
+            } else if (!res.data) {
+              res = legacyRes;
+            }
+          }
+        }
+
         if (isCurrent) {
           if (res.data) {
             const mapped: ChatMessage[] = res.data.map((raw: any, index: number) => ({
@@ -117,9 +138,13 @@ export default function ClientChat() {
               sentAt: raw.sentAt || raw.SentAt || new Date().toISOString()
             })).filter(m => m.content && m.content.trim().length > 0);
             setMessages(mapped);
-          }
-          if (res.error) {
-            setChatError(res.error);
+            setChatError(null);
+          } else if (res.error) {
+            if (service || effectiveServiceId) {
+              setChatError(null);
+            } else {
+              setChatError(res.error);
+            }
           }
         }
       } catch (err: any) {
@@ -137,9 +162,9 @@ export default function ClientChat() {
     return () => {
       isCurrent = false;
     };
-  }, [activeProposalId]);
+  }, [activeProposalId, effectiveServiceId]);
 
-  // 5. Conexão WebSocket em tempo real para mensagens e status de propostas
+  // 5. Conexão WebSocket em tempo real para mensagens e status de propostas + Polling de redundância
   useEffect(() => {
     if (!activeProposalId) return;
 
@@ -147,13 +172,61 @@ export default function ClientChat() {
     let isDestroyed = false;
     let reconnectTimeout: any = null;
 
+    // Polling redundante a cada 4s para novas mensagens e status sem depender exclusivamente de sockets
+    const pollInterval = setInterval(async () => {
+      if (isDestroyed) return;
+      try {
+        let res: { data: any[] | null } = { data: null };
+        if (effectiveServiceId) {
+          res = await apiRequest<any[]>(`/api/Chat/services/${effectiveServiceId}`);
+        }
+        if ((!res.data || res.data.length === 0) && (proposal?.id || activeProposalId)) {
+          const targetId = proposal?.id || activeProposalId;
+          res = await apiRequest<any[]>(`/api/Chat/proposals/${targetId}`);
+          if (!res.data) {
+            res = await apiRequest<any[]>(`/api/Proposals/${targetId}/chat`);
+          }
+        }
+
+        if (!isDestroyed && res.data && Array.isArray(res.data)) {
+          const mapped: ChatMessage[] = res.data.map((raw: any, index: number) => ({
+            id: raw.id || raw.Id || `poll_${index}_${raw.sentAt || raw.SentAt}`,
+            proposalId: raw.proposalId || raw.ProposalId || '',
+            senderId: raw.senderId || raw.SenderId || '',
+            content: raw.content || raw.Content || '',
+            isFromProvider: raw.isFromProvider ?? raw.IsFromProvider ?? false,
+            sentAt: raw.sentAt || raw.SentAt || new Date().toISOString()
+          })).filter(m => m.content && m.content.trim().length > 0);
+
+          setMessages((prev) => {
+            if (mapped.length > prev.length) {
+              return mapped;
+            }
+            return prev;
+          });
+        }
+      } catch {}
+      if (effectiveServiceId) {
+        refetchService();
+      }
+    }, 4000);
+
     const connectWs = async () => {
       if (isDestroyed) return;
       try {
-        const wsUrl = await getWebSocketUrl(`/ws/chat?proposalId=${activeProposalId}${effectiveServiceId ? `&serviceId=${effectiveServiceId}` : ''}`);
+        const queryParams: string[] = [];
+        if (proposal?.id) queryParams.push(`proposalId=${proposal.id}`);
+        else if (activeProposalId) queryParams.push(`proposalId=${activeProposalId}`);
+        if (effectiveServiceId) queryParams.push(`serviceId=${effectiveServiceId}`);
+
+        const wsUrl = await getWebSocketUrl(`/ws/chat?${queryParams.join('&')}`);
         if (isDestroyed) return;
 
         ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log('[WebSocket Client Chat] Conectado com sucesso');
+        };
 
         ws.onmessage = (event) => {
           try {
@@ -204,6 +277,7 @@ export default function ClientChat() {
 
     return () => {
       isDestroyed = true;
+      clearInterval(pollInterval);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         ws.close();
@@ -218,21 +292,36 @@ export default function ClientChat() {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!activeProposalId || !user || !messageText.trim() || sending || isFinished) return;
+    if ((!activeProposalId && !effectiveServiceId) || !user || !messageText.trim() || sending || isFinished) return;
 
     const textToSend = messageText.trim();
     setMessageText('');
     setSending(true);
 
     try {
-      const res = await apiRequest<ChatMessage>(`/api/Proposals/${activeProposalId}/chat`, {
+      // 1. Envia via /api/Chat/messages (suporta tanto serviceId quanto proposalId)
+      let res = await apiRequest<any>(`/api/Chat/messages`, {
         method: 'POST',
         body: JSON.stringify({
           senderId: user.id,
           content: textToSend,
-          isFromProvider: false
+          isFromProvider: false,
+          proposalId: proposal?.id || null,
+          serviceId: effectiveServiceId || null
         })
       });
+
+      // 2. Se falhar e tivermos activeProposalId, tenta fallback legado
+      if (res.error && activeProposalId && activeProposalId !== effectiveServiceId) {
+        res = await apiRequest<any>(`/api/Proposals/${activeProposalId}/chat`, {
+          method: 'POST',
+          body: JSON.stringify({
+            senderId: user.id,
+            content: textToSend,
+            isFromProvider: false
+          })
+        });
+      }
 
       if (res.error) {
         if (res.error.toLowerCase().includes('recusada') || (res as any).code === 'PROPOSAL_REJECTED') {
