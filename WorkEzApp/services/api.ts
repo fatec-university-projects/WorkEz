@@ -312,4 +312,16 @@ export async function uploadChecklistPhotos(
   }, true);
 }
 
+export async function confirmServicePayment(serviceId: string) {
+  return apiRequest<{ id: string; status: string }>(`/api/Services/${serviceId}/confirm-payment`, {
+    method: 'POST',
+  }, true);
+}
+
+export async function resendPixEmail(serviceId: string) {
+  return apiRequest<{ message: string }>(`/api/Wallet/resend-pix-email/${serviceId}`, {
+    method: 'POST',
+  }, true);
+}
+
 export { API_BASE_URL, STORAGE_KEY_ACCESS, STORAGE_KEY_REFRESH };

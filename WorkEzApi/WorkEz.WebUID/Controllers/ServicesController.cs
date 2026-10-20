@@ -184,6 +184,21 @@ public class ServicesController(
         return ToActionResult(result);
     }
 
+    /// <summary>
+    /// Confirma o pagamento do serviço (PIX DelFinance ou simulação).
+    /// Avança o status para Completed e libera os recursos para a carteira do prestador.
+    /// </summary>
+    [HttpPost("{id:guid}/confirm-payment")]
+    [HttpPatch("{id:guid}/confirm-payment")]
+    public async Task<IActionResult> ConfirmPayment(Guid id)
+    {
+        var me = User.GetUserId();
+        if (me == null) return Unauthorized();
+
+        var result = await _serviceAppService.ConfirmPaymentAsync(id, me.Value, User.IsAdmin());
+        return ToActionResult(result);
+    }
+
     private IActionResult ToActionResult<T>(Result<T> result)
     {
         if (result.IsSuccess) return Ok(result.Value);

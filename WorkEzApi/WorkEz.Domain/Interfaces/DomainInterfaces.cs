@@ -162,3 +162,17 @@ public interface IWithdrawalRequestRepository : IBaseRepository<WithdrawalReques
     Task<IEnumerable<WithdrawalRequest>> GetByProviderIdAsync(Guid providerId);
     Task<WithdrawalRequest?> GetLatestByProviderIdAsync(Guid providerId);
 }
+
+public record PixInvoiceEmailDto(
+    string RecipientEmail,
+    string RecipientName,
+    Guid ServiceId,
+    string ServiceTitle,
+    string ProviderName,
+    decimal TotalAmount,
+    decimal LaborAmount,
+    decimal MaterialsAmount,
+    string PixCopiaECola,
+    string? QrCodeBase64,
+    DateTime ExpiresAt
+);

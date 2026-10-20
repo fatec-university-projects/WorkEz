@@ -14,6 +14,7 @@ public interface IWalletApplicationService
     Task<Result> HoldEscrowForServiceAsync(Guid serviceId);
     Task<Result> ReleaseEscrowForServiceAsync(Guid serviceId, decimal? finalPrice = null);
     Task<Result<EscrowCheckoutPixDto>> GenerateEscrowPixCheckoutAsync(Guid serviceId, Guid callerUserId, bool isAdmin);
+    Task<Result> SendPixInvoiceEmailAsync(Guid serviceId, Guid callerUserId, bool isAdmin);
     Task<Result> ProcessDelFinanceWebhookAsync(DelFinanceWebhookPayload payload);
 }
 
@@ -387,7 +388,28 @@ public class WalletApplicationService(
             ExpiresAt: DateTime.UtcNow.AddDays(1)
         );
 
+        // TODO: Chamar o microserviço de e-mail do parceiro para enviar os dados do PIX (QR Code e Copia e Cola) ao cliente
+        // Payload sugerido para o microserviço via HTTP POST:
+        // - RecipientEmail: e-mail do cliente contratante
+        // - RecipientName: nome do cliente
+        // - ServiceTitle: service.Title
+        // - TotalAmount: dto.TotalAmount
+        // - PixCopiaECola: dto.PixCopiaECola
+        // - QrCodeBase64: dto.QrCodeBase64
+        // - ExpiresAt: dto.ExpiresAt
+
         return Result<EscrowCheckoutPixDto>.Success(dto);
+    }
+
+    public async Task<Result> SendPixInvoiceEmailAsync(Guid serviceId, Guid callerUserId, bool isAdmin)
+    {
+        var checkoutRes = await GenerateEscrowPixCheckoutAsync(serviceId, callerUserId, isAdmin);
+        if (!checkoutRes.IsSuccess)
+            return Result.Failure(checkoutRes.Error!, checkoutRes.ErrorCode!);
+
+        // TODO: Chamar o microserviço de e-mail do parceiro para reenviar os dados do PIX ao cliente contratante
+
+        return Result.Success();
     }
 
     public async Task<Result> ProcessDelFinanceWebhookAsync(DelFinanceWebhookPayload payload)
@@ -402,7 +424,30 @@ public class WalletApplicationService(
             var corrIdStr = payload.CorrelationId ?? payload.Proof?.CorrelationId;
             if (Guid.TryParse(corrIdStr, out var serviceId))
             {
-                await HoldEscrowForServiceAsync(serviceId);
+                var service = await _serviceRepo.GetByIdAsync(serviceId);
+                if (service != null && service.ServiceStatus == ServiceStatus.WaitingPayment)
+                {
+                    service.ServiceStatus = ServiceStatus.Completed;
+                    service.Touch();
+                    _serviceRepo.Update(service);
+                    await _serviceRepo.SaveChangesAsync();
+
+                    var appointment = await _appointmentRepo.GetByServiceIdAsync(serviceId);
+                    if (appointment != null)
+                    {
+                        appointment.CompletedAt = DateTime.UtcNow;
+                        appointment.AppointmentStatus = AppointmentStatus.Completed;
+                        appointment.Touch();
+                        _appointmentRepo.Update(appointment);
+                        await _appointmentRepo.SaveChangesAsync();
+                    }
+
+                    await ReleaseEscrowForServiceAsync(serviceId, appointment?.FinalPrice);
+                }
+                else
+                {
+                    await HoldEscrowForServiceAsync(serviceId);
+                }
             }
         }
         else if (eventType is "PIX_PAYMENT_EFFECTIVE" or "PIX_EFFECTIVE" or "PIX_PAYMENT_UPDATED")

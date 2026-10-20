@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ShieldCheck, DollarSign, QrCode, Copy, Check, Clock, RefreshCw, Camera, CheckCircle2, X as XIcon } from 'lucide-react-native';
+import { ShieldCheck, DollarSign, QrCode, Copy, Check, Clock, RefreshCw, Camera, CheckCircle2, X as XIcon, Mail } from 'lucide-react-native';
 import { Button } from '../../../components/Button';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView, StyleSheet, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView, StyleSheet, Modal, Platform } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
-import { generateEscrowPixCheckout, EscrowCheckoutPixResponse, apiRequest, resolveImageUrl } from '../../../services/api';
+import { generateEscrowPixCheckout, EscrowCheckoutPixResponse, apiRequest, resolveImageUrl, resendPixEmail } from '../../../services/api';
 import { WorkEzTheme } from '../../../constants/theme';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 
@@ -15,7 +15,17 @@ export default function Payment() {
   const [checkoutData, setCheckoutData] = useState<EscrowCheckoutPixResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
+
+  const showFeedback = (title: string, message?: string) => {
+    const fullMsg = message ? `${title}: ${message}` : title;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.alert(fullMsg);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
 
   // Fetch service details
   const { data: service, loading, error } = useFetch<any>(
@@ -57,9 +67,7 @@ export default function Payment() {
           const st = (res.data.status || res.data.serviceStatus || '').toLowerCase();
           if (st === 'completed') {
             clearInterval(interval);
-            Alert.alert('Sucesso', 'Pagamento confirmado e serviço concluído com sucesso!', [
-              { text: 'Ver Recibo', onPress: () => router.replace(`/client/completed/${id}` as any) }
-            ]);
+            router.replace(`/client/completed/${id}` as any);
           }
         }
       } catch {
@@ -78,13 +86,31 @@ export default function Payment() {
       }
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
-      Alert.alert('Copiado!', 'Código PIX Copia e Cola copiado para a área de transferência.');
+      showFeedback('Copiado!', 'Código PIX Copia e Cola copiado para a área de transferência.');
     } catch {
-      Alert.alert('Código PIX', checkoutData.pixCopiaECola);
+      showFeedback('Código PIX', checkoutData.pixCopiaECola);
+    }
+  };
+
+  const handleResendEmail = async () => {
+    if (!id) return;
+    setSendingEmail(true);
+    try {
+      const res = await resendPixEmail(id as string);
+      if (res.error) {
+        showFeedback('Aviso', res.error);
+      } else {
+        showFeedback('E-mail Enviado!', 'Os dados do PIX e chave Copia e Cola foram enviados para o e-mail cadastrado na sua conta.');
+      }
+    } catch {
+      showFeedback('Erro', 'Não foi possível reenviar o e-mail no momento. Tente novamente.');
+    } finally {
+      setSendingEmail(false);
     }
   };
 
   const handleManualCheck = async () => {
+    if (!id) return;
     setCheckingStatus(true);
     try {
       const res = await apiRequest<any>(`/api/Services/${id}`);
@@ -95,9 +121,12 @@ export default function Payment() {
           return;
         }
       }
-      Alert.alert('Aguardando Confirmação', 'O pagamento ainda está sendo processado pela rede PIX DelFinance. Aguarde alguns instantes.');
+      showFeedback(
+        'Aguardando Liquidação Bancária',
+        'O DelFinance ainda não identificou a confirmação deste PIX. Se você já realizou a transferência pelo seu banco, aguarde alguns instantes até a rede bancária processar.'
+      );
     } catch {
-      Alert.alert('Aviso', 'Não foi possível verificar no momento. Tente novamente em instantes.');
+      showFeedback('Aviso', 'Não foi possível consultar a rede bancária no momento. Tente novamente em instantes.');
     } finally {
       setCheckingStatus(false);
     }
@@ -285,10 +314,35 @@ export default function Payment() {
                   </TouchableOpacity>
                 </View>
 
+                {/* Aviso de Envio por E-mail */}
+                <View style={styles.emailNoticeBox}>
+                  <View style={styles.emailIconWrapper}>
+                    <Mail size={18} color="#2563EB" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.emailNoticeTitle}>Enviamos para o seu e-mail</Text>
+                    <Text style={styles.emailNoticeText}>
+                      A fatura completa e a chave PIX Copia e Cola foram enviadas para o seu e-mail cadastrado.
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.resendEmailBtn}
+                    onPress={handleResendEmail}
+                    disabled={sendingEmail}
+                    activeOpacity={0.7}
+                  >
+                    {sendingEmail ? (
+                      <ActivityIndicator size="small" color="#2563EB" />
+                    ) : (
+                      <Text style={styles.resendEmailBtnText}>Reenviar</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
                 {/* Polling Indicator */}
                 <View style={styles.pollingNotice}>
-                  <Clock size={16} color="#64748B" />
-                  <Text style={styles.pollingText}>Aguardando confirmação do pagamento...</Text>
+                  <ActivityIndicator size="small" color="#2563EB" />
+                  <Text style={styles.pollingText}>Aguardando confirmação bancária do DelFinance...</Text>
                 </View>
               </View>
             ) : (
@@ -320,9 +374,9 @@ export default function Payment() {
             {generating || checkingStatus ? (
               <ActivityIndicator color="#FFF" />
             ) : checkoutData ? (
-              'Já realizei o pagamento'
+              'Verificar Pagamento no DelFinance'
             ) : (
-              `Pagar R$ ${priceVal.toFixed(2).replace('.', ',')} via DelFinance`
+              `Gerar Cobrança PIX DelFinance (R$ ${priceVal.toFixed(2).replace('.', ',')})`
             )}
           </Button>
         </View>
@@ -551,6 +605,52 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
   },
+  emailNoticeBox: {
+    width: '100%',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  emailIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DBEAFE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emailNoticeTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E40AF',
+  },
+  emailNoticeText: {
+    fontSize: 11,
+    color: '#3B82F6',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  resendEmailBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resendEmailBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
   pollingText: {
     fontSize: 12,
     color: '#64748B',
@@ -673,5 +773,16 @@ const styles = StyleSheet.create({
     height: 380,
     borderRadius: 12,
     backgroundColor: '#0F172A',
+  },
+  checkManualBtn: {
+    marginTop: 10,
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  checkManualBtnText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

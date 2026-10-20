@@ -19,6 +19,7 @@ public interface IServiceApplicationService
     Task<Result<ServiceStatusResultDto>> ValidateCheckInAsync(Guid serviceId, string code, Guid callerUserId, bool isAdmin);
     Task<Result<ServiceDetailDto>> UploadChecklistPhotosAsync(Guid serviceId, ChecklistPhotosRequest request, Guid callerUserId, bool isAdmin);
     Task<Result<ServiceStatusResultDto>> CompleteServiceAsync(Guid serviceId, decimal? price, Guid callerUserId, bool isAdmin);
+    Task<Result<ServiceStatusResultDto>> ConfirmPaymentAsync(Guid serviceId, Guid callerUserId, bool isAdmin);
 }
 
 /// <summary>
@@ -358,13 +359,47 @@ public class ServiceApplicationService(
 
         var (service, appointment) = authCheck.Value;
 
-        service.ServiceStatus = ServiceStatus.Completed;
+        // Prestador informa o valor e o serviço avança para WaitingPayment (aguardando liberação do cliente)
+        service.ServiceStatus = ServiceStatus.WaitingPayment;
         service.Touch();
         _serviceRepository.Update(service);
 
         if (appointment != null)
         {
             if (price.HasValue) appointment.FinalPrice = price.Value;
+            appointment.Touch();
+            _appointmentRepository.Update(appointment);
+        }
+
+        await _serviceRepository.SaveChangesAsync();
+        await NotifyStatusChangedAsync(serviceId, "waiting-payment");
+
+        // TODO: Chamar o microserviço de e-mail para enviar a notificação de cobrança e os dados do PIX para o cliente.
+        // O microserviço de e-mail está sendo desenvolvido separadamente e receberá os dados do serviço e cliente via HTTP POST.
+
+        return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, "waiting-payment"));
+    }
+
+    public async Task<Result<ServiceStatusResultDto>> ConfirmPaymentAsync(Guid serviceId, Guid callerUserId, bool isAdmin)
+    {
+        var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId) ?? await _serviceRepository.GetByIdAsync(serviceId);
+        if (service == null)
+            return Result<ServiceStatusResultDto>.Failure("Serviço não encontrado.", "SERVICE_NOT_FOUND");
+
+        var customer = service.Customer ?? (await _customerRepository.FindAsync(c => c.Id == service.CustomerId)).FirstOrDefault();
+        var isCustomer = customer != null && customer.UserId == callerUserId;
+        var isAssignedProvider = service.Appointment != null && (service.Appointment.Provider?.UserId == callerUserId || service.Appointment.ProviderId == callerUserId);
+
+        if (!isAdmin && !isCustomer && !isAssignedProvider)
+            return Result<ServiceStatusResultDto>.Failure("Você não possui permissão para confirmar o pagamento deste serviço.", "FORBIDDEN");
+
+        service.ServiceStatus = ServiceStatus.Completed;
+        service.Touch();
+        _serviceRepository.Update(service);
+
+        var appointment = await _appointmentRepository.GetByServiceIdAsync(serviceId);
+        if (appointment != null)
+        {
             appointment.CompletedAt = DateTime.UtcNow;
             appointment.AppointmentStatus = AppointmentStatus.Completed;
             appointment.Touch();
@@ -376,6 +411,7 @@ public class ServiceApplicationService(
 
         if (_walletService != null)
         {
+            var price = appointment?.FinalPrice;
             await _walletService.ReleaseEscrowForServiceAsync(serviceId, price);
         }
 

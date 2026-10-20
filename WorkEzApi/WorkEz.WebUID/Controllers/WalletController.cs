@@ -127,6 +127,34 @@ public class WalletController(IWalletApplicationService walletService) : Control
     }
 
     /// <summary>
+    /// Envia ou reenvia os dados do PIX (QR Code, Fatura e Copia-e-Cola) para o e-mail do cliente contratante.
+    /// </summary>
+    [HttpPost("resend-pix-email/{serviceId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResendPixEmail(Guid serviceId)
+    {
+        var callerUserId = User.GetUserId();
+        if (callerUserId == null) return Unauthorized(new { message = "Usuário não autenticado." });
+
+        var result = await _walletService.SendPixInvoiceEmailAsync(serviceId, callerUserId.Value, User.IsAdmin());
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "FORBIDDEN" => StatusCode(StatusCodes.Status403Forbidden, new { message = result.Error, code = result.ErrorCode }),
+                "SERVICE_NOT_FOUND" => NotFound(new { message = result.Error, code = result.ErrorCode }),
+                _ => BadRequest(new { message = result.Error, code = result.ErrorCode })
+            };
+        }
+
+        return Ok(new { message = "E-mail com dados do PIX enviado com sucesso!" });
+    }
+
+    /// <summary>
     /// Webhook receptor de eventos DelFinance (PIX_RECEIVED, PIX_PAYMENT_EFFECTIVE, PIX_PAYMENT_ERROR).
     /// </summary>
     [HttpPost("webhook/delfinance")]
