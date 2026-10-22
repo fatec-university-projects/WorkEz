@@ -26,7 +26,8 @@ public class WalletApplicationService(
     IAppointmentRepository appointmentRepository,
     IProposalRepository proposalRepository,
     IDelFinanceClient? delFinanceClient = null,
-    ICustomerRepository? customerRepository = null
+    ICustomerRepository? customerRepository = null,
+    IEmailService? emailService = null
 ) : IWalletApplicationService
 {
     private readonly IWalletTransactionRepository _walletRepo = walletTransactionRepository;
@@ -37,6 +38,7 @@ public class WalletApplicationService(
     private readonly IProposalRepository _proposalRepo = proposalRepository;
     private readonly IDelFinanceClient? _delFinanceClient = delFinanceClient;
     private readonly ICustomerRepository? _customerRepo = customerRepository;
+    private readonly IEmailService? _emailService = emailService;
 
     private const decimal PlatformFeeRate = 0.15m; // 15% sobre a mão de obra
     private const decimal MaterialsFeeRate = 0.00m; // 0% sobre materiais/peças
@@ -388,16 +390,6 @@ public class WalletApplicationService(
             ExpiresAt: DateTime.UtcNow.AddDays(1)
         );
 
-        // TODO: Chamar o microserviço de e-mail do parceiro para enviar os dados do PIX (QR Code e Copia e Cola) ao cliente
-        // Payload sugerido para o microserviço via HTTP POST:
-        // - RecipientEmail: e-mail do cliente contratante
-        // - RecipientName: nome do cliente
-        // - ServiceTitle: service.Title
-        // - TotalAmount: dto.TotalAmount
-        // - PixCopiaECola: dto.PixCopiaECola
-        // - QrCodeBase64: dto.QrCodeBase64
-        // - ExpiresAt: dto.ExpiresAt
-
         return Result<EscrowCheckoutPixDto>.Success(dto);
     }
 
@@ -407,7 +399,25 @@ public class WalletApplicationService(
         if (!checkoutRes.IsSuccess)
             return Result.Failure(checkoutRes.Error!, checkoutRes.ErrorCode!);
 
-        // TODO: Chamar o microserviço de e-mail do parceiro para reenviar os dados do PIX ao cliente contratante
+        if (_emailService == null)
+            return Result.Failure("Servico de e-mail nao configurado.", "EMAIL_NOT_CONFIGURED");
+
+        var service = await _serviceRepo.GetByIdWithDetailsAsync(serviceId);
+        var client = service?.Customer?.User;
+        if (client == null || string.IsNullOrWhiteSpace(client.Email))
+            return Result.Failure("O cliente do servico nao possui e-mail cadastrado.", "CLIENT_EMAIL_NOT_FOUND");
+
+        var pix = checkoutRes.Value!;
+        try
+        {
+            await _emailService.SendPixInvoiceNotificationAsync(
+                client.Email, client.Name, pix.ServiceTitle, pix.TotalAmount,
+                pix.PixCopiaECola, pix.QrCodeBase64, pix.ExpiresAt);
+        }
+        catch (Exception ex)
+        {
+            return Result.Failure($"Falha ao enviar e-mail com o PIX: {ex.Message}", "EMAIL_SEND_FAILED");
+        }
 
         return Result.Success();
     }

@@ -53,7 +53,8 @@ public class ProposalApplicationService(
     ITrackingNotificationService? trackingNotification = null,
     IChatNotificationService? chatNotification = null,
     IPushNotificationService? pushNotification = null,
-    IWalletApplicationService? walletService = null
+    IWalletApplicationService? walletService = null,
+    IEmailService? emailService = null
 ) : IProposalApplicationService
 {
     private readonly IProposalDomainService _proposalDomainService = proposalDomainService;
@@ -66,6 +67,7 @@ public class ProposalApplicationService(
     private readonly IChatNotificationService? _chatNotification = chatNotification;
     private readonly IPushNotificationService? _pushNotification = pushNotification;
     private readonly IWalletApplicationService? _walletService = walletService;
+    private readonly IEmailService? _emailService = emailService;
 
     public async Task<Result<ProposalResponseDto>> ProposePriceAsync(ProposePriceRequest request)
     {
@@ -90,6 +92,7 @@ public class ProposalApplicationService(
 
         await NotifyTrackingAsync(request.ServiceId, "proposal_created", result.Value);
         DispatchProposalPushNotification(request.ServiceId, result.Value);
+        await SendProposalEmailAsync(request.ServiceId, result.Value.Id, ProposalEmailKind.Submitted, null);
 
         return result;
     }
@@ -112,6 +115,7 @@ public class ProposalApplicationService(
         if (result.IsSuccess && result.Value != null)
         {
             await NotifyTrackingAsync(result.Value.ServiceId, "proposal_accepted", result.Value);
+            await SendProposalEmailAsync(result.Value.ServiceId, result.Value.Id, ProposalEmailKind.Accepted, null);
             await NotifyProposalChatAsync(result.Value.Id, result.Value.ServiceId, "proposal_updated", result.Value);
         }
         return result;
@@ -130,6 +134,7 @@ public class ProposalApplicationService(
             if (prop != null)
             {
                 await NotifyTrackingAsync(prop.ServiceId, "proposal_rejected", prop);
+                await SendProposalEmailAsync(prop.ServiceId, prop.Id, ProposalEmailKind.Rejected, request.Reason);
                 await NotifyProposalChatAsync(prop.Id, prop.ServiceId, "proposal_updated", prop);
             }
         }
@@ -471,6 +476,39 @@ public class ProposalApplicationService(
         }
 
         return Result<bool>.Success(true);
+    }
+
+    private enum ProposalEmailKind { Submitted, Accepted, Rejected }
+
+    /// <summary>Best-effort transactional e-mail handled safely by IEmailService.</summary>
+    private async Task SendProposalEmailAsync(Guid serviceId, Guid proposalId, ProposalEmailKind kind, string? reason)
+    {
+        if (_emailService == null || _serviceRepository == null) return;
+
+        var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId);
+        var proposal = service?.Proposals?.FirstOrDefault(p => p.Id == proposalId);
+        if (service == null || proposal == null) return;
+
+        var clientUser = service.Customer?.User;
+        var providerUser = proposal.Provider?.User;
+
+        switch (kind)
+        {
+            case ProposalEmailKind.Submitted when !string.IsNullOrWhiteSpace(clientUser?.Email):
+                await _emailService.SendProposalNotificationAsync(
+                    clientUser!.Email, clientUser.Name, providerUser?.Name ?? "Prestador",
+                    service.Title, proposal.ProposedPrice, proposal.Description);
+                break;
+            case ProposalEmailKind.Accepted when !string.IsNullOrWhiteSpace(providerUser?.Email):
+                await _emailService.SendProposalAcceptedNotificationAsync(
+                    providerUser!.Email, providerUser.Name, clientUser?.Name ?? "Cliente",
+                    service.Title, proposal.ProposedPrice, service.Appointment?.ConfirmationCode ?? string.Empty);
+                break;
+            case ProposalEmailKind.Rejected when !string.IsNullOrWhiteSpace(providerUser?.Email):
+                await _emailService.SendProposalRejectedNotificationAsync(
+                    providerUser!.Email, providerUser.Name, service.Title, reason);
+                break;
+        }
     }
 
     private async Task NotifyTrackingAsync(Guid serviceId, string eventType, object? payload)

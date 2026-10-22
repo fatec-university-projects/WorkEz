@@ -1,5 +1,5 @@
 import { CheckCircle, XCircle, AlertCircle, Info } from 'lucide-react-native';
-import { View, Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 interface ToastProps {
   type: 'success' | 'error' | 'warning' | 'info';
@@ -34,12 +34,12 @@ export function Toast({ type, message, onClose }: ToastProps) {
   const { icon: Icon, bg, text } = config[type];
 
   return (
-    <View
+    <Pressable
       className={`fixed top-4 left-4 right-4 ${bg} ${text} rounded-xl p-4 shadow-lg flex-row items-center gap-3 animate-in slide-in-from-top z-50`}
       onPress={onClose}
     >
       <Icon className="w-5 h-5 flex-shrink-0" />
       <Text className="flex-1 font-medium">{message}</Text>
-    </View>
+    </Pressable>
   );
 }

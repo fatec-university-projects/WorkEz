@@ -23,7 +23,8 @@ public class AuthApplicationService(
     IBaseRepository<ServiceProviderEntity> providerRepository,
     IRefreshTokenRepository refreshTokenRepository,
     ITokenService tokenService,
-    IPasswordHasher passwordHasher
+    IPasswordHasher passwordHasher,
+    IEmailService? emailService = null
 ) : IAuthApplicationService
 {
     private const int MinPasswordLength = 6;
@@ -33,6 +34,13 @@ public class AuthApplicationService(
     private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
     private readonly ITokenService _tokenService = tokenService;
     private readonly IPasswordHasher _passwordHasher = passwordHasher;
+    private readonly IEmailService? _emailService = emailService;
+
+    private async Task SendWelcomeEmailAsync(User user)
+    {
+        if (_emailService == null) return;
+        await _emailService.SendWelcomeNotificationAsync(user.Email, user.Name, user.Role.ToString());
+    }
 
     public async Task<Result<RegisterResponse>> RegisterCustomerAsync(RegisterCustomerRequest request)
     {
@@ -44,6 +52,7 @@ public class AuthApplicationService(
         await _userRepository.AddAsync(user);
         await _customerRepository.AddAsync(new Customer { UserId = user.Id });
         await _userRepository.SaveChangesAsync();
+        await SendWelcomeEmailAsync(user);
 
         return Result<RegisterResponse>.Success(new RegisterResponse(user.Id, user.Name, user.Email, user.Role.ToString()));
     }
@@ -58,6 +67,7 @@ public class AuthApplicationService(
         await _userRepository.AddAsync(user);
         await _providerRepository.AddAsync(new ServiceProviderEntity { UserId = user.Id });
         await _userRepository.SaveChangesAsync();
+        await SendWelcomeEmailAsync(user);
 
         return Result<RegisterResponse>.Success(new RegisterResponse(user.Id, user.Name, user.Email, user.Role.ToString()));
     }

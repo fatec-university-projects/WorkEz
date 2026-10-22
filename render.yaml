@@ -31,3 +31,17 @@ services:
         value: "7"
       - key: DelFinance__BaseUrl
         value: "https://apisandbox.delbank.com.br"
+      - key: Smtp__Host
+        value: "smtp-relay.brevo.com"
+      - key: Smtp__Port
+        value: "587"
+      - key: Smtp__Username
+        sync: false
+      - key: Smtp__Password
+        sync: false
+      - key: Smtp__FromEmail
+        value: "no.reply.workez@gmail.com"
+      - key: Smtp__FromName
+        value: "WorkEz Plataforma"
+      - key: Smtp__EnableSsl
+        value: "true"

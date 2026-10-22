@@ -36,7 +36,8 @@ public class ServiceApplicationService(
     ITrackingNotificationService? trackingNotification = null,
     IChatNotificationService? chatNotification = null,
     IPushNotificationService? pushNotification = null,
-    IWalletApplicationService? walletService = null
+    IWalletApplicationService? walletService = null,
+    IEmailService? emailService = null
 ) : IServiceApplicationService
 {
     private readonly IServiceRepository _serviceRepository = serviceRepository;
@@ -49,6 +50,49 @@ public class ServiceApplicationService(
     private readonly IChatNotificationService? _chatNotification = chatNotification;
     private readonly IPushNotificationService? _pushNotification = pushNotification;
     private readonly IWalletApplicationService? _walletService = walletService;
+    private readonly IEmailService? _emailService = emailService;
+
+    /// <summary>Best-effort status e-mail; SMTP failures are logged safely in IEmailService.</summary>
+    private async Task SendStatusEmailAsync(Guid serviceId, string oldStatus, string newStatus, bool alsoNotifyProvider = false, string? observations = null)
+    {
+        if (_emailService == null) return;
+
+        var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId);
+        if (service == null) return;
+
+        var client = service.Customer?.User;
+        if (!string.IsNullOrWhiteSpace(client?.Email))
+            await _emailService.SendOrderStatusUpdatedNotificationAsync(client!.Email, client.Name, service.Title, oldStatus, newStatus, observations);
+
+        var provider = service.Appointment?.Provider?.User;
+        if (alsoNotifyProvider && !string.IsNullOrWhiteSpace(provider?.Email))
+            await _emailService.SendOrderStatusUpdatedNotificationAsync(provider!.Email, provider.Name, service.Title, oldStatus, newStatus, observations);
+    }
+
+    private async Task<bool> TrySendPixInvoiceEmailAsync(Guid serviceId, Guid callerUserId, bool isAdmin)
+    {
+        var result = await _walletService!.SendPixInvoiceEmailAsync(serviceId, callerUserId, isAdmin);
+        return result.IsSuccess;
+    }
+
+    private async Task SendPaymentCompletedEmailsAsync(Guid serviceId, decimal? amount)
+    {
+        if (_emailService == null) return;
+
+        var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId);
+        if (service == null) return;
+
+        var value = amount ?? service.Appointment?.FinalPrice ?? 0m;
+        var transactionId = service.Id.ToString("N")[..12].ToUpperInvariant();
+
+        var client = service.Customer?.User;
+        if (!string.IsNullOrWhiteSpace(client?.Email))
+            await _emailService.SendPaymentCompletedNotificationAsync(client!.Email, client.Name, service.Title, value, "PIX", transactionId);
+
+        var provider = service.Appointment?.Provider?.User;
+        if (!string.IsNullOrWhiteSpace(provider?.Email))
+            await _emailService.SendPaymentCompletedNotificationAsync(provider!.Email, provider.Name, service.Title, value, "PIX", transactionId);
+    }
 
     public async Task<Result<IEnumerable<OpportunityCallDto>>> GetAcceptedByProviderUserAsync(Guid providerUserId, Guid callerUserId, bool isAdmin)
     {
@@ -194,12 +238,14 @@ public class ServiceApplicationService(
 
         if (status == false)
         {
+            var previousStatus = service.ServiceStatus.ToString();
             service.ServiceStatus = ServiceStatus.Cancelled;
             service.Touch();
             _serviceRepository.Update(service);
             await _serviceRepository.SaveChangesAsync();
 
             await NotifyStatusChangedAsync(serviceId, "cancelled");
+            await SendStatusEmailAsync(serviceId, previousStatus, "Cancelled", alsoNotifyProvider: true);
         }
 
         return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, service.ServiceStatus.ToString().ToLower()));
@@ -213,6 +259,7 @@ public class ServiceApplicationService(
 
         var (service, appointment) = authCheck.Value;
 
+        var previousStatus = service.ServiceStatus.ToString();
         service.ServiceStatus = ServiceStatus.OnTheWay;
         service.Touch();
         _serviceRepository.Update(service);
@@ -226,6 +273,7 @@ public class ServiceApplicationService(
 
         await _serviceRepository.SaveChangesAsync();
         await NotifyStatusChangedAsync(serviceId, "on-the-way");
+        await SendStatusEmailAsync(serviceId, previousStatus, "OnTheWay");
         DispatchDisplacementPushNotification(service);
 
         return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, "on-the-way"));
@@ -239,6 +287,7 @@ public class ServiceApplicationService(
 
         var (service, appointment) = authCheck.Value;
 
+        var previousStatus = service.ServiceStatus.ToString();
         service.ServiceStatus = ServiceStatus.InProgress;
         service.Touch();
         _serviceRepository.Update(service);
@@ -252,6 +301,7 @@ public class ServiceApplicationService(
 
         await _serviceRepository.SaveChangesAsync();
         await NotifyStatusChangedAsync(serviceId, "in-progress");
+        await SendStatusEmailAsync(serviceId, previousStatus, "InProgress");
 
         return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, "in-progress"));
     }
@@ -285,6 +335,7 @@ public class ServiceApplicationService(
             return Result<ServiceStatusResultDto>.Failure("Código de check-in inválido. Solicite ao cliente o código de 4 dígitos exibido no app dele.", "INVALID_CHECKIN_CODE");
         }
 
+        var previousStatus = service.ServiceStatus.ToString();
         service.ServiceStatus = ServiceStatus.InProgress;
         service.Touch();
         _serviceRepository.Update(service);
@@ -298,6 +349,7 @@ public class ServiceApplicationService(
 
         await _serviceRepository.SaveChangesAsync();
         await NotifyStatusChangedAsync(serviceId, "in-progress");
+        await SendStatusEmailAsync(serviceId, previousStatus, "InProgress");
 
         return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, "in-progress"));
     }
@@ -360,6 +412,7 @@ public class ServiceApplicationService(
         var (service, appointment) = authCheck.Value;
 
         // Prestador informa o valor e o serviço avança para WaitingPayment (aguardando liberação do cliente)
+        var previousStatus = service.ServiceStatus.ToString();
         service.ServiceStatus = ServiceStatus.WaitingPayment;
         service.Touch();
         _serviceRepository.Update(service);
@@ -373,9 +426,13 @@ public class ServiceApplicationService(
 
         await _serviceRepository.SaveChangesAsync();
         await NotifyStatusChangedAsync(serviceId, "waiting-payment");
-
-        // TODO: Chamar o microserviço de e-mail para enviar a notificação de cobrança e os dados do PIX para o cliente.
-        // O microserviço de e-mail está sendo desenvolvido separadamente e receberá os dados do serviço e cliente via HTTP POST.
+        // Serviço concluído: o cliente recebe por e-mail o PIX (DelFinance) para pagar.
+        // Se não for possível enviar o PIX, cai no aviso genérico de status.
+        var pixEmail = _walletService != null && _emailService != null
+            ? await TrySendPixInvoiceEmailAsync(serviceId, callerUserId, isAdmin)
+            : false;
+        if (!pixEmail)
+            await SendStatusEmailAsync(serviceId, previousStatus, "WaitingPayment");
 
         return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, "waiting-payment"));
     }
@@ -393,6 +450,7 @@ public class ServiceApplicationService(
         if (!isAdmin && !isCustomer && !isAssignedProvider)
             return Result<ServiceStatusResultDto>.Failure("Você não possui permissão para confirmar o pagamento deste serviço.", "FORBIDDEN");
 
+        var previousStatus = service.ServiceStatus.ToString();
         service.ServiceStatus = ServiceStatus.Completed;
         service.Touch();
         _serviceRepository.Update(service);
@@ -414,6 +472,9 @@ public class ServiceApplicationService(
             var price = appointment?.FinalPrice;
             await _walletService.ReleaseEscrowForServiceAsync(serviceId, price);
         }
+
+        await SendStatusEmailAsync(serviceId, previousStatus, "Completed");
+        await SendPaymentCompletedEmailsAsync(serviceId, appointment?.FinalPrice);
 
         return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, "completed"));
     }

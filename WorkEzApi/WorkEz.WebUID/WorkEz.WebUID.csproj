@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\WorkEz.Infra.Ioc\WorkEz.Infra.Ioc.csproj" />
     <ProjectReference Include="..\WorkEz.Application\WorkEz.Application.csproj" />
+    <ProjectReference Include="..\WorkEz.Domain\WorkEz.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

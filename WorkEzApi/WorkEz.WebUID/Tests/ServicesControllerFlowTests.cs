@@ -240,7 +240,7 @@ public class ServicesControllerFlowTests
     }
 
     [Fact]
-    public async Task CompleteService_ShouldSetStatusCompleted_UpdateFinalPrice_AndNotifyWebSocket()
+    public async Task CompleteService_ShouldSetStatusWaitingPayment_UpdateFinalPrice_AndNotifyWebSocket()
     {
         using var db = CreateInMemoryDbContext();
         var fakeTracker = new FakeTrackingNotificationService();
@@ -285,12 +285,12 @@ public class ServicesControllerFlowTests
 
         var updatedService = await db.Services.FindAsync(service.Id);
         Assert.NotNull(updatedService);
-        Assert.Equal(ServiceStatus.Completed, updatedService.ServiceStatus);
+        // Conclusão pelo prestador aguarda o pagamento (PIX) do cliente; Completed só após ConfirmPayment.
+        Assert.Equal(ServiceStatus.WaitingPayment, updatedService.ServiceStatus);
 
         var updatedAppt = await db.Appointments.FirstAsync(a => a.ServiceId == service.Id);
         Assert.Equal(850m, updatedAppt.FinalPrice);
-        Assert.Equal(AppointmentStatus.Completed, updatedAppt.AppointmentStatus);
-        Assert.NotNull(updatedAppt.CompletedAt);
+        Assert.Equal(AppointmentStatus.InProgress, updatedAppt.AppointmentStatus);
 
         Assert.Single(fakeTracker.Notifications);
         Assert.Equal("status_changed", fakeTracker.Notifications[0].EventType);
