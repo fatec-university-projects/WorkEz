@@ -2,13 +2,16 @@ import { useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Loader2, ShieldCheck, Star, Clock } from 'lucide-react-native';
 import { View, Text, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
 import { apiRequest } from '../../services/api';
 import { WorkEzTheme } from '../../constants/theme';
+import { geocodeAddress } from '../../hooks/useLocation';
 
 export default function SearchingProfessional() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const {
@@ -22,6 +25,8 @@ export default function SearchingProfessional() {
     neighborhood,
     city,
     state,
+    latitude,
+    longitude,
     images
   } = useLocalSearchParams<{
     category: string;
@@ -34,14 +39,32 @@ export default function SearchingProfessional() {
     neighborhood: string;
     city: string;
     state: string;
+    latitude?: string;
+    longitude?: string;
     images: string;
   }>();
 
-  const parsedImages: string[] = images ? JSON.parse(images) : [];
+  const parsedImages: string[] = (() => {
+    if (!images) return [];
+    if (Array.isArray(images)) return images;
+    try {
+      const p = JSON.parse(images);
+      return Array.isArray(p) ? p : [p];
+    } catch {
+      return [images];
+    }
+  })();
 
   const { data: customer, loading: customerLoading, error: customerError } = useFetch<any>(
     user ? `/api/Customers/by-user/${user.id}` : null
   );
+
+  useEffect(() => {
+    if (customerError) {
+      alert('Não foi possível identificar o perfil de cliente: ' + customerError);
+      router.back();
+    }
+  }, [customerError]);
 
   useEffect(() => {
     if (!customer) return;
@@ -50,11 +73,29 @@ export default function SearchingProfessional() {
 
     async function createServiceCall() {
       try {
+        let resolvedLat: number | undefined = latitude ? parseFloat(latitude) : undefined;
+        let resolvedLon: number | undefined = longitude ? parseFloat(longitude) : undefined;
+
+        if (resolvedLat === undefined || isNaN(resolvedLat) || resolvedLon === undefined || isNaN(resolvedLon)) {
+          const geo = await geocodeAddress({
+            street,
+            number,
+            neighborhood,
+            city,
+            state,
+            postalCode: cep,
+          });
+          if (geo) {
+            resolvedLat = geo.latitude;
+            resolvedLon = geo.longitude;
+          }
+        }
+
         const payload = {
           title: `Chamado para ${category || 'Serviço'}`,
           description: description || '',
           categoryId: categoryId,
-          imageUrl: parsedImages.length > 0 ? parsedImages[0] : null,
+          imageUrl: parsedImages.length > 0 ? (parsedImages.length === 1 ? parsedImages[0] : JSON.stringify(parsedImages)) : null,
           address: {
             zipCode: cep,
             street: street,
@@ -63,7 +104,9 @@ export default function SearchingProfessional() {
             neighborhood: neighborhood,
             city: city,
             state: state,
-            addressType: 'Home'
+            addressType: 'Home',
+            latitude: resolvedLat,
+            longitude: resolvedLon
           }
         };
 
@@ -101,7 +144,7 @@ export default function SearchingProfessional() {
   }, [customer]);
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between">
+    <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: insets.top > 0 ? insets.top + 12 : 20, paddingBottom: insets.bottom > 0 ? insets.bottom + 12 : 20, justifyContent: 'space-between' }}>
       <View className="flex-1 flex flex-col items-center justify-center p-8">
         <View className="w-24 h-24 bg-[#2563EB]/10 rounded-full flex-row items-center justify-center mb-6 relative">
           <Loader2 className="w-12 h-12 text-[#2563EB] animate-spin" />
@@ -120,6 +163,15 @@ export default function SearchingProfessional() {
             Obtendo dados do perfil do cliente...
           </Text>
         )}
+
+        <View style={{ marginTop: 24 }}>
+          <Text
+            onPress={() => router.back()}
+            style={{ color: '#EF4444', fontWeight: '600', fontSize: 14, textDecorationLine: 'underline', padding: 8 }}
+          >
+            Cancelar e voltar
+          </Text>
+        </View>
       </View>
 
       <View className="p-6 space-y-3 bg-white border-t border-[#E2E8F0]">

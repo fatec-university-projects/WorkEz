@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 export default function CancelCall() {
   const router = useRouter();
@@ -18,19 +19,7 @@ export default function CancelCall() {
 
   return (
     <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
-          </TouchableOpacity>
-          <Text className="text-xl font-semibold text-[#0F172A]">
-            Cancelar chamado
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title="Cancelar chamado" showBack />
 
       <View className="p-6 space-y-6">
         <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">

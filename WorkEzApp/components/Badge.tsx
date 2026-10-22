@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     fontWeight: WorkEzTheme.typography.fontWeight.medium,
   },
   textCyan: {
-    color: WorkEzTheme.colors.primary,
+    color: '#0F766E', // Versão com alto contraste para texto legível
   },
   textBlue: {
     color: '#2563EB',

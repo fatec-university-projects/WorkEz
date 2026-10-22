@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../constants/theme';
 import { API_BASE_URL, apiRequest } from '../../services/api';
 import { imageService } from '../../services/imageService';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { geocodeAddress } from '../../hooks/useLocation';
 
 export default function DescribeService() {
   const router = useRouter();
@@ -29,6 +31,7 @@ export default function DescribeService() {
   const [neighborhood, setNeighborhood] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -48,10 +51,26 @@ export default function DescribeService() {
         const response = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
         const json = await response.json();
         if (json && !json.erro) {
-          setStreet(json.logradouro || '');
-          setNeighborhood(json.bairro || '');
-          setCity(json.localidade || '');
-          setState(json.uf || '');
+          const st = json.logradouro || '';
+          const nb = json.bairro || '';
+          const ct = json.localidade || '';
+          const uf = json.uf || '';
+
+          setStreet(st);
+          setNeighborhood(nb);
+          setCity(ct);
+          setState(uf);
+
+          // Geocodificação em background para coordenadas precisas
+          geocodeAddress({
+            street: st,
+            neighborhood: nb,
+            city: ct,
+            state: uf,
+            postalCode: cleaned,
+          }).then((c) => {
+            if (c) setCoords(c);
+          }).catch(() => {});
         } else {
           alert('CEP não encontrado.');
         }
@@ -76,14 +95,15 @@ export default function DescribeService() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
+      base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const selectedUri = result.assets[0].uri;
+      const asset = result.assets[0];
       setUploading(true);
 
       try {
-        const imageUrl = await imageService.uploadImage(selectedUri);
+        const imageUrl = await imageService.uploadImage(asset.uri, asset.base64);
         setImages(prev => [...prev, imageUrl]);
         alert('Imagem enviada com sucesso!');
       } catch (err) {
@@ -101,20 +121,7 @@ export default function DescribeService() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Descreva o serviço
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title="Descreva o serviço" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Categoria */}
@@ -247,6 +254,8 @@ export default function DescribeService() {
               neighborhood,
               city,
               state,
+              latitude: coords?.latitude?.toString() || '',
+              longitude: coords?.longitude?.toString() || '',
               images: JSON.stringify(images)
             }
           } as any)}

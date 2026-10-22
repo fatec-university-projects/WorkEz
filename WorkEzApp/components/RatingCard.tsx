@@ -1,6 +1,7 @@
 import { Star, User } from 'lucide-react-native';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { WorkEzTheme } from '../constants/theme';
+import { resolveImageUrl } from '../services/api';
 
 interface RatingCardProps {
   clientName: string;
@@ -19,12 +20,44 @@ export function RatingCard({
   date,
   tags = [],
 }: RatingCardProps) {
+  let displayTags = tags && tags.length > 0 ? [...tags] : [];
+  let displayComment = (comment || '').trim();
+
+  // Extrai tags embutidas no formato [tag1, tag2] comentário
+  const bracketMatch = displayComment.match(/^\[(.*?)\]\s*(.*)$/s);
+  if (bracketMatch) {
+    const extractedTags = bracketMatch[1]
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    if (displayTags.length === 0) {
+      displayTags = extractedTags;
+    }
+    displayComment = bracketMatch[2].trim();
+  }
+
+  // Remove qualquer aspas residuais no início ou fim do comentário
+  displayComment = displayComment.replace(/^["'“”«»]+|["'“”«»]+$/g, '').trim();
+
+  // Se o comentário for vazio ou mensagem padrão automática, deixa em branco para exibir apenas as estrelas
+  if (
+    displayComment === 'Serviço avaliado pelo cliente.' ||
+    displayComment === 'Nenhum comentário deixado.' ||
+    displayComment.toLowerCase() === 'sem comentário' ||
+    displayComment.toLowerCase() === 'sem comentario'
+  ) {
+    displayComment = '';
+  }
+
+  const hasExtraContent = Boolean(displayComment || displayTags.length > 0);
+
   return (
     <View style={styles.cardContainer}>
       <View style={styles.contentRow}>
         {clientPhoto ? (
           <Image
-            source={{ uri: clientPhoto }}
+            source={{ uri: resolveImageUrl(clientPhoto) || clientPhoto }}
             style={styles.avatar}
           />
         ) : (
@@ -39,7 +72,7 @@ export function RatingCard({
             <Text style={styles.dateText}>{date}</Text>
           </View>
 
-          <View style={styles.ratingRow}>
+          <View style={[styles.ratingRow, !hasExtraContent && { marginBottom: 0 }]}>
             {[1, 2, 3, 4, 5].map((star) => (
               <Star
                 key={star}
@@ -50,11 +83,9 @@ export function RatingCard({
             ))}
           </View>
 
-          <Text style={styles.commentText}>{comment}</Text>
-
-          {tags.length > 0 && (
+          {displayTags.length > 0 && (
             <View style={styles.tagsContainer}>
-              {tags.map((tag, index) => (
+              {displayTags.map((tag, index) => (
                 <View key={index} style={styles.tagBadge}>
                   <Text style={styles.tagText}>
                     {tag}
@@ -63,6 +94,10 @@ export function RatingCard({
               ))}
             </View>
           )}
+
+          {displayComment ? (
+            <Text style={styles.commentText}>{displayComment}</Text>
+          ) : null}
         </View>
       </View>
     </View>
@@ -106,10 +141,13 @@ const styles = StyleSheet.create({
     ...WorkEzTheme.typography.base,
     fontWeight: WorkEzTheme.typography.fontWeight.medium,
     color: WorkEzTheme.colors.text,
+    flex: 1,
+    marginRight: 8,
   },
   dateText: {
     ...WorkEzTheme.typography.xs,
     color: WorkEzTheme.colors.textSecondary,
+    flexShrink: 0,
   },
   ratingRow: {
     flexDirection: 'row',
@@ -119,22 +157,27 @@ const styles = StyleSheet.create({
   },
   commentText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
-    marginBottom: 12,
+    color: '#334155',
+    lineHeight: 20,
+    marginTop: 4,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
+    marginBottom: 8,
   },
   tagBadge: {
-    backgroundColor: 'rgba(38, 255, 245, 0.1)', // Primary with opacity
-    borderRadius: WorkEzTheme.borderRadius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   tagText: {
-    ...WorkEzTheme.typography.xs,
-    color: WorkEzTheme.colors.primary,
+    fontSize: 12,
+    color: '#1D4ED8',
+    fontWeight: '600',
   },
 });

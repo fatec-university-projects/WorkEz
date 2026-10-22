@@ -14,8 +14,10 @@ const ROUTES_WITHOUT_NAV = [
   '/provider/interview',
   '/provider/analysis',
   '/provider/new-call',
+  '/provider/accepted',
   '/provider/in-progress',
   '/provider/waiting-payment',
+  '/provider/chat',
 ];
 
 // ─── Route Guard — Área do Prestador ─────────────────────────────────────────
@@ -63,8 +65,8 @@ export default function ProviderLayout() {
   }
 
   return (
-    <View className="flex-1 bg-[#F8FAFC]">
-      <View className="flex-1">
+    <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <View style={{ flex: 1 }}>
         <Slot />
       </View>
       {showNav && <BottomNav type="provider" />}

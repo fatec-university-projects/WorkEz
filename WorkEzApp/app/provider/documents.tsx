@@ -5,6 +5,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 interface DocumentStatus {
   id: string;
@@ -53,21 +54,12 @@ export default function DocumentVerification() {
 
   return (
     <View style={styles.container}>
+      <ScreenHeader
+        title="Verificação de documentos"
+        subtitle="Envie seus documentos para validação"
+        showBack
+      />
       <ScrollView contentContainerStyle={styles.content}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-          activeOpacity={0.8}
-        >
-          <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>
-          Verificação de documentos
-        </Text>
-        <Text style={styles.subtitle}>
-          Envie seus documentos para validação
-        </Text>
 
         {loading ? (
           <View style={styles.centerContainer}>

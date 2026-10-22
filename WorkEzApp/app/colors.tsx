@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Check } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import { Logo } from '../components/Logo';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 
 export default function ColorPalette() {
   const router = useRouter();
@@ -43,20 +44,9 @@ export default function ColorPalette() {
   ];
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-white px-6 py-4 border-b border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-[#0F172A]" />
-          </TouchableOpacity>
-          <Text className="text-xl font-semibold text-[#0F172A]">
-            Paleta de Cores - WorkEz
-          </Text>
-        </View>
-      </View>
+    <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <ScreenHeader title="Paleta de Cores" subtitle="WorkEz Design System" showBack />
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
 
       <View className="p-6 space-y-6">
         {/* Logo Section */}
@@ -160,6 +150,7 @@ export default function ColorPalette() {
           </View>
         </View>
       </View>
+      </ScrollView>
     </View>
   );
 }

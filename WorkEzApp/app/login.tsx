@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Mail, Lock } from 'lucide-react-native';
+import { Mail, Lock } from 'lucide-react-native';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { ScreenHeader } from '../components/ScreenHeader';
 import {
   View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator, Alert,
@@ -90,72 +91,67 @@ export default function Login() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
+      <ScreenHeader
+        title="Bem-vindo de volta"
+        subtitle="Acesse sua conta para continuar"
+        showBack
+      />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.mainContent}>
+          <View style={styles.formContainer}>
+            <View style={styles.inputWrapper}>
+              <Mail size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+              <Input
+                placeholder="Seu e-mail"
+                value={email}
+                onChangeText={(val) => {
+                  setEmail(val);
+                  setErrors((e) => ({ ...e, email: undefined }));
+                  setApiError(null);
+                }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                error={errors.email}
+                style={styles.inputWithIcon}
+              />
+            </View>
 
-          <Text style={styles.title}>
-            Bem-vindo de volta
-          </Text>
-          <Text style={styles.subtitle}>
-            Acesse sua conta para continuar
-          </Text>
+            <View style={styles.inputWrapper}>
+              <Lock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+              <Input
+                secureTextEntry
+                placeholder="Sua senha"
+                value={password}
+                onChangeText={(val) => {
+                  setPassword(val);
+                  setErrors((e) => ({ ...e, password: undefined }));
+                  setApiError(null);
+                }}
+                autoComplete="password"
+                error={errors.password}
+                style={styles.inputWithIcon}
+              />
+            </View>
+
+            <TouchableOpacity onPress={() => Alert.alert('Em breve', 'Recuperação de senha disponível em breve.')}>
+              <Text style={styles.forgotPasswordText}>
+                Esqueci minha senha
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Erro da API */}
+          {apiError ? (
+            <View style={styles.apiErrorContainer}>
+              <Text style={styles.apiErrorText}>{apiError}</Text>
+            </View>
+          ) : null}
         </View>
-
-        <View style={styles.formContainer}>
-          <View style={styles.inputWrapper}>
-            <Mail size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
-            <Input
-              placeholder="Seu e-mail"
-              value={email}
-              onChangeText={(val) => {
-                setEmail(val);
-                setErrors((e) => ({ ...e, email: undefined }));
-                setApiError(null);
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              error={errors.email}
-              style={styles.inputWithIcon}
-            />
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <Lock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
-            <Input
-              secureTextEntry
-              placeholder="Sua senha"
-              value={password}
-              onChangeText={(val) => {
-                setPassword(val);
-                setErrors((e) => ({ ...e, password: undefined }));
-                setApiError(null);
-              }}
-              autoComplete="password"
-              error={errors.password}
-              style={styles.inputWithIcon}
-            />
-          </View>
-
-          <TouchableOpacity onPress={() => Alert.alert('Em breve', 'Recuperação de senha disponível em breve.')}>
-            <Text style={styles.forgotPasswordText}>
-              Esqueci minha senha
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Erro da API */}
-        {apiError && (
-          <View style={styles.apiErrorContainer}>
-            <Text style={styles.apiErrorText}>{apiError}</Text>
-          </View>
-        )}
 
         <View style={styles.footerContainer}>
           <Button variant="secondary" fullWidth onPress={handleLogin} disabled={loading}>
@@ -187,26 +183,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: 24,
-    justifyContent: 'center',
+    paddingTop: 16,
+    justifyContent: 'space-between',
   },
-  header: {
-    marginBottom: 32,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginBottom: 32,
-  },
-  title: {
-    ...WorkEzTheme.typography.xl,
-    fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
+  mainContent: {
+    gap: 16,
   },
   formContainer: {
     gap: 16,

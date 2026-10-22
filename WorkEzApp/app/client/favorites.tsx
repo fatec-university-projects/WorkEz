@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-nat
 import { WorkEzTheme } from '../../constants/theme';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../contexts/AuthContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 interface FavoriteProfessional {
   id: string;
@@ -31,10 +32,7 @@ export default function Favorites() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Favoritos</Text>
-        <Text style={styles.headerSubtitle}>Seus profissionais salvos</Text>
-      </View>
+      <ScreenHeader title="Favoritos" subtitle="Seus profissionais salvos" />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {loading ? (

@@ -1,8 +1,50 @@
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { safeStorage as AsyncStorage } from './storage';
 
 const STORAGE_KEY_ACCESS = '@workez_access_token';
 const STORAGE_KEY_REFRESH = '@workez_refresh_token';
-const API_BASE_URL = 'https://workez-api.onrender.com';
+const PRODUCTION_API_URL = 'https://workez-api.onrender.com';
+const LOCAL_API_URL = 'http://localhost:5065';
+
+function resolveApiBaseUrl(): string {
+  // Em modo de desenvolvimento (__DEV__), o padrão é a API local (http://localhost:5065)
+  const defaultUrl = __DEV__ ? LOCAL_API_URL : PRODUCTION_API_URL;
+  let url = (process.env.EXPO_PUBLIC_API_URL || defaultUrl).replace(/\/+$/, '');
+
+  // Se estiver em dispositivo móvel (físico ou emulador) e a URL contiver localhost/127.0.0.1:
+  // Resolve automaticamente para o IP da máquina host onde o Metro Bundler está rodando.
+  if (Platform.OS !== 'web' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest?.debuggerHost;
+    const hostIp = hostUri ? hostUri.split(':')[0] : null;
+
+    if (hostIp) {
+      url = url.replace('localhost', hostIp).replace('127.0.0.1', hostIp);
+    } else if (Platform.OS === 'android') {
+      url = url.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
+    }
+  }
+
+  return url;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
+
+if (__DEV__) {
+  console.log(`[WorkEz API] Conectando a: ${API_BASE_URL}`);
+}
+
+export async function getWebSocketUrl(path: string): Promise<string> {
+  const currentApiUrl = resolveApiBaseUrl();
+  const base = currentApiUrl.replace(/^http/, 'ws');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const token = await AsyncStorage.getItem(STORAGE_KEY_ACCESS);
+  if (!token) {
+    return `${base}${normalizedPath}`;
+  }
+  const separator = normalizedPath.includes('?') ? '&' : '?';
+  return `${base}${normalizedPath}${separator}access_token=${encodeURIComponent(token)}`;
+}
 
 export async function apiRequest<T>(
   endpoint: string,
@@ -23,7 +65,12 @@ export async function apiRequest<T>(
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
-    }).catch(() => null);
+    }).catch((fetchErr) => {
+      if (__DEV__) {
+        console.warn(`[WorkEz API] Falha ao conectar em ${API_BASE_URL}${endpoint}:`, fetchErr?.message || fetchErr);
+      }
+      return null;
+    });
 
     if (response && response.ok) {
       if (response.status === 204) {
@@ -56,7 +103,17 @@ export async function apiRequest<T>(
 
     if (response && response.status === 401) {
       await (AsyncStorage as any).multiRemove([STORAGE_KEY_ACCESS, STORAGE_KEY_REFRESH]);
-      return { data: null, error: 'Sessão expirada. Faça login novamente.', status: 401 };
+      const errorBody = await response.json().catch(() => null);
+      const isAuthEndpoint = endpoint.toLowerCase().includes('/auth/');
+      const defaultMsg = isAuthEndpoint || !token
+        ? 'E-mail ou senha incorretos.'
+        : 'Sessão expirada. Faça login novamente.';
+
+      return {
+        data: null,
+        error: errorBody?.message || defaultMsg,
+        status: 401,
+      };
     }
 
     if (response) {
@@ -104,6 +161,167 @@ async function tryRefreshToken(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export function resolveImageUrl(url?: string | null): string | undefined {
+  if (!url || typeof url !== 'string') return undefined;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith('data:')) return trimmed;
+  if (trimmed.startsWith('/')) {
+    return `${API_BASE_URL}${trimmed}`;
+  }
+  if (Platform.OS !== 'web' && (trimmed.includes('localhost') || trimmed.includes('127.0.0.1'))) {
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest?.debuggerHost;
+    const hostIp = hostUri ? hostUri.split(':')[0] : null;
+    if (hostIp) {
+      return trimmed.replace('localhost', hostIp).replace('127.0.0.1', hostIp);
+    }
+  }
+  return trimmed;
+}
+
+// ─── Wallet & Delfinance API ──────────────────────────────────────────────────
+
+export interface CommissionDetail {
+  serviceTitle: string;
+  grossAmount: number;
+  laborAmount: number;
+  materialsAmount: number;
+  platformFeeAmount: number;
+  netAmount: number;
+  date: string;
+}
+
+export interface WalletSummary {
+  providerId: string;
+  availableBalance: number;
+  escrowBalance: number;
+  thisMonthGross: number;
+  thisMonthNet: number;
+  totalWithdrawn: number;
+  pendingWithdrawal: number;
+  platformFeePercent: number;
+  materialsFeePercent: number;
+  lastCommission: CommissionDetail | null;
+  defaultPixKey?: string;
+  defaultPixKeyType?: string;
+}
+
+export interface WalletStatementItem {
+  id: string;
+  date: string;
+  createdAt: string;
+  description: string;
+  serviceTitle?: string;
+  transactionType: 'Credit' | 'PlatformFee' | 'EscrowHold' | 'EscrowRelease' | 'Withdrawal';
+  transactionTypeLabel: string;
+  grossAmount: number;
+  laborAmount: number;
+  materialsAmount: number;
+  platformFeeAmount: number;
+  amount: number;
+  status: string;
+  statusLabel: string;
+  receiptNumber?: string;
+}
+
+export interface WalletStatementResponse {
+  items: WalletStatementItem[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface WithdrawalRequestPayload {
+  providerId?: string;
+  amount: number;
+  pixKey: string;
+  pixKeyType: string;
+}
+
+export interface WithdrawalResponse {
+  id: string;
+  providerId: string;
+  amount: number;
+  pixKey: string;
+  pixKeyType: string;
+  status: string;
+  receiptNumber: string;
+  processedAt: string;
+  newAvailableBalance: number;
+}
+
+export async function fetchWalletSummary(providerId: string) {
+  return apiRequest<WalletSummary>(`/api/Wallet/summary/${providerId}`, { method: 'GET' }, true);
+}
+
+export async function fetchWalletStatement(providerId: string, filter?: string) {
+  const query = filter && filter !== 'all' ? `?filter=${encodeURIComponent(filter)}` : '';
+  return apiRequest<WalletStatementResponse>(`/api/Wallet/statement/${providerId}${query}`, { method: 'GET' }, true);
+}
+
+export async function requestPixWithdrawal(payload: WithdrawalRequestPayload) {
+  return apiRequest<WithdrawalResponse>('/api/Wallet/withdraw', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, true);
+}
+
+export interface EscrowCheckoutPixResponse {
+  serviceId: string;
+  serviceTitle: string;
+  totalAmount: number;
+  laborAmount: number;
+  materialsAmount: number;
+  pixCopiaECola: string;
+  qrCodeBase64: string;
+  correlationId: string;
+  transactionId: string;
+  expiresAt: string;
+}
+
+export async function generateEscrowPixCheckout(serviceId: string) {
+  return apiRequest<EscrowCheckoutPixResponse>(`/api/Wallet/checkout-pix/${serviceId}`, {
+    method: 'POST',
+  }, true);
+}
+
+export interface ValidateCheckInResponse {
+  id: string;
+  status: string;
+}
+
+export async function validateCheckIn(serviceId: string, code: string) {
+  return apiRequest<ValidateCheckInResponse>(`/api/Services/${serviceId}/validate-checkin`, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  }, true);
+}
+
+export async function uploadChecklistPhotos(
+  serviceId: string,
+  phase: 'before' | 'after',
+  photos: string[],
+  signatureUrl?: string
+) {
+  return apiRequest<any>(`/api/Services/${serviceId}/checklist-photos`, {
+    method: 'POST',
+    body: JSON.stringify({ phase, photos, signatureUrl }),
+  }, true);
+}
+
+export async function confirmServicePayment(serviceId: string) {
+  return apiRequest<{ id: string; status: string }>(`/api/Services/${serviceId}/confirm-payment`, {
+    method: 'POST',
+  }, true);
+}
+
+export async function resendPixEmail(serviceId: string) {
+  return apiRequest<{ message: string }>(`/api/Wallet/resend-pix-email/${serviceId}`, {
+    method: 'POST',
+  }, true);
 }
 
 export { API_BASE_URL, STORAGE_KEY_ACCESS, STORAGE_KEY_REFRESH };

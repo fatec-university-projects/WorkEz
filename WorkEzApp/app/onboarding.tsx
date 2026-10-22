@@ -41,7 +41,7 @@ export default function Onboarding() {
   const Icon = slide.icon;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <Icon size={48} color={WorkEzTheme.colors.primary} />
