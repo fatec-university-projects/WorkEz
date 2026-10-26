@@ -1,5 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useAppTheme } from '../../../contexts/ThemeContext';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { formatDate } from '../../../utils/date';
 import { 
   ArrowLeft, 
   MapPin, 
@@ -71,6 +73,8 @@ interface ServiceDetail {
 }
 
 export default function AcceptedService() {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -122,8 +126,11 @@ export default function AcceptedService() {
   );
 
   // Conexão WebSocket em tempo real para sincronizar status instantaneamente + Polling de redundância
+  const rawServiceStatus = (service?.status || '').toLowerCase();
+  const isServiceFinished = rawServiceStatus === 'completed' || rawServiceStatus === 'cancelled';
+
   useEffect(() => {
-    if (!id) return;
+    if (!id || isServiceFinished) return;
 
     let ws: WebSocket | null = null;
     let reconnectTimeout: any = null;
@@ -182,7 +189,7 @@ export default function AcceptedService() {
         ws.close();
       }
     };
-  }, [id, refetch]);
+  }, [id, refetch, isServiceFinished]);
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -679,7 +686,7 @@ export default function AcceptedService() {
                 <Calendar size={16} color="#64748B" />
                 <Text style={styles.infoMetaLabel}>Data do Serviço</Text>
               </View>
-              <Text style={styles.infoMetaValue}>{service.date || 'Hoje'}</Text>
+              <Text style={styles.infoMetaValue}>{service.date ? formatDate(service.date) : 'Hoje'}</Text>
             </View>
 
             <View style={styles.infoCol}>
@@ -726,8 +733,8 @@ export default function AcceptedService() {
             onPress={handleOpenChat}
             activeOpacity={0.8}
           >
-            <MessageCircle size={18} color="#2563EB" />
-            <Text style={styles.chatButtonText}>Conversar no Chat com o Cliente</Text>
+            <MessageCircle size={18} color={isDark ? '#60A5FA' : '#2563EB'} />
+            <Text style={styles.chatButtonText}>{isCompleted || isCancelled ? 'Ver Histórico do Chat (Encerrado)' : 'Conversar no Chat com o Cliente'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -1057,85 +1064,85 @@ export default function AcceptedService() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     padding: 24,
   },
   loadingText: {
     marginTop: 14,
     fontSize: 15,
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
     marginTop: 12,
   },
   errorSub: {
     fontSize: 14,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 6,
     textAlign: 'center',
     marginBottom: 20,
   },
   badgeSuccess: {
-    backgroundColor: 'rgba(22, 163, 74, 0.12)',
+    backgroundColor: isDark ? 'rgba(22, 163, 74, 0.2)' : 'rgba(22, 163, 74, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(22, 163, 74, 0.25)',
+    borderColor: isDark ? 'rgba(22, 163, 74, 0.4)' : 'rgba(22, 163, 74, 0.25)',
   },
   badgeSuccessText: {
-    color: '#15803D',
+    color: isDark ? '#4ADE80' : '#15803D',
     fontWeight: '700',
     fontSize: 12,
   },
   badgePrimary: {
-    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : 'rgba(37, 99, 235, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(37, 99, 235, 0.25)',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : 'rgba(37, 99, 235, 0.25)',
   },
   badgePrimaryText: {
-    color: '#1D4ED8',
+    color: isDark ? '#93C5FD' : '#1D4ED8',
     fontWeight: '700',
     fontSize: 12,
   },
   badgeWarning: {
-    backgroundColor: 'rgba(217, 119, 6, 0.12)',
+    backgroundColor: isDark ? 'rgba(217, 119, 6, 0.2)' : 'rgba(217, 119, 6, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(217, 119, 6, 0.25)',
+    borderColor: isDark ? 'rgba(217, 119, 6, 0.4)' : 'rgba(217, 119, 6, 0.25)',
   },
   badgeWarningText: {
-    color: '#B45309',
+    color: isDark ? '#FCD34D' : '#B45309',
     fontWeight: '700',
     fontSize: 12,
   },
   badgeDanger: {
-    backgroundColor: 'rgba(220, 38, 38, 0.12)',
+    backgroundColor: isDark ? 'rgba(220, 38, 38, 0.2)' : 'rgba(220, 38, 38, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(220, 38, 38, 0.25)',
+    borderColor: isDark ? 'rgba(220, 38, 38, 0.4)' : 'rgba(220, 38, 38, 0.25)',
   },
   badgeDangerText: {
-    color: '#B91C1C',
+    color: isDark ? '#FCA5A5' : '#B91C1C',
     fontWeight: '700',
     fontSize: 12,
   },
@@ -1150,50 +1157,50 @@ const styles = StyleSheet.create({
   statusBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : '#BBF7D0',
     borderRadius: 14,
     padding: 14,
     gap: 12,
     marginBottom: 16,
   },
   bannerSuccess: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4',
+    borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : '#BBF7D0',
   },
   bannerPrimary: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE',
   },
   bannerWarning: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#FDE68A',
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+    borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
   },
   bannerDanger: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+    borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FECACA',
   },
   statusBannerTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#166534',
+    color: colors.text,
     marginBottom: 2,
   },
   statusBannerText: {
     fontSize: 13,
-    color: '#15803D',
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
+    shadowOpacity: isDark ? 0.25 : 0.04,
     shadowRadius: 3,
     elevation: 1,
     marginBottom: 16,
@@ -1207,53 +1214,54 @@ const styles = StyleSheet.create({
   serviceCategory: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
   },
   serviceLabel: {
     fontSize: 13,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   priceContainer: {
     alignItems: 'flex-end',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 12,
+    backgroundColor: isDark ? 'rgba(52, 211, 153, 0.14)' : '#F0FDF4',
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: isDark ? 'rgba(52, 211, 153, 0.35)' : '#BBF7D0',
   },
   priceLabel: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
+    fontWeight: '700',
+    color: isDark ? '#A7F3D0' : '#15803D',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   priceValue: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '800',
-    color: '#15803D',
+    color: isDark ? '#34D399' : '#166534',
     marginTop: 2,
   },
   descriptionBox: {
     flexDirection: 'row',
     gap: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 12,
     marginTop: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
   },
   descriptionText: {
     flex: 1,
     fontSize: 13,
-    color: '#334155',
+    color: colors.text,
     lineHeight: 19,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.border,
     marginVertical: 14,
   },
   infoGrid: {
@@ -1271,18 +1279,18 @@ const styles = StyleSheet.create({
   },
   infoMetaLabel: {
     fontSize: 12,
-    color: '#64748B',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   infoMetaValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
+    color: colors.text,
   },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
     marginBottom: 12,
   },
   clientRow: {
@@ -1295,24 +1303,24 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : '#DBEAFE',
   },
   clientName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
   },
   clientPhone: {
     fontSize: 13,
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   clientSub: {
     fontSize: 12,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   chatButton: {
@@ -1320,9 +1328,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE',
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -1330,36 +1338,36 @@ const styles = StyleSheet.create({
   chatButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2563EB',
+    color: isDark ? '#60A5FA' : '#2563EB',
   },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
   },
   addressIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   addressTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   addressValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
+    color: colors.text,
     lineHeight: 20,
   },
   timelineItem: {
@@ -1376,25 +1384,25 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   timelineDotDone: {
-    backgroundColor: '#16A34A',
+    backgroundColor: colors.secondary,
   },
   timelineDotActive: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
   },
   timelineDotPending: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
   },
   timelineConnector: {
     width: 2,
     height: 20,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.border,
     marginLeft: 12,
     marginVertical: 2,
   },
   timelineConnectorDone: {
-    backgroundColor: '#16A34A',
+    backgroundColor: colors.secondary,
   },
   timelineBody: {
     flex: 1,
@@ -1402,21 +1410,21 @@ const styles = StyleSheet.create({
   timelineTitleDone: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#15803D',
+    color: colors.secondary,
   },
   timelineTitleActive: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2563EB',
+    color: colors.primary,
   },
   timelineTitlePending: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: colors.textSecondary,
   },
   timelineDesc: {
     fontSize: 12,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 2,
     lineHeight: 17,
   },
@@ -1425,9 +1433,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: colors.border,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 28 : 16,
@@ -1440,14 +1448,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     width: '100%',
     maxWidth: 760,
     paddingVertical: 14,
     borderRadius: 14,
     shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: isDark ? 0.35 : 0.25,
     shadowRadius: 8,
     elevation: 3,
   },
@@ -1460,26 +1468,26 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   btnSecondary: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE',
   },
   btnSecondaryText: {
-    color: '#2563EB',
+    color: colors.primary,
     fontWeight: '600',
     fontSize: 14,
   },
   // ─── Estilos de Segurança e Check-In (Branch 5) ──────────────────────────
   providerSecurityAlertCard: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1.5,
-    borderColor: '#93C5FD',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : '#93C5FD',
   },
   providerSecurityHeaderRow: {
     flexDirection: 'row',
@@ -1491,18 +1499,18 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   providerSecurityTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E3A8A',
+    color: colors.text,
   },
   providerSecuritySubtitle: {
     fontSize: 12,
-    color: '#3B82F6',
+    color: colors.textSecondary,
     marginTop: 2,
     lineHeight: 16,
   },
@@ -1511,7 +1519,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     borderRadius: 12,
   },
@@ -1524,28 +1532,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : '#BBF7D0',
   },
   validatedBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#166534',
+    color: isDark ? '#6EE7B7' : '#166534',
   },
   cardHelperText: {
     fontSize: 12,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginBottom: 10,
     lineHeight: 16,
   },
   checklistPhotoSectionTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#334155',
+    color: colors.text,
   },
   addPhotoMiniBtn: {
     flexDirection: 'row',
@@ -1554,22 +1562,22 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 8,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE',
   },
   addPhotoMiniBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#2563EB',
+    color: colors.primary,
   },
   checklistThumb: {
     width: 84,
     height: 84,
     borderRadius: 10,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
   },
   modalBackdrop: {
     flex: 1,
@@ -1579,7 +1587,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   checkInModalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 22,
     width: '100%',
@@ -1596,14 +1604,14 @@ const styles = StyleSheet.create({
   checkInModalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
   },
   closeBtn: {
     padding: 4,
   },
   checkInModalDesc: {
     fontSize: 13,
-    color: '#64748B',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 18,
@@ -1611,14 +1619,14 @@ const styles = StyleSheet.create({
   otpInputBox: {
     width: '100%',
     height: 64,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     borderRadius: 14,
     fontSize: 32,
     fontWeight: '800',
     textAlign: 'center',
-    color: '#1D4ED8',
+    color: colors.primary,
     letterSpacing: 10,
     marginVertical: 8,
   },
@@ -1626,16 +1634,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FECACA',
     padding: 8,
     borderRadius: 8,
     marginTop: 6,
     width: '100%',
   },
   errorAlertText: {
-    color: '#DC2626',
+    color: colors.danger,
     fontSize: 12,
     fontWeight: '600',
     flex: 1,
@@ -1645,13 +1653,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
   },
   cancelModalBtnText: {
-    color: '#475569',
+    color: colors.textSecondary,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -1661,7 +1669,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 12,
   },
@@ -1674,7 +1682,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 380,
     borderRadius: 12,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.surface,
     marginTop: 10,
   },
 });

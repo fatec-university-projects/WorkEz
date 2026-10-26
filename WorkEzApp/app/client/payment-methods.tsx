@@ -1,80 +1,89 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ShieldCheck, CreditCard, QrCode, Lock } from 'lucide-react-native';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { WorkEzTheme } from '../../constants/theme';
+import { ShieldCheck, CreditCard, QrCode, Lock } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Button } from '../../components/Button';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { useAppTheme } from '../../contexts/ThemeContext';
 
 export default function PaymentMethods() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
       <ScreenHeader title="Formas de pagamento" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Safe banner */}
-        <View style={styles.heroCard}>
-          <View style={styles.iconCircle}>
+        <View style={[styles.heroCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5' }]}>
             <Lock size={36} color="#10B981" />
           </View>
-          <Text style={styles.heroTitle}>Pagamento 100% Seguro</Text>
-          <Text style={styles.heroSubtitle}>
+          <Text style={[styles.heroTitle, { color: colors.text }]}>Pagamento 100% Seguro</Text>
+          <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
             Todos os pagamentos dentro da plataforma WorkEz são processados com total segurança através do DelFinance BaaS.
           </Text>
         </View>
 
         {/* Info list */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Como funciona o processamento?</Text>
+        <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Como funciona o processamento?</Text>
 
           <View style={styles.infoRow}>
-            <View style={[styles.iconWrapper, { backgroundColor: '#ECFDF5' }]}>
+            <View style={[styles.iconWrapper, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5' }]}>
               <ShieldCheck size={20} color="#10B981" />
             </View>
             <View style={styles.infoTextWrapper}>
-              <Text style={styles.infoLabel}>Proteção de dados</Text>
-              <Text style={styles.infoValue}>
+              <Text style={[styles.infoLabel, { color: colors.text }]}>Proteção de dados</Text>
+              <Text style={[styles.infoValue, { color: colors.textSecondary }]}>
                 Não salvamos seus dados nos nossos servidores. Todo o processamento é feito diretamente pelo ambiente bancário regulado do DelFinance BaaS.
               </Text>
             </View>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <View style={styles.infoRow}>
-            <View style={[styles.iconWrapper, { backgroundColor: '#EFF6FF' }]}>
-              <QrCode size={20} color="#2563EB" />
+            <View style={[styles.iconWrapper, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF' }]}>
+              <QrCode size={20} color={isDark ? '#60A5FA' : '#2563EB'} />
             </View>
             <View style={styles.infoTextWrapper}>
-              <Text style={styles.infoLabel}>PIX instantâneo</Text>
-              <Text style={styles.infoValue}>
+              <Text style={[styles.infoLabel, { color: colors.text }]}>PIX instantâneo</Text>
+              <Text style={[styles.infoValue, { color: colors.textSecondary }]}>
                 Pagamentos via PIX são aprovados na hora. O profissional recebe a confirmação instantaneamente para dar andamento ao serviço.
               </Text>
             </View>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <View style={styles.infoRow}>
-            <View style={[styles.iconWrapper, { backgroundColor: '#EFF6FF' }]}>
-              <CreditCard size={20} color="#2563EB" />
+            <View style={[styles.iconWrapper, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF' }]}>
+              <CreditCard size={20} color={isDark ? '#60A5FA' : '#2563EB'} />
             </View>
             <View style={styles.infoTextWrapper}>
-              <Text style={styles.infoLabel}>Cartão de Crédito</Text>
-              <Text style={styles.infoValue}>
+              <Text style={[styles.infoLabel, { color: colors.text }]}>Cartão de Crédito</Text>
+              <Text style={[styles.infoValue, { color: colors.textSecondary }]}>
                 Aceitamos as principais bandeiras com aprovação rápida e parcelamento seguro.
               </Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.partnerBadge}>
-          <Text style={styles.badgeText}>BaaS Oficial DelFinance 🛡️</Text>
+        <View
+          style={[
+            styles.partnerBadge,
+            {
+              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#ECFDF5',
+              borderColor: isDark ? 'rgba(52, 211, 153, 0.35)' : '#A7F3D0',
+            },
+          ]}
+        >
+          <Text style={[styles.badgeText, { color: isDark ? '#6EE7B7' : '#065F46' }]}>BaaS Oficial DelFinance 🛡️</Text>
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: colors.backgroundCard, borderTopColor: colors.border }]}>
         <Button fullWidth onPress={() => router.back()}>
           Entendi
         </Button>
@@ -86,29 +95,6 @@ export default function PaymentMethods() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#0F172A',
   },
   scrollContent: {
     padding: 24,
@@ -116,11 +102,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     alignItems: 'center',
     width: '100%',
     shadowColor: '#000',
@@ -133,7 +117,6 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#ECFDF5',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -141,21 +124,17 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: 8,
   },
   heroSubtitle: {
     fontSize: 14,
-    color: '#64748B',
     textAlign: 'center',
     lineHeight: 22,
   },
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     width: '100%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -166,7 +145,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0F172A',
     marginBottom: 20,
   },
   infoRow: {
@@ -187,36 +165,28 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
     marginBottom: 4,
   },
   infoValue: {
     fontSize: 13,
-    color: '#64748B',
     lineHeight: 18,
   },
   divider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
     marginVertical: 16,
   },
   partnerBadge: {
-    backgroundColor: '#ECFDF5',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
   },
   badgeText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#065F46',
   },
   footer: {
-    backgroundColor: '#FFFFFF',
     padding: 24,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
   },
 });

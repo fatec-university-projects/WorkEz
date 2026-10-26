@@ -4,7 +4,7 @@ import { ArrowLeft, Plus, Phone, User } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { WorkEzTheme } from '../../constants/theme';
+import { WorkEzTheme, LightColors } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -47,7 +47,7 @@ export default function References() {
 
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+            <ActivityIndicator size="large" color={LightColors.primary} />
             <Text style={styles.loadingText}>Carregando referências...</Text>
           </View>
         ) : error ? (
@@ -63,7 +63,7 @@ export default function References() {
                 </Text>
                 <View style={styles.inputsWrapper}>
                   <View style={styles.inputContainer}>
-                    <User size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+                    <User size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
                     <Input
                       placeholder="Nome completo"
                       value={ref.name}
@@ -72,7 +72,7 @@ export default function References() {
                     />
                   </View>
                   <View style={styles.inputContainer}>
-                    <Phone size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+                    <Phone size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
                     <Input
                       keyboardType="phone-pad"
                       placeholder="Telefone"
@@ -90,7 +90,7 @@ export default function References() {
               style={styles.addBtn}
               activeOpacity={0.8}
             >
-              <Plus size={20} color={WorkEzTheme.colors.primary} />
+              <Plus size={20} color={LightColors.primary} />
               <Text style={styles.addBtnText}>Adicionar outra referência</Text>
             </TouchableOpacity>
           </View>
@@ -123,20 +123,20 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: WorkEzTheme.spacing.sm,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    backgroundColor: LightColors.backgroundAlt,
     borderRadius: WorkEzTheme.borderRadius.lg,
     alignSelf: 'flex-start',
   },
   title: {
     ...WorkEzTheme.typography['3xl'],
     fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
+    color: LightColors.text,
     marginTop: 32,
     marginBottom: 8,
   },
   subtitle: {
     ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
+    color: LightColors.textSecondary,
   },
   centerContainer: {
     padding: 48,
@@ -145,10 +145,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: WorkEzTheme.colors.textSecondary,
+    color: LightColors.textSecondary,
   },
   errorText: {
-    color: WorkEzTheme.colors.danger,
+    color: LightColors.danger,
     textAlign: 'center',
   },
   formArea: {
@@ -156,16 +156,16 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   refCard: {
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    backgroundColor: LightColors.backgroundAlt,
     borderRadius: WorkEzTheme.borderRadius.xl,
     padding: WorkEzTheme.spacing.md,
     borderWidth: 1,
-    borderColor: WorkEzTheme.colors.border,
+    borderColor: LightColors.border,
   },
   refLabel: {
     ...WorkEzTheme.typography.base,
     fontWeight: WorkEzTheme.typography.fontWeight.medium,
-    color: WorkEzTheme.colors.text,
+    color: LightColors.text,
     marginBottom: 12,
   },
   inputsWrapper: {
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: WorkEzTheme.colors.border,
+    borderColor: LightColors.border,
     borderRadius: WorkEzTheme.borderRadius.xl,
     flexDirection: 'row',
     alignItems: 'center',

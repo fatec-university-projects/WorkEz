@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Camera, User, Mail, Phone, Save } from 'lucide-react-native';
+import { Camera, User, Mail, Phone, Save } from 'lucide-react-native';
 import {
   View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator, Image, Alert
@@ -8,6 +8,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { useFetch } from '../../hooks/useFetch';
 import { apiRequest } from '../../services/api';
 import { authService } from '../../services/authService';
@@ -29,6 +30,7 @@ export default function EditProfile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, refreshUser } = useAuth();
+  const { colors, isDark } = useAppTheme();
 
   const { data: profile, loading: loadingProfile, error: profileError } = useFetch<CustomerProfile>(
     user ? `/api/Customers/by-user/${user.id}` : null
@@ -86,7 +88,7 @@ export default function EditProfile() {
       setUploading(true);
 
       try {
-        const imageUrl = await imageService.uploadImage(asset.uri, asset.base64);
+        const imageUrl = await imageService.uploadProfileImage(asset.uri, 312);
         setPhoto(imageUrl);
       } catch (err) {
         console.error(err);
@@ -100,49 +102,39 @@ export default function EditProfile() {
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!name.trim()) newErrors.name = 'Nome é obrigatório.';
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'E-mail inválido.';
-    }
+    if (!email.trim()) newErrors.email = 'E-mail é obrigatório.';
+    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'E-mail inválido.';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (!validate() || !user) return;
     setSaving(true);
 
     try {
-      const payload = {
+      const payload: any = {
         name: name.trim(),
-        email: email.trim().toLowerCase(),
+        email: email.trim(),
         phone: phone.trim() || null,
-        profilePicture: photo || null
+        photo: photo || null
       };
 
-      const response = await apiRequest<any>('/api/Users/profile', {
+      const res = await apiRequest(`/api/Customers/by-user/${user.id}`, {
         method: 'PUT',
         body: JSON.stringify(payload)
       });
 
-      if (response.error) {
-        Alert.alert('Erro', response.error);
+      if (res.error) {
+        Alert.alert('Erro ao atualizar', res.error);
       } else {
-        // Update local cache
-        const savedPic = response.data?.profilePicture || payload.profilePicture || null;
-        await authService.updateLocalProfile({
-          name: payload.name,
-          email: payload.email,
-          photo: savedPic,
-          profilePicture: savedPic
-        });
         await refreshUser();
-        Alert.alert('Sucesso', 'Perfil atualizado com sucesso!', [
+        Alert.alert('Sucesso!', 'Perfil atualizado com sucesso.', [
           { text: 'OK', onPress: () => router.back() }
         ]);
       }
     } catch (err) {
-      console.error(err);
-      Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+      Alert.alert('Erro', 'Não foi possível salvar os dados.');
     } finally {
       setSaving(false);
     }
@@ -150,59 +142,50 @@ export default function EditProfile() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[styles.container, { backgroundColor: colors.backgroundAlt }]}
     >
-      <ScreenHeader title="Dados pessoais" showBack />
+      <ScreenHeader title="Editar Perfil" showBack />
 
-      <ScrollView 
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: 110 + (insets.bottom > 0 ? insets.bottom : 20) }
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {loadingProfile ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
-            <Text style={styles.loadingText}>Carregando dados...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Carregando dados...</Text>
           </View>
         ) : (
-          <View style={styles.form}>
-            {/* Avatar Picker */}
+          <View style={[styles.form, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            {/* Foto de Perfil */}
             <View style={styles.avatarSection}>
-              <TouchableOpacity
-                onPress={pickImage}
-                disabled={uploading}
-                style={styles.avatarWrapper}
-                activeOpacity={0.9}
-              >
+              <View style={styles.avatarWrapper}>
                 {photo ? (
-                  <Image
-                    source={{ uri: photo }}
-                    style={styles.avatar}
-                  />
+                  <Image source={{ uri: photo }} style={styles.avatar} />
                 ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                    <User size={48} color={WorkEzTheme.colors.textSecondary} />
+                  <View style={[styles.avatarPlaceholder, { backgroundColor: colors.backgroundAlt }]}>
+                    <User size={48} color={colors.textSecondary} />
                   </View>
                 )}
-                <View style={styles.cameraIconContainer}>
+                <TouchableOpacity
+                  onPress={pickImage}
+                  disabled={uploading}
+                  style={styles.cameraIconContainer}
+                  activeOpacity={0.8}
+                >
                   {uploading ? (
-                    <ActivityIndicator size="small" color="#FFF" />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Camera size={16} color="#FFF" />
+                    <Camera size={16} color="#FFFFFF" />
                   )}
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.avatarTip}>Toque para alterar a foto</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.avatarTip, { color: colors.textSecondary }]}>Toque no ícone da câmera para trocar a foto</Text>
             </View>
 
             {/* Inputs */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Nome Completo</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Nome Completo</Text>
               <View style={styles.inputWrapper}>
-                <User size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+                <User size={20} color={colors.textSecondary} style={styles.inputIcon} />
                 <Input
                   placeholder="Seu nome completo"
                   value={name}
@@ -214,9 +197,9 @@ export default function EditProfile() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>E-mail</Text>
+              <Text style={[styles.label, { color: colors.text }]}>E-mail</Text>
               <View style={styles.inputWrapper}>
-                <Mail size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+                <Mail size={20} color={colors.textSecondary} style={styles.inputIcon} />
                 <Input
                   placeholder="Seu e-mail"
                   value={email}
@@ -230,9 +213,9 @@ export default function EditProfile() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Telefone</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Telefone</Text>
               <View style={styles.inputWrapper}>
-                <Phone size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+                <Phone size={20} color={colors.textSecondary} style={styles.inputIcon} />
                 <Input
                   placeholder="Telefone (opcional)"
                   value={phone}
@@ -271,29 +254,6 @@ export default function EditProfile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  headerTitle: {
-    ...WorkEzTheme.typography.lg,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: '#0F172A',
   },
   scrollContent: {
     padding: 24,
@@ -306,14 +266,11 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    color: '#64748B',
   },
   form: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -346,7 +303,6 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 3,
     borderColor: '#2563EB',
-    backgroundColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -365,7 +321,6 @@ const styles = StyleSheet.create({
   },
   avatarTip: {
     ...WorkEzTheme.typography.xs,
-    color: '#64748B',
   },
   inputContainer: {
     gap: 8,
@@ -373,7 +328,6 @@ const styles = StyleSheet.create({
   label: {
     ...WorkEzTheme.typography.sm,
     fontWeight: '500',
-    color: '#0F172A',
   },
   inputWrapper: {
     position: 'relative',

@@ -7,10 +7,8 @@ import {
   ShieldCheck,
   Star,
   Wrench,
-  Brush,
   Paintbrush,
   Hammer,
-  Settings,
   Droplet,
   Sparkles,
   Wind,
@@ -20,8 +18,8 @@ import {
   ArrowRight,
   X,
   Clock,
-  CheckCircle2,
-  SlidersHorizontal,
+  Sun,
+  Moon,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -34,9 +32,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WorkEzTheme } from '../../constants/theme';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
 
 interface Category {
   id: string;
@@ -52,75 +50,158 @@ interface CategoryUI {
   badge: string;
 }
 
-function getCategoryConfig(name: string): CategoryUI {
+function getCategoryConfig(name: string, isDark: boolean): CategoryUI {
   const norm = name
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
   if (norm.includes('jard') || norm.includes('grama') || norm.includes('poda')) {
-    return { icon: Trees, bgColor: '#ECFDF5', borderColor: '#A7F3D0', iconColor: '#059669', badge: 'Jardinagem' };
+    return {
+      icon: Trees,
+      bgColor: isDark ? 'rgba(5, 150, 105, 0.16)' : '#ECFDF5',
+      borderColor: isDark ? 'rgba(52, 211, 153, 0.3)' : '#A7F3D0',
+      iconColor: isDark ? '#34D399' : '#059669',
+      badge: 'Jardinagem',
+    };
   }
   if (norm.includes('encan') || norm.includes('hidraul') || norm.includes('vazam') || norm.includes('cano') || norm.includes('torneira')) {
-    return { icon: Droplet, bgColor: '#EFF6FF', borderColor: '#BFDBFE', iconColor: '#2563EB', badge: 'Hidráulica' };
+    return {
+      icon: Droplet,
+      bgColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF',
+      borderColor: isDark ? 'rgba(96, 165, 250, 0.3)' : '#BFDBFE',
+      iconColor: isDark ? '#60A5FA' : '#2563EB',
+      badge: 'Hidráulica',
+    };
   }
   if (norm.includes('eletri') || norm.includes('luz') || norm.includes('fiac') || norm.includes('disjunt') || norm.includes('tomada')) {
-    return { icon: Zap, bgColor: '#FEFCE8', borderColor: '#FEF08A', iconColor: '#CA8A04', badge: 'Elétrica' };
+    return {
+      icon: Zap,
+      bgColor: isDark ? 'rgba(202, 138, 4, 0.16)' : '#FEFCE8',
+      borderColor: isDark ? 'rgba(250, 204, 21, 0.3)' : '#FEF08A',
+      iconColor: isDark ? '#FACC15' : '#CA8A04',
+      badge: 'Elétrica',
+    };
   }
   if (norm.includes('diar') || norm.includes('limp') || norm.includes('faxin') || norm.includes('passad')) {
-    return { icon: Sparkles, bgColor: '#FAF5FF', borderColor: '#E9D5FF', iconColor: '#9333EA', badge: 'Limpeza' };
+    return {
+      icon: Sparkles,
+      bgColor: isDark ? 'rgba(147, 51, 234, 0.16)' : '#FAF5FF',
+      borderColor: isDark ? 'rgba(192, 132, 252, 0.3)' : '#E9D5FF',
+      iconColor: isDark ? '#C084FC' : '#9333EA',
+      badge: 'Limpeza',
+    };
   }
   if (norm.includes('pint') || norm.includes('parede') || norm.includes('verniz')) {
-    return { icon: Paintbrush, bgColor: '#F0FDF4', borderColor: '#BBF7D0', iconColor: '#16A34A', badge: 'Pintura' };
+    return {
+      icon: Paintbrush,
+      bgColor: isDark ? 'rgba(22, 163, 74, 0.16)' : '#F0FDF4',
+      borderColor: isDark ? 'rgba(74, 222, 128, 0.3)' : '#BBF7D0',
+      iconColor: isDark ? '#4ADE80' : '#16A34A',
+      badge: 'Pintura',
+    };
   }
   if (norm.includes('mont') || norm.includes('marcen') || norm.includes('move')) {
-    return { icon: Hammer, bgColor: '#FFF7ED', borderColor: '#FED7AA', iconColor: '#EA580C', badge: 'Montagem' };
+    return {
+      icon: Hammer,
+      bgColor: isDark ? 'rgba(234, 88, 12, 0.16)' : '#FFF7ED',
+      borderColor: isDark ? 'rgba(251, 146, 60, 0.3)' : '#FED7AA',
+      iconColor: isDark ? '#FB923C' : '#EA580C',
+      badge: 'Montagem',
+    };
   }
   if (norm.includes('ar-cond') || norm.includes('ar cond') || norm.includes('clima') || norm.includes('refrig') || norm.includes('split') || norm.includes('ventilador')) {
-    return { icon: Wind, bgColor: '#F0F9FF', borderColor: '#BAE6FD', iconColor: '#0284C7', badge: 'Climatização' };
+    return {
+      icon: Wind,
+      bgColor: isDark ? 'rgba(2, 132, 199, 0.16)' : '#F0F9FF',
+      borderColor: isDark ? 'rgba(56, 189, 248, 0.3)' : '#BAE6FD',
+      iconColor: isDark ? '#38BDF8' : '#0284C7',
+      badge: 'Climatização',
+    };
   }
   if (norm.includes('chave') || norm.includes('tranc') || norm.includes('fechad')) {
-    return { icon: Key, bgColor: '#FFFBEB', borderColor: '#FDE68A', iconColor: '#D97706', badge: 'Chaveiro' };
+    return {
+      icon: Key,
+      bgColor: isDark ? 'rgba(217, 119, 6, 0.16)' : '#FFFBEB',
+      borderColor: isDark ? 'rgba(251, 191, 36, 0.3)' : '#FDE68A',
+      iconColor: isDark ? '#FBBF24' : '#D97706',
+      badge: 'Chaveiro',
+    };
   }
   if (norm.includes('pedreir') || norm.includes('alvenar') || norm.includes('obra') || norm.includes('reforma') || norm.includes('constru')) {
-    return { icon: Hammer, bgColor: '#F1F5F9', borderColor: '#CBD5E1', iconColor: '#475569', badge: 'Alvenaria' };
+    return {
+      icon: Hammer,
+      bgColor: isDark ? 'rgba(148, 163, 184, 0.15)' : '#F1F5F9',
+      borderColor: isDark ? 'rgba(148, 163, 184, 0.28)' : '#CBD5E1',
+      iconColor: isDark ? '#CBD5E1' : '#475569',
+      badge: 'Alvenaria',
+    };
   }
   if (norm.includes('serralh') || norm.includes('solda') || norm.includes('portao') || norm.includes('grade')) {
-    return { icon: Wrench, bgColor: '#F8FAFC', borderColor: '#E2E8F0', iconColor: '#0284C7', badge: 'Serralheria' };
+    return {
+      icon: Wrench,
+      bgColor: isDark ? 'rgba(2, 132, 199, 0.16)' : '#F8FAFC',
+      borderColor: isDark ? 'rgba(56, 189, 248, 0.3)' : '#E2E8F0',
+      iconColor: isDark ? '#38BDF8' : '#0284C7',
+      badge: 'Serralheria',
+    };
   }
   if (norm.includes('dedetiz') || norm.includes('praga') || norm.includes('inset')) {
-    return { icon: ShieldCheck, bgColor: '#ECFDF5', borderColor: '#A7F3D0', iconColor: '#0D9488', badge: 'Dedetização' };
+    return {
+      icon: ShieldCheck,
+      bgColor: isDark ? 'rgba(13, 148, 136, 0.16)' : '#ECFDF5',
+      borderColor: isDark ? 'rgba(45, 212, 191, 0.3)' : '#A7F3D0',
+      iconColor: isDark ? '#2DD4BF' : '#0D9488',
+      badge: 'Dedetização',
+    };
   }
   if (norm.includes('tec') || norm.includes('comput') || norm.includes('celul') || norm.includes('eletron')) {
-    return { icon: Cpu, bgColor: '#F8FAFC', borderColor: '#CBD5E1', iconColor: '#475569', badge: 'Aparelhos' };
+    return {
+      icon: Cpu,
+      bgColor: isDark ? 'rgba(148, 163, 184, 0.15)' : '#F8FAFC',
+      borderColor: isDark ? 'rgba(148, 163, 184, 0.28)' : '#CBD5E1',
+      iconColor: isDark ? '#CBD5E1' : '#475569',
+      badge: 'Aparelhos',
+    };
   }
-  return { icon: Wrench, bgColor: '#F8FAFC', borderColor: '#E2E8F0', iconColor: '#2563EB', badge: 'Geral' };
+  return {
+    icon: Wrench,
+    bgColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#F8FAFC',
+    borderColor: isDark ? 'rgba(96, 165, 250, 0.3)' : '#E2E8F0',
+    iconColor: isDark ? '#60A5FA' : '#2563EB',
+    badge: 'Geral',
+  };
 }
 
 export default function ClientHome() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { isDark, colors, toggleTheme } = useAppTheme();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'popular' | 'urgent'>('all');
 
   const { data: categories, loading, error } = useFetch<Category[]>('/api/Categories');
 
-  // Categorias filtradas por busca
   const filteredCategories = useMemo(() => {
     if (!categories) return [];
     if (!searchQuery.trim()) return categories;
     const query = searchQuery.toLowerCase().trim();
-    return categories.filter((c) =>
-      c.name.toLowerCase().includes(query) || (c.description && c.description.toLowerCase().includes(query))
+    return categories.filter(
+      (c) =>
+        c.name.toLowerCase().includes(query) ||
+        (c.description && c.description.toLowerCase().includes(query))
     );
   }, [categories, searchQuery]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      {/* ── Header Elegante com Gradiente ─────────────────────────── */}
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.backgroundAlt }]}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* ── Header com Gradiente e Alternador de Tema ─────────────────────────── */}
       <LinearGradient
-        colors={['#1E3A8A', '#2563EB', '#3B82F6']}
+        colors={isDark ? ['#0F172A', '#1E3A8A', '#1D4ED8'] : ['#1E3A8A', '#2563EB', '#3B82F6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.headerBackground, { paddingTop: insets.top > 0 ? insets.top + 16 : 48 }]}
@@ -134,21 +215,34 @@ export default function ClientHome() {
               Qual serviço você precisa hoje?
             </Text>
           </View>
+          <TouchableOpacity
+            onPress={toggleTheme}
+            activeOpacity={0.8}
+            style={styles.headerThemeBtn}
+            accessibilityLabel={isDark ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
+          >
+            {isDark ? <Sun size={18} color="#FBBF24" /> : <Moon size={18} color="#FFFFFF" />}
+          </TouchableOpacity>
         </View>
 
-        {/* Barra de Pesquisa Interativa */}
         <View style={styles.searchContainer}>
-          <Search size={20} color="#64748B" style={styles.searchIcon} />
+          <Search size={20} color={colors.textSecondary} style={styles.searchIcon} />
           <TextInput
             placeholder="Buscar encanador, eletricista, pintor..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            style={styles.searchInput}
-            placeholderTextColor="#94A3B8"
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: isDark ? '#131C31' : '#FFFFFF',
+                color: colors.text,
+              },
+            ]}
+            placeholderTextColor={colors.textMuted}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
-              <X size={16} color="#64748B" />
+              <X size={16} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -158,14 +252,21 @@ export default function ClientHome() {
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeaderRow}>
           <View>
-            <Text style={styles.sectionTitle}>Categorias de Serviço</Text>
-            <Text style={styles.sectionSubtitle}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Categorias de Serviço</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
               Selecione a especialidade desejada para orçar
             </Text>
           </View>
           {filteredCategories.length > 0 && (
-            <View style={styles.categoryCountBadge}>
-              <Text style={styles.categoryCountText}>{filteredCategories.length}</Text>
+            <View
+              style={[
+                styles.categoryCountBadge,
+                isDark && { backgroundColor: 'rgba(37, 99, 235, 0.2)', borderColor: 'rgba(96, 165, 250, 0.35)' },
+              ]}
+            >
+              <Text style={[styles.categoryCountText, isDark && { color: '#93C5FD' }]}>
+                {filteredCategories.length}
+              </Text>
             </View>
           )}
         </View>
@@ -173,12 +274,19 @@ export default function ClientHome() {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#2563EB" />
-            <Text style={styles.loadingText}>Carregando serviços disponíveis...</Text>
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Carregando serviços disponíveis...
+            </Text>
           </View>
         ) : error || filteredCategories.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>Nenhuma categoria disponível</Text>
-            <Text style={styles.emptySubtitle}>
+          <View
+            style={[
+              styles.emptyContainer,
+              { backgroundColor: colors.backgroundCard, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>Nenhuma categoria disponível</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
               {searchQuery
                 ? `Não encontramos categorias correspondentes a "${searchQuery}".`
                 : 'No momento não há categorias de serviços cadastradas.'}
@@ -192,7 +300,7 @@ export default function ClientHome() {
         ) : (
           <View style={styles.categoriesGrid}>
             {filteredCategories.map((category) => {
-              const uiConfig = getCategoryConfig(category.name);
+              const uiConfig = getCategoryConfig(category.name, isDark);
               const Icon = uiConfig.icon;
               return (
                 <TouchableOpacity
@@ -204,12 +312,18 @@ export default function ClientHome() {
                       params: { category: category.name, categoryId: category.id },
                     } as any)
                   }
-                  style={[styles.categoryCard, { borderColor: uiConfig.borderColor }]}
+                  style={[
+                    styles.categoryCard,
+                    {
+                      backgroundColor: colors.backgroundCard,
+                      borderColor: uiConfig.borderColor,
+                    },
+                  ]}
                 >
                   <View style={[styles.categoryIconWrapper, { backgroundColor: uiConfig.bgColor }]}>
                     <Icon size={28} color={uiConfig.iconColor} />
                   </View>
-                  <Text style={styles.categoryName} numberOfLines={1}>
+                  <Text style={[styles.categoryName, { color: colors.text }]} numberOfLines={1}>
                     {category.name}
                   </Text>
                   <View style={[styles.categoryPill, { backgroundColor: uiConfig.bgColor }]}>
@@ -224,19 +338,31 @@ export default function ClientHome() {
         )}
       </View>
 
-      {/* ── Banner 'Chamar Agora' (Harmônico com o Design do WorkEz) ─────────── */}
+      {/* ── Banner 'Chamar Agora' ─────────── */}
       <View style={styles.callNowSection}>
-        <View style={styles.callNowCard}>
+        <View
+          style={[
+            styles.callNowCard,
+            { backgroundColor: colors.backgroundCard, borderColor: colors.border },
+          ]}
+        >
           <View style={styles.callNowHeaderRow}>
-            <View style={styles.callNowPill}>
-              <Zap size={14} color="#2563EB" />
-              <Text style={styles.callNowPillText}>ATENDIMENTO IMEDIATO</Text>
+            <View
+              style={[
+                styles.callNowPill,
+                isDark && { backgroundColor: 'rgba(37, 99, 235, 0.2)', borderColor: 'rgba(96, 165, 250, 0.35)' },
+              ]}
+            >
+              <Zap size={14} color={isDark ? '#60A5FA' : '#2563EB'} />
+              <Text style={[styles.callNowPillText, isDark && { color: '#93C5FD' }]}>
+                ATENDIMENTO IMEDIATO
+              </Text>
             </View>
-            <Clock size={16} color="#64748B" />
+            <Clock size={16} color={colors.textSecondary} />
           </View>
 
-          <Text style={styles.callNowCardTitle}>Precisa de ajuda agora?</Text>
-          <Text style={styles.callNowCardDesc}>
+          <Text style={[styles.callNowCardTitle, { color: colors.text }]}>Precisa de ajuda agora?</Text>
+          <Text style={[styles.callNowCardDesc, { color: colors.textSecondary }]}>
             Encontre profissionais prontos para atender seu chamado com prioridade máxima e orçamento rápido.
           </Text>
 
@@ -254,48 +380,63 @@ export default function ClientHome() {
 
       {/* ── Seção 'Por que escolher o WorkEz?' ─────────────────────── */}
       <View style={styles.sectionContainerBottom}>
-        <Text style={styles.sectionTitle}>Por que escolher o WorkEz?</Text>
-        <Text style={styles.sectionSubtitle}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Por que escolher o WorkEz?</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
           Sua tranquilidade garantida do início ao fim
         </Text>
 
         <View style={styles.benefitsContainer}>
-          <View style={styles.benefitCard}>
+          <View
+            style={[
+              styles.benefitCard,
+              { backgroundColor: colors.backgroundCard, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.benefitContentRow}>
-              <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(37, 99, 235, 0.1)' }]}>
-                <ShieldCheck size={22} color="#2563EB" />
+              <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(37, 99, 235, 0.14)' }]}>
+                <ShieldCheck size={22} color={isDark ? '#60A5FA' : '#2563EB'} />
               </View>
               <View style={styles.benefitTextContainer}>
-                <Text style={styles.benefitTitle}>Profissionais Verificados</Text>
-                <Text style={styles.benefitDescription}>
+                <Text style={[styles.benefitTitle, { color: colors.text }]}>Profissionais Verificados</Text>
+                <Text style={[styles.benefitDescription, { color: colors.textSecondary }]}>
                   Documentos, antecedentes e qualificações rigorosamente checados.
                 </Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.benefitCard}>
+          <View
+            style={[
+              styles.benefitCard,
+              { backgroundColor: colors.backgroundCard, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.benefitContentRow}>
-              <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(37, 99, 235, 0.1)' }]}>
-                <Shield size={22} color="#2563EB" />
+              <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(37, 99, 235, 0.14)' }]}>
+                <Shield size={22} color={isDark ? '#60A5FA' : '#2563EB'} />
               </View>
               <View style={styles.benefitTextContainer}>
-                <Text style={styles.benefitTitle}>Pagamento Seguro com Proteção</Text>
-                <Text style={styles.benefitDescription}>
+                <Text style={[styles.benefitTitle, { color: colors.text }]}>Pagamento Seguro com Proteção</Text>
+                <Text style={[styles.benefitDescription, { color: colors.textSecondary }]}>
                   O valor só é liberado ao profissional após a conclusão do serviço.
                 </Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.benefitCard}>
+          <View
+            style={[
+              styles.benefitCard,
+              { backgroundColor: colors.backgroundCard, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.benefitContentRow}>
-              <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(251, 191, 36, 0.12)' }]}>
-                <Star size={22} color="#D97706" />
+              <View style={[styles.benefitIconWrapper, { backgroundColor: 'rgba(251, 191, 36, 0.14)' }]}>
+                <Star size={22} color="#F59E0B" />
               </View>
               <View style={styles.benefitTextContainer}>
-                <Text style={styles.benefitTitle}>Avaliações e Notas Transparentes</Text>
-                <Text style={styles.benefitDescription}>
+                <Text style={[styles.benefitTitle, { color: colors.text }]}>Avaliações e Notas Transparentes</Text>
+                <Text style={[styles.benefitDescription, { color: colors.textSecondary }]}>
                   Consulte notas, fotos de trabalhos anteriores e opiniões de clientes.
                 </Text>
               </View>
@@ -310,7 +451,6 @@ export default function ClientHome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   scrollContent: {
     flexGrow: 1,
@@ -331,6 +471,16 @@ const styles = StyleSheet.create({
   headerUserCol: {
     flex: 1,
   },
+  headerThemeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   greetingText: {
     fontSize: 24,
     fontWeight: '800',
@@ -341,28 +491,6 @@ const styles = StyleSheet.create({
   subtitleText: {
     color: 'rgba(255, 255, 255, 0.85)',
     fontSize: 15,
-  },
-  headerStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#4ADE80',
-  },
-  headerStatusText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
   },
   searchContainer: {
     marginTop: 20,
@@ -379,10 +507,8 @@ const styles = StyleSheet.create({
     paddingLeft: 46,
     paddingRight: 42,
     paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     fontSize: 15,
-    color: '#0F172A',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -408,12 +534,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 19,
     fontWeight: '700',
-    color: '#0F172A',
     letterSpacing: -0.2,
   },
   sectionSubtitle: {
     fontSize: 13,
-    color: '#64748B',
     marginTop: 2,
   },
   categoryCountBadge: {
@@ -435,39 +559,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    color: '#64748B',
     fontSize: 14,
-  },
-  errorContainer: {
-    padding: 24,
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  errorText: {
-    color: '#DC2626',
-    fontSize: 14,
-    fontWeight: '500',
   },
   emptyContainer: {
     padding: 32,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: 4,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#64748B',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -490,7 +596,6 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     width: '31%',
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 8,
@@ -514,7 +619,6 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0F172A',
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -532,11 +636,9 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   callNowCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -569,12 +671,10 @@ const styles = StyleSheet.create({
   callNowCardTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: 6,
   },
   callNowCardDesc: {
     fontSize: 13,
-    color: '#64748B',
     lineHeight: 19,
     marginBottom: 18,
   },
@@ -606,11 +706,9 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   benefitCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -635,12 +733,10 @@ const styles = StyleSheet.create({
   benefitTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: 2,
   },
   benefitDescription: {
     fontSize: 13,
-    color: '#64748B',
     lineHeight: 18,
   },
 });

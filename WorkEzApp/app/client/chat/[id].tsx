@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, ComponentRef } from 'react';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Send, AlertCircle, User, CheckCircle, MessageCircle, ChevronRight } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WorkEzTheme } from '../../../constants/theme';
+import { useAppTheme } from '../../../contexts/ThemeContext';
 import { useFetch } from '../../../hooks/useFetch';
 import { useAuth } from '../../../contexts/AuthContext';
 import { apiRequest, getWebSocketUrl, resolveImageUrl } from '../../../services/api';
@@ -18,6 +19,7 @@ interface ProposalInfo {
   proposedPrice: number;
   status: string;
   counterPrice?: number;
+  serviceStatus?: string;
 }
 
 interface ChatMessage {
@@ -32,6 +34,7 @@ interface ChatMessage {
 export default function ClientChat() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
   const { id, serviceId: queryServiceId } = useLocalSearchParams<{ id: string; serviceId?: string }>();
   const { user } = useAuth();
   const [messageText, setMessageText] = useState('');
@@ -41,41 +44,57 @@ export default function ClientChat() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [liveProposal, setLiveProposal] = useState<ProposalInfo | null>(null);
   const [liveServiceStatus, setLiveServiceStatus] = useState<string | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
-  // 1. Tenta buscar a proposta diretamente pelo id
-  const { data: directProposal, error: proposalError, refetch: refetchDirectProposal } = useFetch<ProposalInfo>(
-    id ? `/api/Proposals/${id}` : null
-  );
+  // 1. Tenta buscar a proposta diretamente pelo id (apenas quando id não é explicitamente igual ao serviceId)
+  const shouldFetchDirectProposal = Boolean(id && (!queryServiceId || queryServiceId !== id));
+  const {
+    data: directProposal,
+    error: proposalError,
+    loading: loadingDirectProposal,
+    refetch: refetchDirectProposal
+  } = useFetch<ProposalInfo>(shouldFetchDirectProposal ? `/api/Proposals/${id}` : null);
 
-  // 2. Se id for serviceId ou se queryServiceId foi fornecido, busca a proposta ativa do serviço
-  const candidateServiceId = queryServiceId || (proposalError || !directProposal ? (id as string) : undefined);
+  // 2. Se queryServiceId foi fornecido ou se a busca direta de proposta terminou sem encontrar proposta:
+  const candidateServiceId =
+    queryServiceId || (!loadingDirectProposal && (proposalError || !directProposal) ? (id as string) : undefined);
   const { data: serviceProposal, refetch: refetchServiceProposal } = useFetch<ProposalInfo>(
     candidateServiceId ? `/api/Proposals/chat-by-service/${candidateServiceId}` : null
   );
 
   const proposal = liveProposal || directProposal || serviceProposal;
-  const activeProposalId = proposal?.id || (id as string);
+  const activeProposalId = proposal?.id || (!queryServiceId || queryServiceId !== id ? (id as string) : undefined);
 
-  // 3. Busca os dados do serviço para acompanhar o ciclo de vida
-  const effectiveServiceId = queryServiceId || proposal?.serviceId || (proposal as any)?.ServiceId || candidateServiceId;
+  // 3. Busca os dados do serviço somente quando effectiveServiceId é conhecido
+  const effectiveServiceId =
+    queryServiceId ||
+    proposal?.serviceId ||
+    (proposal as any)?.ServiceId ||
+    (!loadingDirectProposal && !directProposal ? candidateServiceId : undefined);
   const { data: service, refetch: refetchService } = useFetch<any>(
     effectiveServiceId ? `/api/Services/${effectiveServiceId}` : null
   );
 
   useFocusEffect(
     useCallback(() => {
-      refetchDirectProposal();
+      if (shouldFetchDirectProposal) refetchDirectProposal();
       if (candidateServiceId) refetchServiceProposal();
       if (effectiveServiceId) refetchService();
-    }, [refetchDirectProposal, candidateServiceId, refetchServiceProposal, effectiveServiceId, refetchService])
+    }, [shouldFetchDirectProposal, refetchDirectProposal, candidateServiceId, refetchServiceProposal, effectiveServiceId, refetchService])
   );
 
   const rawProposalStatus = (liveProposal?.status || directProposal?.status || serviceProposal?.status || '').toLowerCase();
   const isRejected = rawProposalStatus === 'rejected';
 
   // Status do serviço e término
-  const currentStatus = (liveServiceStatus || service?.status || service?.serviceStatus || '').toLowerCase();
+  const currentStatus = (
+    liveServiceStatus ||
+    service?.status ||
+    service?.serviceStatus ||
+    proposal?.serviceStatus ||
+    (proposal as any)?.ServiceStatus ||
+    ''
+  ).toLowerCase();
   const isCompleted = !isRejected && currentStatus === 'completed';
   const isCancelled = !isRejected && currentStatus === 'cancelled';
   const isWaitingPayment = !isRejected && (currentStatus === 'waiting-payment' || currentStatus === 'waitingpayment');
@@ -89,8 +108,8 @@ export default function ClientChat() {
 
   const getHeaderStatusText = () => {
     if (isRejected) return 'Proposta recusada • Chat encerrado';
-    if (isCompleted) return 'Serviço concluído';
-    if (isCancelled) return 'Serviço cancelado';
+    if (isCompleted) return 'Serviço concluído • Chat encerrado';
+    if (isCancelled) return 'Serviço cancelado • Chat encerrado';
     if (isWaitingPayment) return 'Aguardando pagamento';
     if (isInProgress) return 'Chamado em andamento';
     if (isOnTheWay) return 'Profissional a caminho';
@@ -98,8 +117,9 @@ export default function ClientChat() {
     return `Lance: R$ ${proposal?.proposedPrice ? proposal.proposedPrice.toFixed(2).replace('.', ',') : '...'}${proposal?.counterPrice ? ` • Contra-oferta: R$ ${proposal.counterPrice.toFixed(2).replace('.', ',')}` : ''}`;
   };
 
-  // 4. Carga inicial de mensagens (resiliente a serviceId e proposalId)
+  // 4. Carga inicial de mensagens (aguarda resolução inicial de proposta para evitar chamadas com ID trocado)
   useEffect(() => {
+    if (shouldFetchDirectProposal && loadingDirectProposal) return;
     if (!activeProposalId && !effectiveServiceId) return;
     let isCurrent = true;
 
@@ -140,7 +160,7 @@ export default function ClientChat() {
             setMessages(mapped);
             setChatError(null);
           } else if (res.error) {
-            if (service || effectiveServiceId) {
+            if (service || effectiveServiceId || proposal) {
               setChatError(null);
             } else {
               setChatError(res.error);
@@ -162,17 +182,18 @@ export default function ClientChat() {
     return () => {
       isCurrent = false;
     };
-  }, [activeProposalId, effectiveServiceId]);
+  }, [activeProposalId, effectiveServiceId, shouldFetchDirectProposal, loadingDirectProposal]);
 
-  // 5. Conexão WebSocket em tempo real para mensagens e status de propostas + Polling de redundância
+  // 5. Conexão WebSocket em tempo real + Polling de redundância (desativados quando o chat já foi finalizado)
   useEffect(() => {
-    if (!activeProposalId) return;
+    if ((!activeProposalId && !effectiveServiceId) || (shouldFetchDirectProposal && loadingDirectProposal) || isFinished) {
+      return;
+    }
 
     let ws: WebSocket | null = null;
     let isDestroyed = false;
     let reconnectTimeout: any = null;
 
-    // Polling redundante a cada 4s para novas mensagens e status sem depender exclusivamente de sockets
     const pollInterval = setInterval(async () => {
       if (isDestroyed) return;
       try {
@@ -283,7 +304,7 @@ export default function ClientChat() {
         ws.close();
       }
     };
-  }, [activeProposalId, effectiveServiceId]);
+  }, [activeProposalId, effectiveServiceId, shouldFetchDirectProposal, loadingDirectProposal, isFinished]);
 
   useEffect(() => {
     if (messages && messages.length > 0) {
@@ -299,19 +320,17 @@ export default function ClientChat() {
     setSending(true);
 
     try {
-      // 1. Envia via /api/Chat/messages (suporta tanto serviceId quanto proposalId)
       let res = await apiRequest<any>(`/api/Chat/messages`, {
         method: 'POST',
         body: JSON.stringify({
           senderId: user.id,
           content: textToSend,
           isFromProvider: false,
-          proposalId: proposal?.id || null,
+          proposalId: proposal?.id || activeProposalId || null,
           serviceId: effectiveServiceId || null
         })
       });
 
-      // 2. Se falhar e tivermos activeProposalId, tenta fallback legado
       if (res.error && activeProposalId && activeProposalId !== effectiveServiceId) {
         res = await apiRequest<any>(`/api/Proposals/${activeProposalId}/chat`, {
           method: 'POST',
@@ -324,12 +343,15 @@ export default function ClientChat() {
       }
 
       if (res.error) {
-        if (res.error.toLowerCase().includes('recusada') || (res as any).code === 'PROPOSAL_REJECTED') {
+        const lowerErr = res.error.toLowerCase();
+        if (lowerErr.includes('recusada') || (res as any).code === 'PROPOSAL_REJECTED') {
           setLiveProposal((prev) =>
             prev
               ? { ...prev, status: 'Rejected' }
-              : ({ id: activeProposalId, status: 'Rejected', proposedPrice: 0, providerId: '', serviceId: '' } as ProposalInfo)
+              : ({ id: activeProposalId || '', status: 'Rejected', proposedPrice: 0, providerId: '', providerName: '', serviceId: effectiveServiceId || '' } as ProposalInfo)
           );
+        } else if (lowerErr.includes('finalizado') || lowerErr.includes('encerrado') || (res as any).code === 'SERVICE_FINISHED') {
+          setLiveServiceStatus('completed');
         }
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           window.alert(res.error);
@@ -387,20 +409,204 @@ export default function ClientChat() {
     }
   };
 
+  const dynamicStyles = useMemo(() => {
+    return StyleSheet.create({
+      container: {
+        flex: 1,
+        backgroundColor: colors.background,
+      },
+      header: {
+        backgroundColor: colors.card,
+        paddingHorizontal: WorkEzTheme.spacing.lg,
+        paddingVertical: WorkEzTheme.spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+      },
+      headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+      },
+      backButton: {
+        padding: WorkEzTheme.spacing.sm,
+        backgroundColor: colors.surface,
+        borderRadius: WorkEzTheme.borderRadius.lg,
+      },
+      headerProfileClickable: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+      },
+      avatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+      },
+      avatarImg: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+      },
+      headerInfo: {
+        flex: 1,
+      },
+      professionalName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: colors.text,
+      },
+      viewProfilePill: {
+        backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : '#BFDBFE',
+      },
+      viewProfilePillText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: colors.primary,
+      },
+      statusText: {
+        ...WorkEzTheme.typography.sm,
+        color: isDark ? '#5EEAD4' : '#0F766E',
+        fontWeight: '600',
+      },
+      alertBanner: {
+        backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
+        borderBottomWidth: 1,
+        borderTopWidth: 1,
+        borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+      },
+      alertRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 8,
+      },
+      alertIcon: {
+        marginTop: 2,
+      },
+      alertText: {
+        flex: 1,
+        ...WorkEzTheme.typography.xs,
+        color: isDark ? '#93C5FD' : '#1D4ED8',
+        lineHeight: 18,
+      },
+      messagesList: {
+        flex: 1,
+      },
+      messagesContent: {
+        padding: 24,
+        gap: 16,
+      },
+      centerContainer: {
+        padding: 48,
+        alignItems: 'center',
+      },
+      loadingText: {
+        marginTop: 16,
+        color: colors.textSecondary,
+      },
+      errorText: {
+        color: colors.danger,
+        textAlign: 'center',
+      },
+      messageRow: {
+        flexDirection: 'row',
+      },
+      messageRowLeft: {
+        justifyContent: 'flex-start',
+      },
+      messageRowRight: {
+        justifyContent: 'flex-end',
+      },
+      messageBubble: {
+        maxWidth: '75%',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+      },
+      messageBubbleClient: {
+        backgroundColor: colors.primary,
+      },
+      messageBubblePro: {
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.border,
+      },
+      messageText: {
+        ...WorkEzTheme.typography.sm,
+      },
+      messageTextClient: {
+        color: '#FFFFFF',
+      },
+      messageTextPro: {
+        color: colors.text,
+      },
+      messageTime: {
+        ...WorkEzTheme.typography.xs,
+        marginTop: 4,
+      },
+      messageTimeClient: {
+        color: 'rgba(255, 255, 255, 0.7)',
+      },
+      messageTimePro: {
+        color: colors.textSecondary,
+      },
+      footer: {
+        backgroundColor: colors.card,
+        padding: 16,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+      },
+      inputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+      },
+      input: {
+        flex: 1,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        ...WorkEzTheme.typography.base,
+        color: colors.text,
+      },
+      sendButton: {
+        width: 48,
+        height: 48,
+        backgroundColor: colors.primary,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+      sendButtonDisabled: {
+        opacity: 0.5,
+      },
+    });
+  }, [colors, isDark]);
+
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 14 }]}>
-        <View style={styles.headerRow}>
+    <View style={dynamicStyles.container}>
+      <View style={[dynamicStyles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : 14 }]}>
+        <View style={dynamicStyles.headerRow}>
           <TouchableOpacity
             onPress={handleBack}
-            style={styles.backButton}
+            style={dynamicStyles.backButton}
             activeOpacity={0.8}
           >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
+            <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.headerProfileClickable}
+            style={dynamicStyles.headerProfileClickable}
             onPress={handleOpenProviderProfile}
             activeOpacity={0.7}
             disabled={!targetProviderId}
@@ -409,36 +615,36 @@ export default function ClientChat() {
               const photo = service?.professional?.photo || proposal?.providerPhoto;
               const resolved = resolveImageUrl(photo) || photo;
               return resolved ? (
-                <Image source={{ uri: resolved }} style={styles.avatarImg} resizeMode="cover" />
+                <Image source={{ uri: resolved }} style={dynamicStyles.avatarImg} resizeMode="cover" />
               ) : (
-                <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
-                  <User size={20} color={WorkEzTheme.colors.textSecondary} />
+                <View style={[dynamicStyles.avatar, { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
+                  <User size={20} color={colors.textSecondary} />
                 </View>
               );
             })()}
-            <View style={styles.headerInfo}>
+            <View style={dynamicStyles.headerInfo}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.professionalName} numberOfLines={1}>
+                <Text style={dynamicStyles.professionalName} numberOfLines={1}>
                   {proposal?.providerName || service?.professional?.name || 'Prestador de Serviço'}
                 </Text>
                 {targetProviderId ? (
-                  <View style={styles.viewProfilePill}>
-                    <Text style={styles.viewProfilePillText}>Ver perfil ›</Text>
+                  <View style={dynamicStyles.viewProfilePill}>
+                    <Text style={dynamicStyles.viewProfilePillText}>Ver perfil ›</Text>
                   </View>
                 ) : null}
               </View>
               <Text style={[
-                styles.statusText,
-                isRejected && { color: '#DC2626', fontWeight: '600' },
-                isCompleted && { color: '#059669', fontWeight: '600' },
-                isCancelled && { color: '#DC2626', fontWeight: '600' },
-                isInProgress && { color: '#2563EB', fontWeight: '600' },
+                dynamicStyles.statusText,
+                isRejected && { color: colors.danger, fontWeight: '600' },
+                isCompleted && { color: colors.secondary, fontWeight: '600' },
+                isCancelled && { color: colors.danger, fontWeight: '600' },
+                isInProgress && { color: colors.primary, fontWeight: '600' },
               ]}>
                 {getHeaderStatusText()}
               </Text>
             </View>
             {targetProviderId ? (
-              <ChevronRight size={18} color="#94A3B8" />
+              <ChevronRight size={18} color={colors.textSecondary} />
             ) : null}
           </TouchableOpacity>
         </View>
@@ -446,46 +652,46 @@ export default function ClientChat() {
 
       {/* Banner de status contextual */}
       {isRejected ? (
-        <View style={[styles.alertBanner, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-          <View style={styles.alertRow}>
-            <AlertCircle size={16} color="#DC2626" style={styles.alertIcon} />
-            <Text style={[styles.alertText, { color: '#991B1B' }]}>
+        <View style={[dynamicStyles.alertBanner, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2', borderColor: isDark ? 'rgba(239, 68, 68, 0.4)' : '#FECACA' }]}>
+          <View style={dynamicStyles.alertRow}>
+            <AlertCircle size={16} color={colors.danger} style={dynamicStyles.alertIcon} />
+            <Text style={[dynamicStyles.alertText, { color: isDark ? '#FCA5A5' : '#991B1B' }]}>
               <Text style={{ fontWeight: '700' }}>Proposta Recusada:</Text> Esta proposta foi recusada. A negociação está encerrada e o chat foi fechado para novas mensagens.
             </Text>
           </View>
         </View>
       ) : isCompleted ? (
-        <View style={[styles.alertBanner, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-          <View style={styles.alertRow}>
-            <CheckCircle size={16} color="#059669" style={styles.alertIcon} />
-            <Text style={[styles.alertText, { color: '#065F46' }]}>
+        <View style={[dynamicStyles.alertBanner, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5', borderColor: isDark ? 'rgba(16, 185, 129, 0.4)' : '#A7F3D0' }]}>
+          <View style={dynamicStyles.alertRow}>
+            <CheckCircle size={16} color={colors.secondary} style={dynamicStyles.alertIcon} />
+            <Text style={[dynamicStyles.alertText, { color: isDark ? '#6EE7B7' : '#065F46' }]}>
               <Text style={{ fontWeight: '700' }}>Serviço Concluído:</Text> Este chamado foi finalizado com sucesso. O chat está encerrado para novas mensagens.
             </Text>
           </View>
         </View>
       ) : isCancelled ? (
-        <View style={[styles.alertBanner, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-          <View style={styles.alertRow}>
-            <AlertCircle size={16} color="#DC2626" style={styles.alertIcon} />
-            <Text style={[styles.alertText, { color: '#991B1B' }]}>
+        <View style={[dynamicStyles.alertBanner, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2', borderColor: isDark ? 'rgba(239, 68, 68, 0.4)' : '#FECACA' }]}>
+          <View style={dynamicStyles.alertRow}>
+            <AlertCircle size={16} color={colors.danger} style={dynamicStyles.alertIcon} />
+            <Text style={[dynamicStyles.alertText, { color: isDark ? '#FCA5A5' : '#991B1B' }]}>
               <Text style={{ fontWeight: '700' }}>Serviço Cancelado:</Text> Este chamado foi cancelado. O chat foi encerrado.
             </Text>
           </View>
         </View>
       ) : isAccepted ? (
-        <View style={[styles.alertBanner, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-          <View style={styles.alertRow}>
-            <MessageCircle size={16} color="#2563EB" style={styles.alertIcon} />
-            <Text style={[styles.alertText, { color: '#1E40AF' }]}>
+        <View style={[dynamicStyles.alertBanner, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF', borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE' }]}>
+          <View style={dynamicStyles.alertRow}>
+            <MessageCircle size={16} color={colors.primary} style={dynamicStyles.alertIcon} />
+            <Text style={[dynamicStyles.alertText, { color: isDark ? '#93C5FD' : '#1E40AF' }]}>
               <Text style={{ fontWeight: '700' }}>Chat do Chamado:</Text> Converse diretamente com o prestador em tempo real até a conclusão do trabalho.
             </Text>
           </View>
         </View>
       ) : (
-        <View style={styles.alertBanner}>
-          <View style={styles.alertRow}>
-            <AlertCircle size={16} color="#2563EB" style={styles.alertIcon} />
-            <Text style={styles.alertText}>
+        <View style={dynamicStyles.alertBanner}>
+          <View style={dynamicStyles.alertRow}>
+            <AlertCircle size={16} color={colors.primary} style={dynamicStyles.alertIcon} />
+            <Text style={dynamicStyles.alertText}>
               <Text style={{ fontWeight: '600' }}>Chat de Negociação / Leilão:</Text> Converse diretamente com o prestador para ajustar valores ou tirar dúvidas.
             </Text>
           </View>
@@ -494,23 +700,25 @@ export default function ClientChat() {
 
       <ScrollView
         ref={scrollViewRef}
-        style={styles.messagesList}
-        contentContainerStyle={styles.messagesContent}
+        style={dynamicStyles.messagesList}
+        contentContainerStyle={dynamicStyles.messagesContent}
       >
         {chatLoading && (!messages || messages.length === 0) ? (
-          <View key="chat-loading" style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#0F766E" />
-            <Text style={styles.loadingText}>Carregando mensagens...</Text>
+          <View key="chat-loading" style={dynamicStyles.centerContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={dynamicStyles.loadingText}>Carregando mensagens...</Text>
           </View>
         ) : chatError ? (
-          <View key="chat-error" style={styles.centerContainer}>
-            <Text style={styles.errorText}>{chatError}</Text>
+          <View key="chat-error" style={dynamicStyles.centerContainer}>
+            <Text style={dynamicStyles.errorText}>{chatError}</Text>
           </View>
         ) : (!messages || messages.length === 0) ? (
-          <View key="chat-empty" style={styles.centerContainer}>
-            <Text style={{ color: isRejected ? '#991B1B' : '#94A3B8', textAlign: 'center', fontSize: 14, fontWeight: isRejected ? '600' : '400' }}>
+          <View key="chat-empty" style={dynamicStyles.centerContainer}>
+            <Text style={{ color: isRejected ? colors.danger : colors.textSecondary, textAlign: 'center', fontSize: 14, fontWeight: isRejected ? '600' : '400' }}>
               {isRejected
                 ? 'Esta proposta foi recusada. O chat está fechado para envio de mensagens.'
+                : isCompleted || isCancelled
+                ? 'Nenhuma mensagem registrada neste chamado encerrado.'
                 : isAccepted
                 ? 'Inicie a conversa! Envie uma mensagem para alinhar os detalhes da execução do chamado com o prestador.'
                 : 'Inicie a conversa! Envie uma mensagem para negociar o valor com o prestador.'}
@@ -535,26 +743,26 @@ export default function ClientChat() {
               <View
                 key={msg.id || `msg-${index}-${msg.sentAt}`}
                 style={[
-                  styles.messageRow,
-                  isClient ? styles.messageRowRight : styles.messageRowLeft
+                  dynamicStyles.messageRow,
+                  isClient ? dynamicStyles.messageRowRight : dynamicStyles.messageRowLeft
                 ]}
               >
                 <View
                   style={[
-                    styles.messageBubble,
-                    isClient ? styles.messageBubbleClient : styles.messageBubblePro
+                    dynamicStyles.messageBubble,
+                    isClient ? dynamicStyles.messageBubbleClient : dynamicStyles.messageBubblePro
                   ]}
                 >
                   <Text style={[
-                    styles.messageText,
-                    isClient ? styles.messageTextClient : styles.messageTextPro
+                    dynamicStyles.messageText,
+                    isClient ? dynamicStyles.messageTextClient : dynamicStyles.messageTextPro
                   ]}>
                     {msg.content}
                   </Text>
                   {timeFormatted ? (
                     <Text style={[
-                      styles.messageTime,
-                      isClient ? styles.messageTimeClient : styles.messageTimePro
+                      dynamicStyles.messageTime,
+                      isClient ? dynamicStyles.messageTimeClient : dynamicStyles.messageTimePro
                     ]}>
                       {timeFormatted}
                     </Text>
@@ -566,8 +774,8 @@ export default function ClientChat() {
         )}
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : (Platform.OS === 'ios' ? 24 : 14) }]}>
-        <View style={styles.inputRow}>
+      <View style={[dynamicStyles.footer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : (Platform.OS === 'ios' ? 24 : 14) }]}>
+        <View style={dynamicStyles.inputRow}>
           <TextInput
             value={messageText}
             onChangeText={setMessageText}
@@ -581,12 +789,12 @@ export default function ClientChat() {
                 : 'Digite sua mensagem...'
             }
             editable={!isFinished}
-            style={[styles.input, isFinished && { backgroundColor: '#F1F5F9', color: '#94A3B8' }]}
-            placeholderTextColor="#94A3B8"
+            style={[dynamicStyles.input, isFinished && { backgroundColor: colors.surface, color: colors.textSecondary }]}
+            placeholderTextColor={colors.textSecondary}
             onSubmitEditing={handleSendMessage}
           />
           <TouchableOpacity
-            style={[styles.sendButton, (!messageText.trim() || sending || isFinished) && styles.sendButtonDisabled]}
+            style={[dynamicStyles.sendButton, (!messageText.trim() || sending || isFinished) && dynamicStyles.sendButtonDisabled]}
             disabled={!messageText.trim() || sending || isFinished}
             onPress={handleSendMessage}
           >
@@ -597,186 +805,3 @@ export default function ClientChat() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
-  },
-  header: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    paddingHorizontal: WorkEzTheme.spacing.lg,
-    paddingVertical: WorkEzTheme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    padding: WorkEzTheme.spacing.sm,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
-    borderRadius: WorkEzTheme.borderRadius.lg,
-  },
-  headerProfileClickable: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    resizeMode: 'cover',
-  },
-  avatarImg: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  professionalName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: WorkEzTheme.colors.text,
-  },
-  viewProfilePill: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  viewProfilePillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#2563EB',
-  },
-  statusText: {
-    ...WorkEzTheme.typography.sm,
-    color: '#0F766E', // Verde/teal escuro com contraste excelente sobre fundo branco
-    fontWeight: '600',
-  },
-  alertBanner: {
-    backgroundColor: '#EFF6FF',
-    borderBottomWidth: 1,
-    borderTopWidth: 1,
-    borderColor: '#BFDBFE',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  alertRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  alertIcon: {
-    marginTop: 2,
-  },
-  alertText: {
-    flex: 1,
-    ...WorkEzTheme.typography.xs,
-    color: '#1D4ED8',
-    lineHeight: 18,
-  },
-  messagesList: {
-    flex: 1,
-  },
-  messagesContent: {
-    padding: 24,
-    gap: 16,
-  },
-  centerContainer: {
-    padding: 48,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    color: WorkEzTheme.colors.textSecondary,
-  },
-  errorText: {
-    color: WorkEzTheme.colors.danger,
-    textAlign: 'center',
-  },
-  messageRow: {
-    flexDirection: 'row',
-  },
-  messageRowLeft: {
-    justifyContent: 'flex-start',
-  },
-  messageRowRight: {
-    justifyContent: 'flex-end',
-  },
-  messageBubble: {
-    maxWidth: '75%',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  messageBubbleClient: {
-    backgroundColor: '#2563EB',
-  },
-  messageBubblePro: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    borderWidth: 1,
-    borderColor: WorkEzTheme.colors.border,
-  },
-  messageText: {
-    ...WorkEzTheme.typography.sm,
-  },
-  messageTextClient: {
-    color: '#FFFFFF',
-  },
-  messageTextPro: {
-    color: WorkEzTheme.colors.text,
-  },
-  messageTime: {
-    ...WorkEzTheme.typography.xs,
-    marginTop: 4,
-  },
-  messageTimeClient: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  messageTimePro: {
-    color: WorkEzTheme.colors.textSecondary,
-  },
-  footer: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: WorkEzTheme.colors.border,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: WorkEzTheme.colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.text,
-  },
-  sendButton: {
-    width: 48,
-    height: 48,
-    backgroundColor: '#2563EB',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-});

@@ -1,5 +1,6 @@
 import React, { Children, isValidElement } from 'react';
 import { TouchableOpacity, TouchableOpacityProps, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { useAppTheme } from '../contexts/ThemeContext';
 
 interface ButtonProps extends Omit<TouchableOpacityProps, 'style' | 'children'> {
   variant?: 'primary' | 'secondary' | 'ghost';
@@ -29,15 +30,18 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
+  const { isDark } = useAppTheme();
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isGhost = variant === 'ghost';
 
+  const secondaryColor = isDark ? '#93C5FD' : '#2563EB';
+
   const defaultTextStyle: TextStyle = isPrimary
     ? styles.primaryText
     : isSecondary
-    ? styles.secondaryText
-    : styles.ghostText;
+    ? { ...styles.secondaryText, color: secondaryColor }
+    : { ...styles.ghostText, color: secondaryColor };
 
   return (
     <TouchableOpacity
@@ -47,7 +51,10 @@ export function Button({
       style={[
         styles.baseButton,
         isPrimary && styles.primaryButton,
-        isSecondary && styles.secondaryButton,
+        isSecondary && [
+          styles.secondaryButton,
+          isDark && { backgroundColor: 'rgba(37, 99, 235, 0.16)', borderColor: 'rgba(96, 165, 250, 0.35)' },
+        ],
         isGhost && styles.ghostButton,
         fullWidth && styles.fullWidth,
         disabled && styles.disabled,

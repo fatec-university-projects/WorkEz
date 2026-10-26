@@ -1,6 +1,8 @@
 import { Clock, MapPin, Navigation } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { WorkEzTheme } from '../constants/theme';
+import { useAppTheme } from '../contexts/ThemeContext';
+import { formatDate } from '../utils/date';
 
 interface ServiceCardProps {
   category: string;
@@ -21,19 +23,21 @@ export function ServiceCard({
   professional,
   distanceKm,
   estimatedDurationMinutes,
-  onClick
+  onClick,
 }: ServiceCardProps) {
+  const { isDark, colors } = useAppTheme();
+
   const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
-    'pending': { color: '#EA580C', bg: 'rgba(234, 88, 12, 0.1)', label: 'Pendente' },
-    'open': { color: '#0284C7', bg: 'rgba(2, 132, 199, 0.1)', label: 'Aberto' },
-    'under-negotiation': { color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.12)', label: 'Em Leilão' },
-    'accepted': { color: '#16A34A', bg: 'rgba(22, 163, 74, 0.12)', label: 'Aceito' },
-    'confirmed': { color: '#16A34A', bg: 'rgba(22, 163, 74, 0.12)', label: 'Aceito' },
-    'on-the-way': { color: '#2563EB', bg: 'rgba(37, 99, 235, 0.12)', label: 'A caminho' },
-    'in-progress': { color: '#0284C7', bg: 'rgba(2, 132, 199, 0.12)', label: 'Em andamento' },
-    'waiting-payment': { color: '#D97706', bg: 'rgba(217, 119, 6, 0.12)', label: 'Aguardando pagamento' },
-    'completed': { color: '#0F766E', bg: 'rgba(15, 118, 110, 0.12)', label: 'Concluído' },
-    'cancelled': { color: WorkEzTheme.colors.textSecondary, bg: 'rgba(148, 163, 184, 0.1)', label: 'Cancelado' },
+    pending: { color: isDark ? '#FB923C' : '#EA580C', bg: 'rgba(234, 88, 12, 0.14)', label: 'Pendente' },
+    open: { color: isDark ? '#38BDF8' : '#0284C7', bg: 'rgba(2, 132, 199, 0.14)', label: 'Aberto' },
+    'under-negotiation': { color: isDark ? '#A78BFA' : '#7C3AED', bg: 'rgba(124, 58, 237, 0.16)', label: 'Em Leilão' },
+    accepted: { color: isDark ? '#4ADE80' : '#16A34A', bg: 'rgba(22, 163, 74, 0.15)', label: 'Aceito' },
+    confirmed: { color: isDark ? '#4ADE80' : '#16A34A', bg: 'rgba(22, 163, 74, 0.15)', label: 'Aceito' },
+    'on-the-way': { color: isDark ? '#60A5FA' : '#2563EB', bg: 'rgba(37, 99, 235, 0.16)', label: 'A caminho' },
+    'in-progress': { color: isDark ? '#38BDF8' : '#0284C7', bg: 'rgba(2, 132, 199, 0.15)', label: 'Em andamento' },
+    'waiting-payment': { color: isDark ? '#FBBF24' : '#D97706', bg: 'rgba(217, 119, 6, 0.16)', label: 'Aguardando pagamento' },
+    completed: { color: isDark ? '#2DD4BF' : '#0F766E', bg: 'rgba(15, 118, 110, 0.16)', label: 'Concluído' },
+    cancelled: { color: colors.textSecondary, bg: 'rgba(148, 163, 184, 0.14)', label: 'Cancelado' },
   };
 
   const getNormalizedStatus = (rawStatus: string): string => {
@@ -73,12 +77,20 @@ export function ServiceCard({
     <TouchableOpacity
       onPress={onClick}
       activeOpacity={0.8}
-      style={styles.cardContainer}
+      style={[
+        styles.cardContainer,
+        {
+          backgroundColor: colors.backgroundCard,
+          borderColor: colors.border,
+        },
+      ]}
     >
       <View style={styles.headerRow}>
         <View style={styles.titleContainer}>
-          <Text style={styles.categoryTitle}>{category}</Text>
-          <Text style={styles.descriptionText} numberOfLines={2}>{description}</Text>
+          <Text style={[styles.categoryTitle, { color: colors.text }]}>{category}</Text>
+          <Text style={[styles.descriptionText, { color: colors.textSecondary }]} numberOfLines={2}>
+            {description}
+          </Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
           <Text style={[styles.statusText, { color: config.color }]}>
@@ -89,8 +101,8 @@ export function ServiceCard({
 
       {distanceKm !== undefined && distanceKm !== null && (
         <View style={styles.distanceBadge}>
-          <Navigation size={13} color="#2563EB" />
-          <Text style={styles.distanceBadgeText}>
+          <Navigation size={13} color={isDark ? '#60A5FA' : '#2563EB'} />
+          <Text style={[styles.distanceBadgeText, { color: isDark ? '#93C5FD' : '#1D4ED8' }]}>
             A {distanceKm.toFixed(1)} km de você{estimatedDurationMinutes ? ` • ~${estimatedDurationMinutes} min de trajeto` : ''}
           </Text>
         </View>
@@ -98,26 +110,15 @@ export function ServiceCard({
 
       <View style={styles.footerRow}>
         <View style={styles.footerItem}>
-          <Clock size={16} color={WorkEzTheme.colors.textSecondary} />
-          <Text style={styles.footerText}>
-            {(() => {
-              if (!date) return '';
-              const trimmed = String(date).trim();
-              if (/^\d{2}-\d{2}-\d{4}/.test(trimmed)) {
-                return trimmed.replace(/-/g, '/');
-              }
-              if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-                const parts = trimmed.split('T')[0].split('-');
-                return `${parts[2]}/${parts[1]}/${parts[0]}`;
-              }
-              return trimmed;
-            })()}
+          <Clock size={16} color={colors.textSecondary} />
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+            {formatDate(date)}
           </Text>
         </View>
         {professional && (
           <View style={styles.footerItem}>
-            <MapPin size={16} color={WorkEzTheme.colors.textSecondary} />
-            <Text style={styles.footerText}>{professional}</Text>
+            <MapPin size={16} color={colors.textSecondary} />
+            <Text style={[styles.footerText, { color: colors.textSecondary }]}>{professional}</Text>
           </View>
         )}
       </View>
@@ -127,11 +128,9 @@ export function ServiceCard({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
     borderRadius: WorkEzTheme.borderRadius.xl,
     padding: WorkEzTheme.spacing.md,
     borderWidth: 1,
-    borderColor: WorkEzTheme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -142,9 +141,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(37, 99, 235, 0.2)',
+    borderColor: 'rgba(37, 99, 235, 0.25)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -154,7 +153,6 @@ const styles = StyleSheet.create({
   distanceBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1D4ED8',
   },
   headerRow: {
     flexDirection: 'row',
@@ -168,11 +166,9 @@ const styles = StyleSheet.create({
   categoryTitle: {
     ...WorkEzTheme.typography.base,
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: WorkEzTheme.colors.text,
   },
   descriptionText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
     marginTop: 4,
   },
   statusBadge: {
@@ -197,6 +193,5 @@ const styles = StyleSheet.create({
   },
   footerText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
   },
 });

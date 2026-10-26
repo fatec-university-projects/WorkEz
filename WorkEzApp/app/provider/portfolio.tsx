@@ -11,6 +11,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../services/api';
 import { imageService } from '../../services/imageService';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -21,6 +22,7 @@ const IMG_SIZE = (SCREEN_WIDTH - 48 - 12) / 2; // 2 cols, padding + gap
 export default function Portfolio() {
   const router = useRouter();
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
 
   const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,10 +137,8 @@ export default function Portfolio() {
     }
   };
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
       <ScreenHeader
         title="Portfólio"
         subtitle={`${images.length} ${images.length === 1 ? 'trabalho' : 'trabalhos'}`}
@@ -146,27 +146,26 @@ export default function Portfolio() {
       />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
         {/* Upload Button */}
         <TouchableOpacity
-          style={[styles.uploadCard, uploading && styles.uploadCardDisabled]}
+          style={[styles.uploadCard, { backgroundColor: colors.backgroundCard, borderColor: colors.primary }, uploading && styles.uploadCardDisabled]}
           onPress={handleAddImage}
           activeOpacity={0.85}
           disabled={uploading}
         >
           {uploading ? (
             <View style={styles.uploadCardInner}>
-              <ActivityIndicator size="small" color={WorkEzTheme.colors.primary} />
-              <Text style={styles.uploadCardText}>Enviando imagem...</Text>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.uploadCardText, { color: colors.textSecondary }]}>Enviando imagem...</Text>
             </View>
           ) : (
             <View style={styles.uploadCardInner}>
-              <View style={styles.uploadIconBg}>
-                <Plus size={22} color={WorkEzTheme.colors.primary} />
+              <View style={[styles.uploadIconBg, { backgroundColor: isDark ? 'rgba(37,99,235,0.18)' : '#EFF6FF' }]}>
+                <Plus size={22} color={colors.primaryText} />
               </View>
               <View>
-                <Text style={styles.uploadCardTitle}>Adicionar trabalho</Text>
-                <Text style={styles.uploadCardHint}>Toque para selecionar da galeria</Text>
+                <Text style={[styles.uploadCardTitle, { color: colors.primaryText }]}>Adicionar trabalho</Text>
+                <Text style={[styles.uploadCardHint, { color: colors.textSecondary }]}>Toque para selecionar da galeria</Text>
               </View>
             </View>
           )}
@@ -175,24 +174,24 @@ export default function Portfolio() {
         {/* Content */}
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
-            <Text style={styles.loadingText}>Carregando portfólio...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Carregando portfólio...</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
-            <ImageIcon size={48} color={WorkEzTheme.colors.textSecondary} />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={fetchPortfolio} style={styles.retryBtn}>
+            <ImageIcon size={48} color={colors.textSecondary} />
+            <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
+            <TouchableOpacity onPress={fetchPortfolio} style={[styles.retryBtn, { backgroundColor: colors.primary }]}>
               <Text style={styles.retryBtnText}>Tentar novamente</Text>
             </TouchableOpacity>
           </View>
         ) : images.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconBg}>
-              <Camera size={40} color={WorkEzTheme.colors.textSecondary} />
+            <View style={[styles.emptyIconBg, { backgroundColor: colors.backgroundCard }]}>
+              <Camera size={40} color={colors.textSecondary} />
             </View>
-            <Text style={styles.emptyTitle}>Portfólio vazio</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>Portfólio vazio</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
               Adicione fotos dos seus melhores trabalhos para atrair mais clientes.
             </Text>
           </View>
@@ -201,7 +200,7 @@ export default function Portfolio() {
             {images.map((img, i) => (
               <TouchableOpacity
                 key={`${img}-${i}`}
-                style={styles.imgWrapper}
+                style={[styles.imgWrapper, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
                 onPress={() => setSelectedImage(img)}
                 activeOpacity={0.9}
               >
@@ -251,7 +250,6 @@ export default function Portfolio() {
             <TouchableOpacity
               style={styles.modalDeleteBtn}
               onPress={() => handleDelete(selectedImage)}
-              activeOpacity={0.85}
             >
               <Trash2 size={18} color="#FFF" />
               <Text style={styles.modalDeleteText}>Remover do portfólio</Text>
@@ -266,55 +264,15 @@ export default function Portfolio() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
   },
-
-  // ── Header ──────────────────────────────────────────────────
-  header: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    paddingHorizontal: WorkEzTheme.spacing.lg,
-    paddingTop: WorkEzTheme.spacing.lg,
-    paddingBottom: WorkEzTheme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    padding: 8,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
-    borderRadius: WorkEzTheme.borderRadius.lg,
-  },
-  headerTextBlock: {
-    flex: 1,
-  },
-  headerTitle: {
-    ...WorkEzTheme.typography.xl,
-    fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
-  },
-  headerSub: {
-    ...WorkEzTheme.typography.xs,
-    color: WorkEzTheme.colors.textSecondary,
-    marginTop: 1,
-  },
-
-  // ── Content ─────────────────────────────────────────────────
   content: {
     padding: WorkEzTheme.spacing.lg,
     gap: 16,
   },
-
-  // ── Upload Card ─────────────────────────────────────────────
   uploadCard: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
     borderRadius: WorkEzTheme.borderRadius['2xl'],
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: WorkEzTheme.colors.primary,
     paddingVertical: 18,
     paddingHorizontal: 20,
   },
@@ -330,27 +288,21 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   uploadCardTitle: {
     ...WorkEzTheme.typography.base,
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: '#0F766E',
   },
   uploadCardHint: {
     ...WorkEzTheme.typography.xs,
-    color: WorkEzTheme.colors.textSecondary,
     marginTop: 2,
   },
   uploadCardText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
     marginLeft: 8,
   },
-
-  // ── Grid ────────────────────────────────────────────────────
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -361,9 +313,7 @@ const styles = StyleSheet.create({
     height: IMG_SIZE,
     borderRadius: WorkEzTheme.borderRadius.xl,
     overflow: 'hidden',
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
@@ -392,8 +342,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  // ── Empty State ─────────────────────────────────────────────
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 48,
@@ -403,7 +351,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
@@ -411,17 +358,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     ...WorkEzTheme.typography.lg,
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: WorkEzTheme.colors.text,
   },
   emptySubtitle: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     maxWidth: 280,
   },
-
-  // ── Loading / Error ─────────────────────────────────────────
   centerContainer: {
     paddingVertical: 48,
     alignItems: 'center',
@@ -429,11 +372,9 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
   },
   errorText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.danger,
     textAlign: 'center',
     marginTop: 8,
   },
@@ -441,7 +382,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: WorkEzTheme.colors.primary,
     borderRadius: WorkEzTheme.borderRadius.lg,
   },
   retryBtnText: {
@@ -449,8 +389,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
   },
-
-  // ── Modal ────────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.92)',

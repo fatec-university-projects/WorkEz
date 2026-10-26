@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CheckCircle2, DollarSign, User, Wrench, AlertCircle, Camera, Plus, Trash2 } from 'lucide-react-native';
 import { 
@@ -14,6 +14,7 @@ import {
   Image 
 } from 'react-native';
 import { WorkEzTheme } from '../../../constants/theme';
+import { useAppTheme } from '../../../contexts/ThemeContext';
 import { useFetch } from '../../../hooks/useFetch';
 import { apiRequest, uploadChecklistPhotos } from '../../../services/api';
 import { imageService } from '../../../services/imageService';
@@ -23,6 +24,7 @@ import { ImageViewerModal } from '../../../components/ImageViewerModal';
 
 export default function InformValue() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
@@ -150,8 +152,256 @@ export default function InformValue() {
     }
   };
 
+  const dynamicStyles = useMemo(() => {
+    return StyleSheet.create({
+      container: {
+        flex: 1,
+        backgroundColor: colors.background,
+      },
+      scrollContent: {
+        padding: 20,
+        maxWidth: 600,
+        width: '100%',
+        alignSelf: 'center',
+        gap: 16,
+      },
+      serviceCard: {
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: colors.border,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: isDark ? 0.25 : 0.04,
+        shadowRadius: 3,
+        elevation: 1,
+      },
+      serviceHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+      },
+      iconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : '#DBEAFE',
+      },
+      serviceCategory: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: colors.text,
+      },
+      serviceClient: {
+        fontSize: 13,
+        color: colors.textSecondary,
+      },
+      priceEstimateRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: colors.surface,
+        padding: 10,
+        borderRadius: 10,
+        marginTop: 12,
+        borderWidth: 1,
+        borderColor: colors.border,
+      },
+      priceEstimateLabel: {
+        fontSize: 12,
+        color: colors.textSecondary,
+      },
+      priceEstimateValue: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: colors.secondary,
+      },
+      inputCard: {
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: colors.border,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: isDark ? 0.25 : 0.04,
+        shadowRadius: 3,
+        elevation: 1,
+      },
+      cardTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: colors.text,
+        marginBottom: 4,
+      },
+      cardSubtitle: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        lineHeight: 18,
+        marginBottom: 16,
+      },
+      inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: colors.primary,
+        borderRadius: 12,
+        backgroundColor: colors.surface,
+        paddingHorizontal: 16,
+        marginBottom: 14,
+      },
+      currencyPrefix: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: colors.primary,
+        marginRight: 8,
+      },
+      textInput: {
+        flex: 1,
+        fontSize: 22,
+        fontWeight: '700',
+        color: colors.text,
+        paddingVertical: 14,
+      },
+      hintBox: {
+        flexDirection: 'row',
+        gap: 8,
+        backgroundColor: colors.surface,
+        borderRadius: 10,
+        padding: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: colors.border,
+      },
+      hintText: {
+        flex: 1,
+        fontSize: 12,
+        color: colors.textSecondary,
+        lineHeight: 17,
+      },
+      btnConfirm: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: colors.primary,
+        paddingVertical: 14,
+        borderRadius: 12,
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+        elevation: 2,
+      },
+      btnConfirmText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#FFFFFF',
+      },
+      btnDisabled: {
+        opacity: 0.65,
+      },
+      photoCountBadge: {
+        backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE',
+      },
+      photoCountBadgeText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: colors.primary,
+      },
+      photosGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        marginTop: 10,
+      },
+      photoThumbWrapper: {
+        position: 'relative',
+        width: 100,
+        height: 100,
+        borderRadius: 12,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+      },
+      photoThumbImg: {
+        width: '100%',
+        height: '100%',
+      },
+      photoRemoveBtn: {
+        position: 'absolute',
+        top: 4,
+        right: 4,
+        backgroundColor: 'rgba(220, 38, 38, 0.85)',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+      photoIndexBadge: {
+        position: 'absolute',
+        bottom: 4,
+        left: 4,
+        backgroundColor: 'rgba(15, 23, 42, 0.75)',
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+      photoIndexText: {
+        color: '#FFFFFF',
+        fontSize: 10,
+        fontWeight: '700',
+      },
+      addPhotoCardBtn: {
+        width: 100,
+        height: 100,
+        borderRadius: 12,
+        borderWidth: 1.5,
+        borderStyle: 'dashed',
+        borderColor: colors.primary,
+        backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 6,
+      },
+      addPhotoIconCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#DBEAFE',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 4,
+      },
+      addPhotoBtnText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: colors.primary,
+      },
+      addPhotoBtnSub: {
+        fontSize: 9,
+        color: colors.textSecondary,
+        marginTop: 1,
+      },
+    });
+  }, [colors, isDark]);
+
   return (
-    <View style={styles.container}>
+    <View style={dynamicStyles.container}>
       {/* Top Header */}
       <ScreenHeader
         title="Informar Valor Final"
@@ -160,27 +410,27 @@ export default function InformValue() {
         onBack={handleBack}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={dynamicStyles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Card do Chamado */}
         {service && (
-          <View style={styles.serviceCard}>
-            <View style={styles.serviceHeaderRow}>
-              <View style={styles.iconCircle}>
-                <Wrench size={20} color="#2563EB" />
+          <View style={dynamicStyles.serviceCard}>
+            <View style={dynamicStyles.serviceHeaderRow}>
+              <View style={dynamicStyles.iconCircle}>
+                <Wrench size={20} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.serviceCategory}>{service.category || 'Serviço Prestado'}</Text>
+                <Text style={dynamicStyles.serviceCategory}>{service.category || 'Serviço Prestado'}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                  <User size={13} color="#64748B" />
-                  <Text style={styles.serviceClient}>{service.clientName || 'Cliente'}</Text>
+                  <User size={13} color={colors.textSecondary} />
+                  <Text style={dynamicStyles.serviceClient}>{service.clientName || 'Cliente'}</Text>
                 </View>
               </View>
             </View>
 
             {service.price ? (
-              <View style={styles.priceEstimateRow}>
-                <Text style={styles.priceEstimateLabel}>Valor acordado na proposta:</Text>
-                <Text style={styles.priceEstimateValue}>
+              <View style={dynamicStyles.priceEstimateRow}>
+                <Text style={dynamicStyles.priceEstimateLabel}>Valor acordado na proposta:</Text>
+                <Text style={dynamicStyles.priceEstimateValue}>
                   R$ {Number(service.price).toFixed(2).replace('.', ',')}
                 </Text>
               </View>
@@ -189,24 +439,24 @@ export default function InformValue() {
         )}
 
         {/* Card de Fotos da Vistoria de Conclusão (Branch 5) */}
-        <View style={styles.inputCard}>
+        <View style={dynamicStyles.inputCard}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Camera size={18} color="#2563EB" />
-              <Text style={styles.cardTitle}>Vistoria do Serviço Finalizado</Text>
+              <Camera size={18} color={colors.primary} />
+              <Text style={dynamicStyles.cardTitle}>Vistoria do Serviço Finalizado</Text>
             </View>
-            <View style={styles.photoCountBadge}>
-              <Text style={styles.photoCountBadgeText}>{photos.length}/3 fotos</Text>
+            <View style={dynamicStyles.photoCountBadge}>
+              <Text style={dynamicStyles.photoCountBadgeText}>{photos.length}/3 fotos</Text>
             </View>
           </View>
-          <Text style={styles.cardSubtitle}>
+          <Text style={dynamicStyles.cardSubtitle}>
             Anexe até 3 fotos do serviço pronto como comprovação para o cliente visualizar antes de pagar.
           </Text>
 
           {/* Grid de fotos anexadas */}
-          <View style={styles.photosGrid}>
+          <View style={dynamicStyles.photosGrid}>
             {photos.map((uri, index) => (
-              <View key={index} style={styles.photoThumbWrapper}>
+              <View key={index} style={dynamicStyles.photoThumbWrapper}>
                 <TouchableOpacity
                   onPress={() => {
                     setViewerIndex(index);
@@ -214,37 +464,37 @@ export default function InformValue() {
                   }}
                   activeOpacity={0.85}
                 >
-                  <Image source={{ uri }} style={styles.photoThumbImg} />
+                  <Image source={{ uri }} style={dynamicStyles.photoThumbImg} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.photoRemoveBtn}
+                  style={dynamicStyles.photoRemoveBtn}
                   onPress={() => removePhoto(index)}
                   activeOpacity={0.7}
                 >
                   <Trash2 size={13} color="#FFFFFF" />
                 </TouchableOpacity>
-                <View style={styles.photoIndexBadge}>
-                  <Text style={styles.photoIndexText}>{index + 1}</Text>
+                <View style={dynamicStyles.photoIndexBadge}>
+                  <Text style={dynamicStyles.photoIndexText}>{index + 1}</Text>
                 </View>
               </View>
             ))}
 
             {photos.length < 3 && (
               <TouchableOpacity
-                style={styles.addPhotoCardBtn}
+                style={dynamicStyles.addPhotoCardBtn}
                 onPress={pickPhoto}
                 disabled={uploadingPhoto}
                 activeOpacity={0.75}
               >
                 {uploadingPhoto ? (
-                  <ActivityIndicator size="small" color="#2563EB" />
+                  <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
                   <>
-                    <View style={styles.addPhotoIconCircle}>
-                      <Plus size={20} color="#2563EB" />
+                    <View style={dynamicStyles.addPhotoIconCircle}>
+                      <Plus size={20} color={colors.primary} />
                     </View>
-                    <Text style={styles.addPhotoBtnText}>Adicionar Foto</Text>
-                    <Text style={styles.addPhotoBtnSub}>Câmera ou Galeria</Text>
+                    <Text style={dynamicStyles.addPhotoBtnText}>Adicionar Foto</Text>
+                    <Text style={dynamicStyles.addPhotoBtnSub}>Câmera ou Galeria</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -253,33 +503,33 @@ export default function InformValue() {
         </View>
 
         {/* Card do Input de Valor */}
-        <View style={styles.inputCard}>
-          <Text style={styles.cardTitle}>Valor Final do Serviço</Text>
-          <Text style={styles.cardSubtitle}>
+        <View style={dynamicStyles.inputCard}>
+          <Text style={dynamicStyles.cardTitle}>Valor Final do Serviço</Text>
+          <Text style={dynamicStyles.cardSubtitle}>
             Confirme ou ajuste o valor a ser cobrado do cliente para liberar o pagamento.
           </Text>
 
-          <View style={styles.inputWrapper}>
-            <Text style={styles.currencyPrefix}>R$</Text>
+          <View style={dynamicStyles.inputWrapper}>
+            <Text style={dynamicStyles.currencyPrefix}>R$</Text>
             <TextInput
-              style={styles.textInput}
+              style={dynamicStyles.textInput}
               keyboardType="decimal-pad"
               placeholder="0,00"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textSecondary}
               value={value}
               onChangeText={setValue}
             />
           </View>
 
-          <View style={styles.hintBox}>
-            <AlertCircle size={16} color="#64748B" style={{ marginTop: 2 }} />
-            <Text style={styles.hintText}>
+          <View style={dynamicStyles.hintBox}>
+            <AlertCircle size={16} color={colors.textSecondary} style={{ marginTop: 2 }} />
+            <Text style={dynamicStyles.hintText}>
               Este valor será cobrado diretamente do cliente na tela de pagamento.
             </Text>
           </View>
 
           <TouchableOpacity
-            style={[styles.btnConfirm, saving && styles.btnDisabled]}
+            style={[dynamicStyles.btnConfirm, saving && dynamicStyles.btnDisabled]}
             onPress={handleConfirmValue}
             disabled={saving}
             activeOpacity={0.85}
@@ -289,7 +539,7 @@ export default function InformValue() {
             ) : (
               <>
                 <CheckCircle2 size={20} color="#FFFFFF" />
-                <Text style={styles.btnConfirmText}>Confirmar Valor e Finalizar</Text>
+                <Text style={dynamicStyles.btnConfirmText}>Confirmar Valor e Finalizar</Text>
               </>
             )}
           </TouchableOpacity>
@@ -307,281 +557,3 @@ export default function InformValue() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    maxWidth: 600,
-    width: '100%',
-    alignSelf: 'center',
-    gap: 16,
-  },
-  serviceCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  serviceHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#EFF6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-  },
-  serviceCategory: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  serviceClient: {
-    fontSize: 13,
-    color: '#64748B',
-  },
-  priceEstimateRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  priceEstimateLabel: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  priceEstimateValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#15803D',
-  },
-  inputCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 4,
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#2563EB',
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    marginBottom: 14,
-  },
-  currencyPrefix: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2563EB',
-    marginRight: 8,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0F172A',
-    paddingVertical: 14,
-  },
-  hintBox: {
-    flexDirection: 'row',
-    gap: 8,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  hintText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 17,
-  },
-  btnConfirm: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#2563EB',
-    paddingVertical: 14,
-    borderRadius: 12,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  btnConfirmText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  btnDisabled: {
-    opacity: 0.65,
-  },
-  // ─── Estilos de Fotos e Vistoria (Branch 5) ──────────────────────────
-  photoCountBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  photoCountBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#1D4ED8',
-  },
-  photosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 10,
-  },
-  photoThumbWrapper: {
-    position: 'relative',
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#0F172A',
-  },
-  photoThumbImg: {
-    width: '100%',
-    height: '100%',
-  },
-  photoRemoveBtn: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: 'rgba(220, 38, 38, 0.85)',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoIndexBadge: {
-    position: 'absolute',
-    bottom: 4,
-    left: 4,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoIndexText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  addPhotoCardBtn: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#3B82F6',
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 6,
-  },
-  addPhotoIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#DBEAFE',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  addPhotoBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#1D4ED8',
-  },
-  addPhotoBtnSub: {
-    fontSize: 9,
-    color: '#60A5FA',
-    marginTop: 1,
-  },
-});

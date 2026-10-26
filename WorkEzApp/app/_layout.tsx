@@ -6,7 +6,24 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '../contexts/AuthContext';
+import { ThemeProvider, useAppTheme } from '../contexts/ThemeContext';
 import { notificationService } from '../services/notificationService';
+
+function ThemedRootContent() {
+  const { isDark, colors } = useAppTheme();
+
+  return (
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.backgroundAlt },
+        }}
+      />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+    </>
+  );
+}
 
 export default function RootLayout() {
   const router = useRouter();
@@ -27,10 +44,11 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-        <StatusBar style="auto" />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <ThemedRootContent />
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

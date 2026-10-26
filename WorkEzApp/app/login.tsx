@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Mail, Lock } from 'lucide-react-native';
 import { Button } from '../components/Button';
@@ -8,7 +8,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
-import { WorkEzTheme } from '../constants/theme';
+import { WorkEzTheme, LightColors } from '../constants/theme';
 import { authService } from '../services/authService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,11 +19,6 @@ function isValidEmail(email: string): boolean {
 }
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
-// AUDITORIA FIX:
-// - Chama authService.login() real (não bypassa mais para /client)
-// - Valida email e senha antes de enviar
-// - Redireciona para a rota correta conforme role do JWT
-// - "Cadastre-se" vai para /profile-choice (não direto para /signup)
 
 export default function Login() {
   const router = useRouter();
@@ -103,7 +98,7 @@ export default function Login() {
         <View style={styles.mainContent}>
           <View style={styles.formContainer}>
             <View style={styles.inputWrapper}>
-              <Mail size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+              <Mail size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
               <Input
                 placeholder="Seu e-mail"
                 value={email}
@@ -122,7 +117,7 @@ export default function Login() {
             </View>
 
             <View style={styles.inputWrapper}>
-              <Lock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+              <Lock size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
               <Input
                 secureTextEntry
                 placeholder="Sua senha"
@@ -158,7 +153,6 @@ export default function Login() {
             {loading ? <ActivityIndicator color="#2563EB" size="small" /> : 'Entrar'}
           </Button>
 
-          {/* AUDITORIA FIX: "Cadastre-se" vai para /profile-choice, não /signup */}
           <View style={styles.signupContainer}>
             <Text style={styles.signupText}>
               Não tem uma conta?{' '}
@@ -178,7 +172,7 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: WorkEzTheme.colors.background,
+    backgroundColor: LightColors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -220,7 +214,7 @@ const styles = StyleSheet.create({
   },
   apiErrorText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.danger,
+    color: LightColors.danger,
     textAlign: 'center',
   },
   footerContainer: {
@@ -234,7 +228,7 @@ const styles = StyleSheet.create({
   },
   signupText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
+    color: LightColors.textSecondary,
   },
   signupLinkText: {
     ...WorkEzTheme.typography.sm,

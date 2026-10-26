@@ -1,15 +1,17 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Star, Award, Image as ImageIcon, User, LogOut, Clock, Check, Briefcase, X } from 'lucide-react-native';
+import { Star, Award, Image as ImageIcon, User, LogOut, Clock, Check, Briefcase, X, Sun, Moon, Smartphone } from 'lucide-react-native';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { RatingCard } from '../../components/RatingCard';
 import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme, ThemeMode } from '../../contexts/ThemeContext';
 import { useFetch } from '../../hooks/useFetch';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { formatDate } from '../../utils/date';
 
 interface ProviderProfileData {
   id: string;
@@ -33,7 +35,14 @@ export default function ProviderProfile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
+  const { mode, isDark, colors, setMode } = useAppTheme();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const themeOptions: { key: ThemeMode; label: string; icon: any }[] = [
+    { key: 'light', label: 'Claro', icon: Sun },
+    { key: 'dark', label: 'Escuro', icon: Moon },
+    { key: 'system', label: 'Sistema', icon: Smartphone },
+  ];
 
   const handleLogout = () => {
     signOut();
@@ -126,10 +135,10 @@ export default function ProviderProfile() {
   })() : null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
       <ScreenHeader title="Meu perfil" />
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={[
           styles.content,
           { paddingBottom: 110 + (insets.bottom > 0 ? insets.bottom : 20) }
@@ -138,16 +147,16 @@ export default function ProviderProfile() {
       >
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
-            <Text style={styles.loadingText}>Carregando perfil...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Carregando perfil...</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
           </View>
         ) : (
           <>
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
               <View style={styles.profileRow}>
                 <View style={styles.avatarWrapper}>
                   {(profile?.photo || user?.photo || user?.profilePicture) ? (
@@ -156,28 +165,32 @@ export default function ProviderProfile() {
                       style={styles.avatar}
                     />
                   ) : (
-                    <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                      <User size={36} color={WorkEzTheme.colors.textSecondary} />
+                    <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.backgroundAlt }]}>
+                      <User size={36} color={colors.textSecondary} />
                     </View>
                   )}
                 </View>
                 <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>
+                  <Text style={[styles.profileName, { color: colors.text }]}>
                     {profile?.name || user?.name || 'Profissional'}
                   </Text>
                   {profile?.verified && <Badge variant="verified" size="md" />}
                   <View style={styles.statsRow}>
                     <View style={styles.ratingRow}>
                       <Star size={18} color="#FBBF24" fill="#FBBF24" />
-                      <Text style={styles.ratingText}>{profile?.rating != null ? profile.rating.toFixed(1) : '0.0'}</Text>
+                      <Text style={[styles.ratingText, { color: colors.text }]}>
+                        {profile?.rating != null ? profile.rating.toFixed(1) : '0.0'}
+                      </Text>
                     </View>
-                    <Text style={styles.servicesCount}>• {profile?.servicesCompleted || 0} serviços concluídos</Text>
+                    <Text style={[styles.servicesCount, { color: colors.textSecondary }]}>
+                      • {profile?.servicesCompleted || 0} serviços concluídos
+                    </Text>
                   </View>
 
                   {profile?.experience ? (
-                    <View style={styles.experiencePill}>
-                      <Clock size={13} color="#0F766E" />
-                      <Text style={styles.experiencePillText}>
+                    <View style={[styles.experiencePill, isDark && { backgroundColor: 'rgba(20, 184, 166, 0.15)', borderColor: 'rgba(45, 212, 191, 0.35)' }]}>
+                      <Clock size={13} color={isDark ? '#2DD4BF' : '#0F766E'} />
+                      <Text style={[styles.experiencePillText, isDark && { color: '#2DD4BF' }]}>
                         {profile.experience} de experiência
                       </Text>
                     </View>
@@ -185,30 +198,36 @@ export default function ProviderProfile() {
                 </View>
               </View>
 
-              <View style={styles.specialtiesSection}>
+              <View style={[styles.specialtiesSection, { borderTopColor: colors.border }]}>
                 <View style={styles.sectionHeaderRow}>
-                  <Briefcase size={16} color="#475569" />
-                  <Text style={styles.sectionSubtitle}>Especialidades</Text>
+                  <Briefcase size={16} color={colors.textSecondary} />
+                  <Text style={[styles.sectionSubtitle, { color: colors.text }]}>Especialidades</Text>
                 </View>
                 <View style={styles.tagsContainer}>
                   {profile?.specialties && profile.specialties.length > 0 ? (
                     profile.specialties.map((spec, index) => (
-                      <View key={index} style={styles.tag}>
-                        <Check size={12} color="#2563EB" />
-                        <Text style={styles.tagText}>{spec}</Text>
+                      <View
+                        key={index}
+                        style={[
+                          styles.tag,
+                          isDark && { backgroundColor: 'rgba(37, 99, 235, 0.16)', borderColor: 'rgba(96, 165, 250, 0.35)' },
+                        ]}
+                      >
+                        <Check size={12} color={isDark ? '#60A5FA' : '#2563EB'} />
+                        <Text style={[styles.tagText, isDark && { color: '#93C5FD' }]}>{spec}</Text>
                       </View>
                     ))
                   ) : (
-                    <View style={[styles.tag, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
-                      <Text style={[styles.tagText, { color: '#64748B' }]}>Serviços Gerais</Text>
+                    <View style={[styles.tag, { backgroundColor: colors.backgroundAlt, borderColor: colors.border }]}>
+                      <Text style={[styles.tagText, { color: colors.textSecondary }]}>Serviços Gerais</Text>
                     </View>
                   )}
                 </View>
               </View>
 
-              <View style={styles.bioSection}>
-                <Text style={styles.sectionSubtitle}>Sobre você</Text>
-                <Text style={styles.description}>
+              <View style={[styles.bioSection, { borderTopColor: colors.border }]}>
+                <Text style={[styles.sectionSubtitle, { color: colors.text }]}>Sobre você</Text>
+                <Text style={[styles.description, { color: colors.textSecondary }]}>
                   {profile?.description || 'Descrição do profissional indisponível.'}
                 </Text>
               </View>
@@ -225,26 +244,78 @@ export default function ProviderProfile() {
               <Button
                 variant="secondary"
                 fullWidth
-                style={{ marginTop: 10, backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}
+                style={{
+                  marginTop: 10,
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.14)' : '#F0FDF4',
+                  borderColor: isDark ? 'rgba(52, 211, 153, 0.35)' : '#BBF7D0',
+                }}
                 onPress={() => router.push('/provider/work-area' as any)}
               >
                 Configurar área de atuação no mapa
               </Button>
             </View>
 
+            {/* ── Seletor de Tema (Claro / Escuro / Sistema) ── */}
+            <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Aparência do aplicativo</Text>
+              <Text style={[styles.themeSubtitle, { color: colors.textSecondary }]}>
+                Escolha entre o modo claro, escuro ou automático do celular
+              </Text>
+              <View style={[styles.themeSegmentedRow, { backgroundColor: colors.backgroundAlt }]}>
+                {themeOptions.map((opt) => {
+                  const Icon = opt.icon;
+                  const active = mode === opt.key;
+                  return (
+                    <TouchableOpacity
+                      key={opt.key}
+                      activeOpacity={0.8}
+                      onPress={() => setMode(opt.key)}
+                      style={[
+                        styles.themeOptionBtn,
+                        active && {
+                          backgroundColor: isDark ? '#2563EB' : '#FFFFFF',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 2,
+                          elevation: 2,
+                        },
+                      ]}
+                    >
+                      <Icon
+                        size={16}
+                        color={active ? (isDark ? '#FFFFFF' : '#2563EB') : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.themeOptionText,
+                          {
+                            color: active ? (isDark ? '#FFFFFF' : '#0F172A') : colors.textSecondary,
+                            fontWeight: active ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* ── Portfólio ── */}
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
               <View style={styles.cardHeaderRow}>
                 <View style={styles.cardTitleRow}>
-                  <ImageIcon size={20} color={WorkEzTheme.colors.text} />
-                  <Text style={styles.cardTitle}>Portfólio</Text>
+                  <ImageIcon size={20} color={colors.text} />
+                  <Text style={[styles.cardTitle, { color: colors.text }]}>Portfólio</Text>
                 </View>
                 <Button
                   variant="ghost"
                   onPress={() => router.push('/provider/portfolio')}
                   style={styles.ghostBtn}
                 >
-                  <Text style={styles.ghostBtnText}>Ver todos</Text>
+                  <Text style={[styles.ghostBtnText, { color: colors.textSecondary }]}>Ver todos</Text>
                 </Button>
               </View>
 
@@ -253,7 +324,7 @@ export default function ProviderProfile() {
                   {profile.portfolio.map((img, i) => (
                     <TouchableOpacity
                       key={i}
-                      style={styles.portfolioImg}
+                      style={[styles.portfolioImg, { backgroundColor: colors.backgroundAlt, borderColor: colors.border }]}
                       onPress={() => setSelectedImage(img)}
                       activeOpacity={0.85}
                     >
@@ -266,7 +337,7 @@ export default function ProviderProfile() {
                   ))}
                 </View>
               ) : (
-                <Text style={styles.emptyText}>Nenhuma foto no portfólio ainda.</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Nenhuma foto no portfólio ainda.</Text>
               )}
 
               <Button
@@ -279,46 +350,42 @@ export default function ProviderProfile() {
               </Button>
             </View>
 
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
               <View style={styles.cardHeaderRow}>
                 <View style={styles.cardTitleRow}>
-                  <Award size={20} color={WorkEzTheme.colors.text} />
-                  <Text style={styles.cardTitle}>Avaliações</Text>
+                  <Award size={20} color={colors.text} />
+                  <Text style={[styles.cardTitle, { color: colors.text }]}>Avaliações</Text>
                 </View>
                 <Button
                   variant="ghost"
                   onPress={() => router.push('/provider/ratings')}
                   style={styles.ghostBtn}
                 >
-                  <Text style={styles.ghostBtnText}>Ver todas</Text>
+                  <Text style={[styles.ghostBtnText, { color: colors.textSecondary }]}>Ver todas</Text>
                 </Button>
               </View>
 
               <View style={styles.statsGrid}>
                 <View style={styles.statCol}>
-                  <Text style={styles.statValue}>{profile?.reviewStats?.average?.toFixed(1) || '0.0'}</Text>
-                  <Text style={styles.statLabel}>Nota média</Text>
+                  <Text style={[styles.statValue, { color: colors.text }]}>
+                    {profile?.reviewStats?.average?.toFixed(1) || '0.0'}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Nota média</Text>
                 </View>
                 <View style={styles.statCol}>
-                  <Text style={styles.statValue}>{profile?.reviewStats?.total || 0}</Text>
-                  <Text style={styles.statLabel}>Avaliações</Text>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{profile?.reviewStats?.total || 0}</Text>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Avaliações</Text>
                 </View>
                 <View style={styles.statCol}>
-                  <Text style={styles.statValue}>{profile?.reviewStats?.positivePercentage || 0}%</Text>
-                  <Text style={styles.statLabel}>Positivas</Text>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{profile?.reviewStats?.positivePercentage || 0}%</Text>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Positivas</Text>
                 </View>
               </View>
 
               {rawReviews && rawReviews.length > 0 && (
                 <View style={styles.reviewsList}>
                   {rawReviews.slice(0, 3).map((review: any, idx: number) => {
-                    let formattedDate = 'Recentemente';
-                    if (review.createdAt) {
-                      try {
-                        const d = new Date(review.createdAt);
-                        if (!isNaN(d.getTime())) formattedDate = d.toLocaleDateString('pt-BR');
-                      } catch {}
-                    }
+                    const formattedDate = review.createdAt ? formatDate(review.createdAt) : 'Recentemente';
                     return (
                       <RatingCard
                         key={review.id || idx}
@@ -338,18 +405,17 @@ export default function ProviderProfile() {
             <TouchableOpacity
               onPress={handleLogout}
               activeOpacity={0.8}
-              style={styles.logoutButton}
+              style={[styles.logoutButton, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
             >
               <View style={styles.logoutIconBadge}>
-                <LogOut size={20} color="#EF4444" />
+                <LogOut size={20} color={colors.danger} />
               </View>
-              <Text style={styles.logoutText}>Sair da conta</Text>
+              <Text style={[styles.logoutText, { color: colors.danger }]}>Sair da conta</Text>
             </TouchableOpacity>
           </>
         )}
       </ScrollView>
 
-      {/* Modal de visualização 100% da foto */}
       <Modal
         visible={!!selectedImage}
         transparent
@@ -380,19 +446,6 @@ export default function ProviderProfile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
-  },
-  header: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    paddingHorizontal: WorkEzTheme.spacing.lg,
-    paddingVertical: WorkEzTheme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
-  },
-  headerTitle: {
-    ...WorkEzTheme.typography['2xl'],
-    fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
   },
   content: {
     padding: WorkEzTheme.spacing.lg,
@@ -404,23 +457,42 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: WorkEzTheme.colors.textSecondary,
   },
   errorText: {
-    color: WorkEzTheme.colors.danger,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
     borderRadius: WorkEzTheme.borderRadius['2xl'],
     padding: WorkEzTheme.spacing.lg,
     borderWidth: 1,
-    borderColor: WorkEzTheme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+  },
+  themeSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  themeSegmentedRow: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    padding: 4,
+    gap: 6,
+  },
+  themeOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 9,
+  },
+  themeOptionText: {
+    fontSize: 13,
   },
   profileRow: {
     flexDirection: 'row',
@@ -442,7 +514,6 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: 80,
     height: 80,
-    backgroundColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -452,7 +523,6 @@ const styles = StyleSheet.create({
   profileName: {
     ...WorkEzTheme.typography['2xl'],
     fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
     marginBottom: 4,
   },
   statsRow: {
@@ -469,11 +539,9 @@ const styles = StyleSheet.create({
   ratingText: {
     ...WorkEzTheme.typography.lg,
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: WorkEzTheme.colors.text,
   },
   servicesCount: {
     ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
   },
   experiencePill: {
     flexDirection: 'row',
@@ -498,7 +566,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -509,7 +576,6 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#334155',
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -535,11 +601,9 @@ const styles = StyleSheet.create({
   bioSection: {
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
   },
   description: {
     fontSize: 14,
-    color: '#475569',
     lineHeight: 22,
   },
   cardHeaderRow: {
@@ -556,7 +620,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...WorkEzTheme.typography.base,
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: WorkEzTheme.colors.text,
   },
   ghostBtn: {
     paddingHorizontal: 8,
@@ -565,7 +628,6 @@ const styles = StyleSheet.create({
   },
   ghostBtnText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
   },
   portfolioGrid: {
     flexDirection: 'row',
@@ -574,20 +636,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 4,
   },
-  portfolioItem: {
-    width: '31%',
-    height: 96,
-    borderRadius: WorkEzTheme.borderRadius.lg,
-    overflow: 'hidden',
-  },
   portfolioImg: {
     width: '31%',
     height: 110,
     borderRadius: WorkEzTheme.borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -626,7 +680,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyText: {
-    color: WorkEzTheme.colors.textSecondary,
     ...WorkEzTheme.typography.sm,
     fontStyle: 'italic',
   },
@@ -640,11 +693,9 @@ const styles = StyleSheet.create({
   statValue: {
     ...WorkEzTheme.typography['2xl'],
     fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
   },
   statLabel: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -652,10 +703,8 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -666,13 +715,12 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: 'rgba(239,68,68,0.08)',
+    backgroundColor: 'rgba(239,68,68,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoutText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#EF4444',
   },
 });

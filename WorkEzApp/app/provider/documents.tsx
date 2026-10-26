@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Upload, FileText, Home, CreditCard, Shield, CheckCircle } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { WorkEzTheme } from '../../constants/theme';
+import { WorkEzTheme, LightColors } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -63,7 +63,7 @@ export default function DocumentVerification() {
 
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+            <ActivityIndicator size="large" color={LightColors.primary} />
             <Text style={styles.loadingText}>Verificando documentos...</Text>
           </View>
         ) : error ? (
@@ -89,7 +89,7 @@ export default function DocumentVerification() {
                 >
                   <View style={styles.docRow}>
                     <View style={styles.iconWrapper}>
-                      <Icon size={24} color={WorkEzTheme.colors.textSecondary} />
+                      <Icon size={24} color={LightColors.textSecondary} />
                     </View>
                     <View style={styles.docInfo}>
                       <Text style={styles.docLabel}>{doc.label}</Text>
@@ -100,9 +100,9 @@ export default function DocumentVerification() {
                       </Text>
                     </View>
                     {isVerified ? (
-                      <CheckCircle size={20} color={WorkEzTheme.colors.success} />
+                      <CheckCircle size={20} color={LightColors.success} />
                     ) : (
-                      <Upload size={20} color={WorkEzTheme.colors.primary} />
+                      <Upload size={20} color={LightColors.primary} />
                     )}
                   </View>
                 </TouchableOpacity>
@@ -138,20 +138,20 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: WorkEzTheme.spacing.sm,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    backgroundColor: LightColors.backgroundAlt,
     borderRadius: WorkEzTheme.borderRadius.lg,
     alignSelf: 'flex-start',
   },
   title: {
     ...WorkEzTheme.typography['3xl'],
     fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
+    color: LightColors.text,
     marginTop: 32,
     marginBottom: 8,
   },
   subtitle: {
     ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
+    color: LightColors.textSecondary,
   },
   centerContainer: {
     padding: 48,
@@ -160,10 +160,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: WorkEzTheme.colors.textSecondary,
+    color: LightColors.textSecondary,
   },
   errorText: {
-    color: WorkEzTheme.colors.danger,
+    color: LightColors.danger,
     textAlign: 'center',
   },
   docsList: {
@@ -171,20 +171,20 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   docCard: {
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
+    backgroundColor: LightColors.backgroundAlt,
     borderRadius: WorkEzTheme.borderRadius.xl,
     padding: WorkEzTheme.spacing.md,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: WorkEzTheme.colors.border,
+    borderColor: LightColors.border,
   },
   docCardVerified: {
-    borderColor: WorkEzTheme.colors.success,
+    borderColor: LightColors.success,
     borderStyle: 'solid',
     backgroundColor: '#F0FDF4',
   },
   docCardUploaded: {
-    borderColor: WorkEzTheme.colors.primary,
+    borderColor: LightColors.primary,
     borderStyle: 'solid',
     backgroundColor: '#EFF6FF',
   },
@@ -207,11 +207,11 @@ const styles = StyleSheet.create({
   docLabel: {
     ...WorkEzTheme.typography.base,
     fontWeight: WorkEzTheme.typography.fontWeight.medium,
-    color: WorkEzTheme.colors.text,
+    color: LightColors.text,
   },
   docReq: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
+    color: LightColors.textSecondary,
   },
   infoBanner: {
     backgroundColor: '#EFF6FF',

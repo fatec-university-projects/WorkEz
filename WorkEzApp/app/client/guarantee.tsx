@@ -1,10 +1,10 @@
-import { useRouter } from 'expo-router';
-import { ArrowLeft, ShieldCheck, CreditCard, MessageCircle, Scale } from 'lucide-react-native';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { ShieldCheck, CreditCard, MessageCircle, Scale } from 'lucide-react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { useAppTheme } from '../../contexts/ThemeContext';
 
 export default function PlatformGuarantee() {
-  const router = useRouter();
+  const { colors, isDark } = useAppTheme();
 
   const features = [
     {
@@ -30,16 +30,14 @@ export default function PlatformGuarantee() {
   ];
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
       <ScreenHeader title="Garantia da plataforma" showBack />
 
-      <View className="p-6 space-y-6">
-        <View className="bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] rounded-2xl p-6 text-white text-center">
-          <ShieldCheck className="w-16 h-16 mx-auto mb-3" />
-          <Text className="text-2xl font-bold mb-2">100% Seguro</Text>
-          <Text className="text-white/90">
-            Sua proteção é nossa prioridade
-          </Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.heroBanner}>
+          <ShieldCheck size={56} color="#FFFFFF" style={{ marginBottom: 12 }} />
+          <Text style={styles.heroTitle}>100% Seguro</Text>
+          <Text style={styles.heroSubtitle}>Sua proteção é nossa prioridade</Text>
         </View>
 
         {features.map((feature, index) => {
@@ -47,34 +45,69 @@ export default function PlatformGuarantee() {
           return (
             <View
               key={index}
-              className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]"
+              style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
             >
-              <View className="flex-row items-start gap-4">
-                <View className="w-12 h-12 bg-[#2563EB]/10 rounded-xl flex-row items-center justify-center flex-shrink-0">
-                  <Icon className="w-6 h-6 text-[#2563EB]" />
+              <View style={styles.cardRow}>
+                <View style={[styles.iconBox, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF' }]}>
+                  <Icon size={24} color={isDark ? '#60A5FA' : '#2563EB'} />
                 </View>
-                <View className="flex-1">
-                  <Text className="font-semibold text-[#0F172A] mb-2">
-                    {feature.title}
-                  </Text>
-                  <Text className="text-sm text-[#64748B] leading-relaxed">
-                    {feature.description}
-                  </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.featureTitle, { color: colors.text }]}>{feature.title}</Text>
+                  <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>{feature.description}</Text>
                 </View>
               </View>
             </View>
           );
         })}
 
-        <View className="bg-[#FEF3C7] border border-[#FDE047] rounded-xl p-5">
-          <Text className="font-semibold text-[#854D0E] mb-2">
+        <View
+          style={[
+            styles.warningBox,
+            {
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.16)' : '#FEF3C7',
+              borderColor: isDark ? 'rgba(251, 191, 36, 0.35)' : '#FDE047',
+            },
+          ]}
+        >
+          <Text style={[styles.warningTitle, { color: isDark ? '#FCD34D' : '#854D0E' }]}>
             Garantia de 7 dias
           </Text>
-          <Text className="text-sm text-[#92400E] leading-relaxed">
+          <Text style={[styles.warningDesc, { color: isDark ? '#FDE68A' : '#92400E' }]}>
             Após a conclusão do serviço, você tem 7 dias para reportar qualquer problema. Mediaremos a situação e garantiremos uma solução justa.
           </Text>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { padding: 24, gap: 16 },
+  heroBanner: {
+    backgroundColor: '#2563EB',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+  },
+  heroTitle: { fontSize: 24, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
+  heroSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.9)' },
+  card: {
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+  },
+  cardRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureTitle: { fontSize: 16, fontWeight: '600', marginBottom: 6 },
+  featureDesc: { fontSize: 14, lineHeight: 20 },
+  warningBox: { borderRadius: 14, padding: 20, borderWidth: 1 },
+  warningTitle: { fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  warningDesc: { fontSize: 13, lineHeight: 20 },
+});

@@ -1,5 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useAppTheme } from '../../../contexts/ThemeContext';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { formatDate } from '../../../utils/date';
 import { 
   ArrowLeft, 
   MapPin, 
@@ -107,8 +109,10 @@ interface ServiceData {
 }
 
 export default function ServiceTracking() {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [cancelling, setCancelling] = useState(false);
@@ -291,11 +295,14 @@ export default function ServiceTracking() {
   };
 
   const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
+    if (from === 'services') {
       router.replace('/client/services' as any);
+      return;
     }
+    if (typeof router.canDismiss === 'function' && router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.replace('/client' as any);
   };
 
   const handleCancelService = async () => {
@@ -861,7 +868,7 @@ export default function ServiceTracking() {
                 <Calendar size={16} color="#64748B" />
                 <Text style={styles.infoMetaLabel}>Data do Serviço</Text>
               </View>
-              <Text style={styles.infoMetaValue}>{service.date || 'Hoje'}</Text>
+              <Text style={styles.infoMetaValue}>{service.date ? formatDate(service.date) : 'Hoje'}</Text>
             </View>
 
             <View style={styles.infoCol}>
@@ -948,7 +955,7 @@ export default function ServiceTracking() {
                     </TouchableOpacity>
 
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ fontSize: 18, fontWeight: '800', color: '#15803D' }}>
+                      <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#34D399' : '#15803D' }}>
                         R$ {proposal.proposedPrice?.toFixed(2).replace('.', ',')}
                       </Text>
                       <Text style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', fontWeight: '500' }}>
@@ -1179,7 +1186,7 @@ export default function ServiceTracking() {
                       }}
                       activeOpacity={0.8}
                     >
-                      <MessageCircle size={18} color="#2563EB" />
+                      <MessageCircle size={18} color={isDark ? '#60A5FA' : '#2563EB'} />
                       <Text style={styles.chatButtonText}>Chat</Text>
                     </TouchableOpacity>
 
@@ -1475,7 +1482,7 @@ export default function ServiceTracking() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={{ fontSize: 18, fontWeight: '700', color: '#0F172A' }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>
                 Fazer Contra-proposta
               </Text>
               <TouchableOpacity onPress={() => setCounterModalVisible(false)}>
@@ -1483,11 +1490,11 @@ export default function ServiceTracking() {
               </TouchableOpacity>
             </View>
 
-            <Text style={{ fontSize: 13, color: '#475569', marginBottom: 12 }}>
-              Valor original proposto por <Text style={{ fontWeight: '600' }}>{selectedProposal?.providerName}</Text>: <Text style={{ color: '#16A34A', fontWeight: '700' }}>R$ {selectedProposal?.proposedPrice?.toFixed(2).replace('.', ',')}</Text>
+            <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 12 }}>
+              Valor original proposto por <Text style={{ fontWeight: '600' }}>{selectedProposal?.providerName}</Text>: <Text style={{ color: isDark ? '#34D399' : '#16A34A', fontWeight: '700' }}>R$ {selectedProposal?.proposedPrice?.toFixed(2).replace('.', ',')}</Text>
             </Text>
 
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B', marginBottom: 4 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 4 }}>
               Seu novo valor proposto (R$) *
             </Text>
             <TextInput
@@ -1499,7 +1506,7 @@ export default function ServiceTracking() {
               onChangeText={setCounterPriceInput}
             />
 
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#1E293B', marginTop: 12, marginBottom: 4 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginTop: 12, marginBottom: 4 }}>
               Mensagem / Justificativa (opcional)
             </Text>
             <TextInput
@@ -1615,85 +1622,85 @@ export default function ServiceTracking() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     padding: 24,
   },
   loadingText: {
     marginTop: 14,
     fontSize: 15,
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
     marginTop: 12,
   },
   errorSub: {
     fontSize: 14,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 6,
     textAlign: 'center',
     marginBottom: 20,
   },
   badgeSuccess: {
-    backgroundColor: 'rgba(22, 163, 74, 0.12)',
+    backgroundColor: isDark ? 'rgba(22, 163, 74, 0.2)' : 'rgba(22, 163, 74, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(22, 163, 74, 0.25)',
+    borderColor: isDark ? 'rgba(22, 163, 74, 0.4)' : 'rgba(22, 163, 74, 0.25)',
   },
   badgeSuccessText: {
-    color: '#15803D',
+    color: isDark ? '#4ADE80' : '#15803D',
     fontWeight: '700',
     fontSize: 12,
   },
   badgePrimary: {
-    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : 'rgba(37, 99, 235, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(37, 99, 235, 0.25)',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : 'rgba(37, 99, 235, 0.25)',
   },
   badgePrimaryText: {
-    color: '#1D4ED8',
+    color: isDark ? '#93C5FD' : '#1D4ED8',
     fontWeight: '700',
     fontSize: 12,
   },
   badgeWarning: {
-    backgroundColor: 'rgba(217, 119, 6, 0.12)',
+    backgroundColor: isDark ? 'rgba(217, 119, 6, 0.2)' : 'rgba(217, 119, 6, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(217, 119, 6, 0.25)',
+    borderColor: isDark ? 'rgba(217, 119, 6, 0.4)' : 'rgba(217, 119, 6, 0.25)',
   },
   badgeWarningText: {
-    color: '#B45309',
+    color: isDark ? '#FCD34D' : '#B45309',
     fontWeight: '700',
     fontSize: 12,
   },
   badgeDanger: {
-    backgroundColor: 'rgba(220, 38, 38, 0.12)',
+    backgroundColor: isDark ? 'rgba(220, 38, 38, 0.2)' : 'rgba(220, 38, 38, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(220, 38, 38, 0.25)',
+    borderColor: isDark ? 'rgba(220, 38, 38, 0.4)' : 'rgba(220, 38, 38, 0.25)',
   },
   badgeDangerText: {
-    color: '#B91C1C',
+    color: isDark ? '#FCA5A5' : '#B91C1C',
     fontWeight: '700',
     fontSize: 12,
   },
@@ -1708,50 +1715,50 @@ const styles = StyleSheet.create({
   statusBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : '#BBF7D0',
     borderRadius: 14,
     padding: 14,
     gap: 12,
     marginBottom: 16,
   },
   bannerSuccess: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4',
+    borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : '#BBF7D0',
   },
   bannerPrimary: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE',
   },
   bannerWarning: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#FDE68A',
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+    borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
   },
   bannerDanger: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+    borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FECACA',
   },
   statusBannerTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#166534',
+    color: colors.text,
     marginBottom: 2,
   },
   statusBannerText: {
     fontSize: 13,
-    color: '#15803D',
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
+    shadowOpacity: isDark ? 0.25 : 0.04,
     shadowRadius: 3,
     elevation: 1,
     marginBottom: 16,
@@ -1765,53 +1772,54 @@ const styles = StyleSheet.create({
   serviceCategory: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
   },
   serviceLabel: {
     fontSize: 13,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   priceContainer: {
     alignItems: 'flex-end',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 12,
+    backgroundColor: isDark ? 'rgba(52, 211, 153, 0.14)' : '#F0FDF4',
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: isDark ? 'rgba(52, 211, 153, 0.35)' : '#BBF7D0',
   },
   priceLabel: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
+    fontWeight: '700',
+    color: isDark ? '#A7F3D0' : '#15803D',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   priceValue: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '800',
-    color: '#15803D',
+    color: isDark ? '#34D399' : '#166534',
     marginTop: 2,
   },
   descriptionBox: {
     flexDirection: 'row',
     gap: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 12,
     marginTop: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
   },
   descriptionText: {
     flex: 1,
     fontSize: 13,
-    color: '#334155',
+    color: colors.text,
     lineHeight: 19,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.border,
     marginVertical: 14,
   },
   infoGrid: {
@@ -1829,18 +1837,18 @@ const styles = StyleSheet.create({
   },
   infoMetaLabel: {
     fontSize: 12,
-    color: '#64748B',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   infoMetaValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
+    color: colors.text,
   },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
     marginBottom: 12,
   },
   clientRow: {
@@ -1853,11 +1861,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: colors.border,
   },
   avatarImg: {
     width: 44,
@@ -1867,11 +1875,11 @@ const styles = StyleSheet.create({
   clientName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
   },
   clientSub: {
     fontSize: 12,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 1,
   },
   chatButton: {
@@ -1879,9 +1887,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE',
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -1889,16 +1897,16 @@ const styles = StyleSheet.create({
   chatButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2563EB',
+    color: isDark ? '#60A5FA' : '#2563EB',
   },
   profileButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#F0FDFA',
+    backgroundColor: isDark ? 'rgba(20, 184, 166, 0.15)' : '#F0FDFA',
     borderWidth: 1,
-    borderColor: '#99F6E4',
+    borderColor: isDark ? 'rgba(20, 184, 166, 0.3)' : '#99F6E4',
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -1906,36 +1914,36 @@ const styles = StyleSheet.create({
   profileButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F766E',
+    color: isDark ? '#5EEAD4' : '#0F766E',
   },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
   },
   addressIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   addressTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   addressValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
+    color: colors.text,
     lineHeight: 20,
   },
   timelineItem: {
@@ -1952,25 +1960,25 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   timelineDotDone: {
-    backgroundColor: '#16A34A',
+    backgroundColor: colors.secondary,
   },
   timelineDotActive: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
   },
   timelineDotPending: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
   },
   timelineConnector: {
     width: 2,
     height: 20,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.border,
     marginLeft: 12,
     marginVertical: 2,
   },
   timelineConnectorDone: {
-    backgroundColor: '#16A34A',
+    backgroundColor: colors.secondary,
   },
   timelineBody: {
     flex: 1,
@@ -1978,66 +1986,66 @@ const styles = StyleSheet.create({
   timelineTitleDone: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#15803D',
+    color: colors.secondary,
   },
   timelineTitleActive: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2563EB',
+    color: colors.primary,
   },
   timelineTitlePending: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: colors.textSecondary,
   },
   timelineDesc: {
     fontSize: 12,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 2,
     lineHeight: 17,
   },
   proposalItemCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
   },
   tagBlue: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#DBEAFE',
   },
   tagBlueText: {
     fontSize: 11,
-    color: '#1D4ED8',
+    color: isDark ? '#93C5FD' : '#1D4ED8',
     fontWeight: '500',
   },
   tagGreen: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : '#DCFCE7',
   },
   tagGreenText: {
     fontSize: 11,
-    color: '#15803D',
+    color: isDark ? '#6EE7B7' : '#15803D',
     fontWeight: '500',
   },
   counterBanner: {
     flexDirection: 'row',
     gap: 8,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
     marginTop: 8,
   },
   actionBtn: {
@@ -2048,22 +2056,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   acceptBtn: {
-    backgroundColor: '#16A34A',
+    backgroundColor: colors.secondary,
   },
   counterBtn: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
   },
   chatActionBtn: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE',
     flexDirection: 'row',
     gap: 6,
   },
   profileActionBtn: {
-    backgroundColor: '#F0FDFA',
+    backgroundColor: isDark ? 'rgba(20, 184, 166, 0.15)' : '#F0FDFA',
     borderWidth: 1,
-    borderColor: '#99F6E4',
+    borderColor: isDark ? 'rgba(20, 184, 166, 0.3)' : '#99F6E4',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2071,22 +2079,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   miniProfileBadge: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : '#BFDBFE',
   },
   miniProfileBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#2563EB',
+    color: colors.primary,
   },
   rejectBtn: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: isDark ? 'rgba(239, 68, 68, 0.4)' : '#FECACA',
     paddingHorizontal: 12,
     flex: 0.6,
   },
@@ -2100,7 +2108,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     width: '100%',
     paddingVertical: 14,
     borderRadius: 14,
@@ -2119,16 +2127,16 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   btnSecondary: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE',
     alignItems: 'center',
   },
   btnSecondaryText: {
-    color: '#2563EB',
+    color: colors.primary,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -2137,12 +2145,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FECACA',
-    backgroundColor: '#FEF2F2',
+    borderColor: isDark ? 'rgba(239, 68, 68, 0.4)' : '#FECACA',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2',
     borderRadius: 12,
   },
   cancelBtnText: {
-    color: '#DC2626',
+    color: colors.danger,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -2154,7 +2162,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 18,
     padding: 20,
     width: '100%',
@@ -2166,14 +2174,14 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   modalInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#0F172A',
+    color: colors.text,
   },
   modalBtn: {
     paddingVertical: 12,
@@ -2182,17 +2190,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // ─── Estilos de Segurança e Vistorias (Branch 5) ──────────────────────────
   securityCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1.5,
-    borderColor: '#93C5FD',
+    borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : '#93C5FD',
     shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: isDark ? 0.3 : 0.1,
     shadowRadius: 10,
     elevation: 3,
   },
@@ -2206,18 +2213,18 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   securityCardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
   },
   securityCardSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 2,
     lineHeight: 16,
   },
@@ -2232,16 +2239,16 @@ const styles = StyleSheet.create({
     width: 54,
     height: 60,
     borderRadius: 12,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
     borderWidth: 2,
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   otpDigitText: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#1D4ED8',
+    color: colors.primary,
     letterSpacing: 1,
   },
   securityActionsRow: {
@@ -2259,13 +2266,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   securityBtnSecondaryText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2563EB',
+    color: colors.primary,
   },
   securityBtnPrimary: {
     flex: 1,
@@ -2275,7 +2282,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
   },
   securityBtnPrimaryText: {
     fontSize: 13,
@@ -2284,7 +2291,7 @@ const styles = StyleSheet.create({
   },
   securityDisclaimer: {
     fontSize: 11,
-    color: '#64748B',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
     lineHeight: 15,
@@ -2293,40 +2300,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4',
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : '#BBF7D0',
   },
   securityValidatedText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#166534',
+    color: isDark ? '#6EE7B7' : '#166534',
     flex: 1,
   },
   checklistSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 2,
     marginBottom: 6,
   },
   checklistSectionLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#334155',
+    color: colors.text,
     marginBottom: 4,
   },
   checklistThumb: {
     width: 88,
     height: 88,
     borderRadius: 10,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
   },
   qrModalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 22,
     width: '100%',
@@ -2343,14 +2350,14 @@ const styles = StyleSheet.create({
   qrModalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.text,
   },
   closeBtn: {
     padding: 4,
   },
   qrModalDesc: {
     fontSize: 13,
-    color: '#64748B',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 18,
@@ -2358,50 +2365,50 @@ const styles = StyleSheet.create({
   qrVisualContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     width: '100%',
   },
   qrDisplayBox: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
   },
   qrOtpDigitBox: {
     width: 44,
     height: 48,
     borderRadius: 10,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
     borderWidth: 1.5,
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   qrOtpDigitText: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1D4ED8',
+    color: colors.primary,
   },
   qrCloseActionButton: {
     marginTop: 20,
     width: '100%',
     paddingVertical: 12,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     alignItems: 'center',
   },
   qrCloseActionButtonText: {
-    color: '#FFFFFF',
+    color: colors.text,
     fontWeight: '600',
     fontSize: 15,
   },
   previewModalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 16,
     width: '100%',
@@ -2412,7 +2419,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 380,
     borderRadius: 12,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.surface,
     marginTop: 10,
   },
 });

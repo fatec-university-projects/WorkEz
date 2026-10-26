@@ -1,18 +1,19 @@
 import { useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Loader2, ShieldCheck, Star, Clock } from 'lucide-react-native';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { ShieldCheck, Star, Clock } from 'lucide-react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { useFetch } from '../../hooks/useFetch';
 import { apiRequest } from '../../services/api';
-import { WorkEzTheme } from '../../constants/theme';
 import { geocodeAddress } from '../../hooks/useLocation';
 
 export default function SearchingProfessional() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
 
   const {
     category,
@@ -120,10 +121,12 @@ export default function SearchingProfessional() {
             alert('Erro ao criar o chamado: ' + response.error);
             router.back();
           } else {
-            // Success: Wait 2.5 seconds to show the animation, then go to found screen
             setTimeout(() => {
               if (isMounted) {
-                router.replace(`/client/tracking/${response.data.id}` as any);
+                if (typeof router.canDismiss === 'function' && router.canDismiss()) {
+                  router.dismissAll();
+                }
+                router.replace(`/client/tracking/${response.data.id}?from=created` as any);
               }
             }, 2500);
           }
@@ -144,60 +147,70 @@ export default function SearchingProfessional() {
   }, [customer]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: insets.top > 0 ? insets.top + 12 : 20, paddingBottom: insets.bottom > 0 ? insets.bottom + 12 : 20, justifyContent: 'space-between' }}>
-      <View className="flex-1 flex flex-col items-center justify-center p-8">
-        <View className="w-24 h-24 bg-[#2563EB]/10 rounded-full flex-row items-center justify-center mb-6 relative">
-          <Loader2 className="w-12 h-12 text-[#2563EB] animate-spin" />
-          <View className="absolute inset-0 rounded-full border-4 border-[#2563EB]/20 animate-ping"></View>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.backgroundAlt,
+        paddingTop: insets.top > 0 ? insets.top + 12 : 20,
+        paddingBottom: insets.bottom > 0 ? insets.bottom + 12 : 20,
+        justifyContent: 'space-between',
+      }}
+    >
+      <View style={styles.centerBox}>
+        <View
+          style={[
+            styles.loaderCircle,
+            {
+              backgroundColor: isDark ? 'rgba(37, 99, 235, 0.18)' : 'rgba(37, 99, 235, 0.1)',
+              borderColor: isDark ? 'rgba(96, 165, 250, 0.35)' : 'rgba(37, 99, 235, 0.2)',
+            },
+          ]}
+        >
+          <ActivityIndicator size="large" color={isDark ? '#60A5FA' : '#2563EB'} />
         </View>
 
-        <Text className="text-2xl font-bold text-[#0F172A] text-center mb-2">
-          Publicando seu chamado
-        </Text>
-        <Text className="text-[#64748B] text-center max-w-xs">
+        <Text style={[styles.title, { color: colors.text }]}>Publicando seu chamado</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Estamos enviando as informações e procurando profissionais da categoria {category} próximos a você...
         </Text>
 
-        {(customerLoading) && (
-          <Text className="text-[#64748B] text-xs text-center mt-4 italic">
+        {customerLoading && (
+          <Text style={[styles.loadingHint, { color: colors.textSecondary }]}>
             Obtendo dados do perfil do cliente...
           </Text>
         )}
 
         <View style={{ marginTop: 24 }}>
-          <Text
-            onPress={() => router.back()}
-            style={{ color: '#EF4444', fontWeight: '600', fontSize: 14, textDecorationLine: 'underline', padding: 8 }}
-          >
+          <Text onPress={() => router.back()} style={[styles.cancelLink, { color: colors.danger }]}>
             Cancelar e voltar
           </Text>
         </View>
       </View>
 
-      <View className="p-6 space-y-3 bg-white border-t border-[#E2E8F0]">
-        <View className="flex-row items-center gap-3 text-sm">
-          <View className="w-8 h-8 bg-[#26FFF5]/10 rounded-lg flex-row items-center justify-center">
-            <ShieldCheck className="w-4 h-4 text-[#26FFF5]" />
+      <View style={[styles.footerCard, { backgroundColor: colors.backgroundCard, borderTopColor: colors.border }]}>
+        <View style={styles.featureRow}>
+          <View style={[styles.featureIcon, { backgroundColor: 'rgba(38, 255, 245, 0.14)' }]}>
+            <ShieldCheck size={16} color={colors.primaryText} />
           </View>
-          <Text className="text-[#64748B]">
+          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
             Todos os profissionais são verificados
           </Text>
         </View>
 
-        <View className="flex-row items-center gap-3 text-sm">
-          <View className="w-8 h-8 bg-[#FBBF24]/10 rounded-lg flex-row items-center justify-center">
-            <Star className="w-4 h-4 text-[#FBBF24]" />
+        <View style={styles.featureRow}>
+          <View style={[styles.featureIcon, { backgroundColor: 'rgba(251, 191, 36, 0.14)' }]}>
+            <Star size={16} color="#FBBF24" />
           </View>
-          <Text className="text-[#64748B]">
+          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
             Selecionamos os melhores avaliados
           </Text>
         </View>
 
-        <View className="flex-row items-center gap-3 text-sm">
-          <View className="w-8 h-8 bg-[#2563EB]/10 rounded-lg flex-row items-center justify-center">
-            <Clock className="w-4 h-4 text-[#2563EB]" />
+        <View style={styles.featureRow}>
+          <View style={[styles.featureIcon, { backgroundColor: 'rgba(37, 99, 235, 0.14)' }]}>
+            <Clock size={16} color={isDark ? '#60A5FA' : '#2563EB'} />
           </View>
-          <Text className="text-[#64748B]">
+          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
             Atendimento rápido garantido
           </Text>
         </View>
@@ -205,3 +218,62 @@ export default function SearchingProfessional() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  centerBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  loaderCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    maxWidth: 300,
+    lineHeight: 20,
+  },
+  loadingHint: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 16,
+    fontStyle: 'italic',
+  },
+  cancelLink: {
+    fontWeight: '600',
+    fontSize: 14,
+    textDecorationLine: 'underline',
+    padding: 8,
+  },
+  footerCard: {
+    padding: 24,
+    gap: 12,
+    borderTopWidth: 1,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  featureIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

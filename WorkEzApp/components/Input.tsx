@@ -1,18 +1,21 @@
-import { forwardRef } from 'react';
+import { forwardRef, ComponentRef } from 'react';
 import { View, Text, TextInput, TextInputProps, StyleSheet } from 'react-native';
 import { WorkEzTheme } from '../constants/theme';
+import { useAppTheme } from '../contexts/ThemeContext';
 
 export interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
 }
 
-export const Input = forwardRef<TextInput, InputProps>(
+export const Input = forwardRef<ComponentRef<typeof TextInput>, InputProps>(
   ({ label, error, style, ...props }, ref) => {
+    const { colors } = useAppTheme();
+
     return (
       <View style={styles.container}>
         {label ? (
-          <Text style={styles.label}>
+          <Text style={[styles.label, { color: colors.text }]}>
             {label}
           </Text>
         ) : null}
@@ -20,14 +23,18 @@ export const Input = forwardRef<TextInput, InputProps>(
           ref={ref}
           style={[
             styles.input,
-            error ? styles.inputError : null,
-            style
+            {
+              backgroundColor: colors.backgroundCard,
+              borderColor: error ? colors.danger : colors.border,
+              color: colors.text,
+            },
+            style,
           ]}
-          placeholderTextColor={WorkEzTheme.colors.textSecondary}
+          placeholderTextColor={colors.textSecondary}
           {...props}
         />
         {error ? (
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
         ) : null}
       </View>
     );
@@ -41,28 +48,21 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
+    display: 'flex',
     ...WorkEzTheme.typography.sm,
     fontWeight: WorkEzTheme.typography.fontWeight.medium,
-    color: WorkEzTheme.colors.text,
-    marginBottom: 8,
+    marginBottom: WorkEzTheme.spacing.xs,
   },
   input: {
     width: '100%',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: WorkEzTheme.colors.border,
-    borderRadius: WorkEzTheme.borderRadius.xl,
-    color: WorkEzTheme.colors.text,
+    paddingHorizontal: WorkEzTheme.spacing.md,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderRadius: WorkEzTheme.borderRadius.md,
     ...WorkEzTheme.typography.base,
   },
-  inputError: {
-    borderColor: WorkEzTheme.colors.danger,
-  },
   errorText: {
-    marginTop: 8,
+    marginTop: WorkEzTheme.spacing.xs,
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.danger,
   },
 });

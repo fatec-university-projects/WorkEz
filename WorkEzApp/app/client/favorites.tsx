@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router';
 import { ProfessionalCard } from '../../components/ProfessionalCard';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { WorkEzTheme } from '../../constants/theme';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { ScreenHeader } from '../../components/ScreenHeader';
 
 interface FavoriteProfessional {
@@ -19,30 +19,29 @@ interface FavoriteProfessional {
 export default function Favorites() {
   const router = useRouter();
   const { user } = useAuth();
+  const { colors } = useAppTheme();
 
   const { data: favorites, loading, error, refetch } = useFetch<FavoriteProfessional[]>(
     user ? `/api/Customers/${user.id}/favorites` : null
   );
 
   const toggleFavorite = async (id: string) => {
-    // Aqui no futuro chamaremos um endpoint como DELETE /api/Customers/{userId}/favorites/{id}
-    // E depois refetch()
     await refetch();
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
       <ScreenHeader title="Favoritos" subtitle="Seus profissionais salvos" />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
-            <Text style={styles.loadingText}>Carregando favoritos...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Carregando favoritos...</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
           </View>
         ) : (
           <View style={styles.list}>
@@ -63,8 +62,8 @@ export default function Favorites() {
 
             {(!favorites || favorites.length === 0) && (
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyTitle}>Nenhum favorito ainda</Text>
-                <Text style={styles.emptyText}>Salve profissionais que você gostou para chamá-los novamente</Text>
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>Nenhum favorito ainda</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Salve profissionais que você gostou para chamá-los novamente</Text>
               </View>
             )}
           </View>
@@ -77,30 +76,12 @@ export default function Favorites() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
-  },
-  header: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    paddingHorizontal: WorkEzTheme.spacing.lg,
-    paddingVertical: WorkEzTheme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
-  },
-  headerTitle: {
-    ...WorkEzTheme.typography['2xl'],
-    fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
-  },
-  headerSubtitle: {
-    ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
-    marginTop: 4,
   },
   scrollContent: {
     flexGrow: 1,
   },
   list: {
-    padding: WorkEzTheme.spacing.lg,
+    padding: 24,
     gap: 12,
   },
   centerContainer: {
@@ -109,10 +90,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: WorkEzTheme.colors.textSecondary,
   },
   errorText: {
-    color: WorkEzTheme.colors.danger,
     textAlign: 'center',
   },
   emptyContainer: {
@@ -120,12 +99,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyTitle: {
-    ...WorkEzTheme.typography.lg,
-    color: WorkEzTheme.colors.text,
+    fontSize: 18,
+    fontWeight: '600',
     marginBottom: 8,
   },
   emptyText: {
-    color: WorkEzTheme.colors.textSecondary,
     textAlign: 'center',
   },
 });

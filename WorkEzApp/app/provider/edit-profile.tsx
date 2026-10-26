@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Camera, User, Mail, Phone, Save, FileText, Clock, Check } from 'lucide-react-native';
 import {
@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { WorkEzTheme } from '../../constants/theme';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
 import { apiRequest } from '../../services/api';
@@ -31,6 +32,7 @@ interface ProviderProfile {
 export default function ProviderEditProfile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
   const { user, refreshUser } = useAuth();
 
   const { data: profile, loading: loadingProfile, error: profileError } = useFetch<ProviderProfile>(
@@ -128,13 +130,11 @@ export default function ProviderEditProfile() {
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
       setUploading(true);
-
       try {
-        const imageUrl = await imageService.uploadImage(asset.uri, asset.base64);
-        setPhoto(imageUrl);
-      } catch (err) {
-        console.error(err);
-        Alert.alert('Erro', 'Não foi possível enviar a imagem.');
+        const url = await imageService.uploadProfileImage(asset.uri, 312);
+        setPhoto(url);
+      } catch (err: any) {
+        Alert.alert('Erro', 'Falha ao fazer upload da imagem.');
       } finally {
         setUploading(false);
       }
@@ -142,25 +142,28 @@ export default function ProviderEditProfile() {
   };
 
   const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    if (!name.trim()) newErrors.name = 'Nome é obrigatório.';
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'E-mail inválido.';
+    const errs: Record<string, string> = {};
+    if (!name.trim()) errs.name = 'Nome é obrigatório';
+    if (!email.trim()) {
+      errs.email = 'E-mail é obrigatório';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      errs.email = 'E-mail inválido';
     }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (!validate() || !user) return;
     setSaving(true);
 
     try {
-      // 1. Update general User profile
+      // 1. Atualiza dados de usuário
       const userPayload = {
         name: name.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone.trim() || null,
+        phone: phone.trim() ? phone.replace(/\D/g, '') : null,
+        phoneNumber: phone.trim() ? phone.replace(/\D/g, '') : null,
         profilePicture: photo || null
       };
 
@@ -175,16 +178,18 @@ export default function ProviderEditProfile() {
         return;
       }
 
-      // 2. Update Provider Description details
-      if (profile) {
-        const finalDesc = experience.trim()
-          ? `[Experiência: ${experience.trim()} ${parseInt(experience.trim()) === 1 ? 'ano' : 'anos'}] ${description.trim()}`.trim()
-          : description.trim();
+      // 2. Atualiza dados do prestador
+      if (profile?.id) {
+        let finalDescription = description.trim();
+        if (experience.trim()) {
+          finalDescription = `[Experiência: ${experience.trim()} anos]\n${finalDescription}`.trim();
+        }
 
         const providerPayload = {
-          id: profile.id,
-          userId: user?.id,
-          professionalDescription: finalDesc
+          name: name.trim(),
+          phone: phone.trim() ? phone.replace(/\D/g, '') : null,
+          photo: photo || null,
+          professionalDescription: finalDescription || null,
         };
 
         const providerResponse = await apiRequest<any>(`/api/ServiceProviders/${profile.id}`, {
@@ -193,7 +198,7 @@ export default function ProviderEditProfile() {
         });
 
         if (providerResponse.error) {
-          Alert.alert('Erro ao atualizar descrição', providerResponse.error);
+          Alert.alert('Erro ao atualizar dados do prestador', providerResponse.error);
           setSaving(false);
           return;
         }
@@ -232,46 +237,203 @@ export default function ProviderEditProfile() {
     }
   };
 
+  const dynamicStyles = useMemo(() => {
+    return StyleSheet.create({
+      container: {
+        flex: 1,
+        backgroundColor: colors.background,
+      },
+      scrollContent: {
+        padding: 24,
+        flexGrow: 1,
+      },
+      centerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      loadingText: {
+        marginTop: 12,
+        color: colors.textSecondary,
+      },
+      saveBtn: {
+        marginTop: 16,
+      },
+      form: {
+        backgroundColor: colors.card,
+        borderRadius: 24,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: colors.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: isDark ? 0.25 : 0.05,
+        shadowRadius: 2,
+        elevation: 2,
+        gap: 16,
+      },
+      avatarSection: {
+        alignItems: 'center',
+        marginBottom: 16,
+        gap: 8,
+      },
+      avatarWrapper: {
+        position: 'relative',
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+      },
+      avatar: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        resizeMode: 'cover',
+        borderWidth: 3,
+        borderColor: colors.primary,
+      },
+      avatarPlaceholder: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 3,
+        borderColor: colors.primary,
+        backgroundColor: colors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+      cameraIconContainer: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: colors.primary,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: colors.card,
+      },
+      avatarTip: {
+        ...WorkEzTheme.typography.xs,
+        color: colors.textSecondary,
+      },
+      inputContainer: {
+        gap: 8,
+      },
+      label: {
+        ...WorkEzTheme.typography.sm,
+        fontWeight: '500',
+        color: colors.text,
+      },
+      inputWrapper: {
+        position: 'relative',
+        justifyContent: 'center',
+      },
+      inputIcon: {
+        position: 'absolute',
+        left: 16,
+        zIndex: 1,
+      },
+      inputIconDescription: {
+        position: 'absolute',
+        left: 16,
+        top: 14,
+        zIndex: 1,
+      },
+      inputWithIcon: {
+        paddingLeft: 48,
+      },
+      descriptionInput: {
+        width: '100%',
+        paddingLeft: 48,
+        paddingRight: 16,
+        paddingVertical: 14,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 12,
+        fontSize: 16,
+        color: colors.text,
+        minHeight: 100,
+      },
+      saveBtnText: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 16,
+      },
+      categoriesContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 4,
+      },
+      categoryTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: colors.surface,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: colors.border,
+      },
+      categoryTagSelected: {
+        backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
+        borderColor: colors.primary,
+      },
+      categoryTagText: {
+        ...WorkEzTheme.typography.sm,
+        color: colors.textSecondary,
+        fontWeight: '500',
+      },
+      categoryTagTextSelected: {
+        color: isDark ? '#93C5FD' : '#1D4ED8',
+        fontWeight: '600',
+      },
+    });
+  }, [colors, isDark]);
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={dynamicStyles.container}
     >
       <ScreenHeader title="Dados pessoais" showBack />
 
       <ScrollView 
         contentContainerStyle={[
-          styles.scrollContent,
+          dynamicStyles.scrollContent,
           { paddingBottom: 110 + (insets.bottom > 0 ? insets.bottom : 20) }
         ]}
         showsVerticalScrollIndicator={false}
       >
         {loadingProfile ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
-            <Text style={styles.loadingText}>Carregando dados...</Text>
+          <View style={dynamicStyles.centerContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={dynamicStyles.loadingText}>Carregando dados...</Text>
           </View>
         ) : (
-          <View style={styles.form}>
+          <View style={dynamicStyles.form}>
             {/* Avatar Picker */}
-            <View style={styles.avatarSection}>
+            <View style={dynamicStyles.avatarSection}>
               <TouchableOpacity
                 onPress={pickImage}
                 disabled={uploading}
-                style={styles.avatarWrapper}
+                style={dynamicStyles.avatarWrapper}
                 activeOpacity={0.9}
               >
                 {photo ? (
                   <Image
                     source={{ uri: photo }}
-                    style={styles.avatar}
+                    style={dynamicStyles.avatar}
                   />
                 ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                    <User size={48} color={WorkEzTheme.colors.textSecondary} />
+                  <View style={[dynamicStyles.avatar, dynamicStyles.avatarPlaceholder]}>
+                    <User size={48} color={colors.textSecondary} />
                   </View>
                 )}
-                <View style={styles.cameraIconContainer}>
+                <View style={dynamicStyles.cameraIconContainer}>
                   {uploading ? (
                     <ActivityIndicator size="small" color="#FFF" />
                   ) : (
@@ -279,28 +441,28 @@ export default function ProviderEditProfile() {
                   )}
                 </View>
               </TouchableOpacity>
-              <Text style={styles.avatarTip}>Toque para alterar a foto</Text>
+              <Text style={dynamicStyles.avatarTip}>Toque para alterar a foto</Text>
             </View>
 
             {/* Inputs */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Nome Completo</Text>
-              <View style={styles.inputWrapper}>
-                <User size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <View style={dynamicStyles.inputContainer}>
+              <Text style={dynamicStyles.label}>Nome Completo</Text>
+              <View style={dynamicStyles.inputWrapper}>
+                <User size={20} color={colors.textSecondary} style={dynamicStyles.inputIcon} />
                 <Input
                   placeholder="Seu nome completo"
                   value={name}
                   onChangeText={setName}
                   error={errors.name}
-                  style={styles.inputWithIcon}
+                  style={dynamicStyles.inputWithIcon}
                 />
               </View>
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>E-mail</Text>
-              <View style={styles.inputWrapper}>
-                <Mail size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <View style={dynamicStyles.inputContainer}>
+              <Text style={dynamicStyles.label}>E-mail</Text>
+              <View style={dynamicStyles.inputWrapper}>
+                <Mail size={20} color={colors.textSecondary} style={dynamicStyles.inputIcon} />
                 <Input
                   placeholder="Seu e-mail"
                   value={email}
@@ -308,63 +470,64 @@ export default function ProviderEditProfile() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   error={errors.email}
-                  style={styles.inputWithIcon}
+                  style={dynamicStyles.inputWithIcon}
                 />
               </View>
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Telefone</Text>
-              <View style={styles.inputWrapper}>
-                <Phone size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <View style={dynamicStyles.inputContainer}>
+              <Text style={dynamicStyles.label}>Telefone</Text>
+              <View style={dynamicStyles.inputWrapper}>
+                <Phone size={20} color={colors.textSecondary} style={dynamicStyles.inputIcon} />
                 <Input
                   placeholder="Telefone (opcional)"
                   value={phone}
                   onChangeText={(val) => setPhone(applyPhoneMask(val))}
                   keyboardType="phone-pad"
                   maxLength={15}
-                  style={styles.inputWithIcon}
+                  style={dynamicStyles.inputWithIcon}
                 />
               </View>
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Experiência (anos)</Text>
-              <View style={styles.inputWrapper}>
-                <Clock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <View style={dynamicStyles.inputContainer}>
+              <Text style={dynamicStyles.label}>Experiência (anos)</Text>
+              <View style={dynamicStyles.inputWrapper}>
+                <Clock size={20} color={colors.textSecondary} style={dynamicStyles.inputIcon} />
                 <Input
                   placeholder="Ex: 5"
                   value={experience}
                   onChangeText={setExperience}
                   keyboardType="numeric"
-                  style={styles.inputWithIcon}
+                  style={dynamicStyles.inputWithIcon}
                 />
               </View>
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Descrição / Biografia</Text>
-              <View style={styles.inputWrapper}>
-                <FileText size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIconDescription} />
+            <View style={dynamicStyles.inputContainer}>
+              <Text style={dynamicStyles.label}>Descrição / Biografia</Text>
+              <View style={dynamicStyles.inputWrapper}>
+                <FileText size={20} color={colors.textSecondary} style={dynamicStyles.inputIconDescription} />
                 <TextInput
                   value={description}
                   onChangeText={setDescription}
                   placeholder="Conte um pouco sobre sua experiência..."
+                  placeholderTextColor={colors.textSecondary}
                   multiline={true}
                   numberOfLines={4}
                   textAlignVertical="top"
-                  style={styles.descriptionInput}
+                  style={dynamicStyles.descriptionInput}
                 />
               </View>
             </View>
 
             {/* Categorias / Especialidades */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Especialidades / Categorias</Text>
+            <View style={dynamicStyles.inputContainer}>
+              <Text style={dynamicStyles.label}>Especialidades / Categorias</Text>
               {loadingCategories ? (
-                <ActivityIndicator size="small" color={WorkEzTheme.colors.primary} />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <View style={styles.categoriesContainer}>
+                <View style={dynamicStyles.categoriesContainer}>
                   {allCategories?.map((cat) => {
                     const isSelected = selectedCategories.some(
                       (id) => id && cat?.id && id.toLowerCase() === cat.id.toLowerCase()
@@ -375,17 +538,17 @@ export default function ProviderEditProfile() {
                         onPress={() => toggleCategory(cat.id)}
                         activeOpacity={0.8}
                         style={[
-                          styles.categoryTag,
-                          isSelected && styles.categoryTagSelected
+                          dynamicStyles.categoryTag,
+                          isSelected && dynamicStyles.categoryTagSelected
                         ]}
                       >
                         {isSelected && (
-                          <Check size={14} color="#1D4ED8" style={{ marginRight: 6 }} />
+                          <Check size={14} color={colors.primary} style={{ marginRight: 6 }} />
                         )}
                         <Text
                           style={[
-                            styles.categoryTagText,
-                            isSelected && styles.categoryTagTextSelected
+                            dynamicStyles.categoryTagText,
+                            isSelected && dynamicStyles.categoryTagTextSelected
                           ]}
                         >
                           {cat.name}
@@ -397,7 +560,7 @@ export default function ProviderEditProfile() {
               )}
             </View>
 
-            <View style={styles.saveBtn}>
+            <View style={dynamicStyles.saveBtn}>
               <Button
                 variant="primary"
                 fullWidth
@@ -409,7 +572,7 @@ export default function ProviderEditProfile() {
                 ) : (
                   <>
                     <Save size={20} color="#FFFFFF" />
-                    <Text style={styles.saveBtnText}>Salvar Alterações</Text>
+                    <Text style={dynamicStyles.saveBtnText}>Salvar Alterações</Text>
                   </>
                 )}
               </Button>
@@ -420,180 +583,3 @@ export default function ProviderEditProfile() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  headerTitle: {
-    ...WorkEzTheme.typography.lg,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: '#0F172A',
-  },
-  scrollContent: {
-    padding: 24,
-    flexGrow: 1,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#64748B',
-  },
-  saveBtn: {
-    marginTop: 16,
-  },
-  form: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-    gap: 16,
-  },
-  avatarSection: {
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  avatarWrapper: {
-    position: 'relative',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    resizeMode: 'cover',
-    borderWidth: 3,
-    borderColor: '#2563EB',
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: '#2563EB',
-    backgroundColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cameraIconContainer: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#2563EB',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  avatarTip: {
-    ...WorkEzTheme.typography.xs,
-    color: '#64748B',
-  },
-  inputContainer: {
-    gap: 8,
-  },
-  label: {
-    ...WorkEzTheme.typography.sm,
-    fontWeight: '500',
-    color: '#0F172A',
-  },
-  inputWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  inputIcon: {
-    position: 'absolute',
-    left: 16,
-    zIndex: 1,
-  },
-  inputIconDescription: {
-    position: 'absolute',
-    left: 16,
-    top: 14,
-    zIndex: 1,
-  },
-  inputWithIcon: {
-    paddingLeft: 48,
-  },
-  descriptionInput: {
-    width: '100%',
-    paddingLeft: 48,
-    paddingRight: 16,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    fontSize: 16,
-    color: '#0F172A',
-    minHeight: 100,
-  },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  categoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  categoryTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  categoryTagSelected: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
-  },
-  categoryTagText: {
-    ...WorkEzTheme.typography.sm,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  categoryTagTextSelected: {
-    color: '#1D4ED8',
-    fontWeight: '600',
-  },
-});

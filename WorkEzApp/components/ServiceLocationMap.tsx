@@ -12,7 +12,7 @@ import {
   Modal
 } from 'react-native';
 import { MapPin, Navigation, ExternalLink, Copy, Check, Compass, Car } from 'lucide-react-native';
-import { WorkEzTheme } from '../constants/theme';
+import { useAppTheme } from '../contexts/ThemeContext';
 
 let NativeWebView: any = null;
 if (Platform.OS !== 'web') {
@@ -42,6 +42,8 @@ export function ServiceLocationMap({
   title = 'Local de Atendimento',
   height = 240,
 }: ServiceLocationMapProps) {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const displayAddress = address || addressApproximate || 'Endereço não informado';
 
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(() => {
@@ -107,8 +109,15 @@ export function ServiceLocationMap({
 
   // Geração de HTML do Leaflet para renderização web e mobile (WebView)
   const leafletHtml = useMemo(() => {
-    const cleanAddress = (displayAddress || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    const cleanName = (clientName || 'Cliente').replace(/'/g, "\\'");
+
+
+    const mapBg = isDark ? '#0B1120' : '#E2E8F0';
+    const zoomBg = isDark ? '#131C31' : '#FFFFFF';
+    const zoomColor = isDark ? '#F8FAFC' : '#1E293B';
+    const zoomBorder = isDark ? '#1E293B' : '#E2E8F0';
+
+
+
 
     return `<!DOCTYPE html>
 <html>
@@ -119,7 +128,7 @@ export function ServiceLocationMap({
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #map { width: 100%; height: 100%; background: #E2E8F0; overflow: hidden; }
+    html, body, #map { width: 100%; height: 100%; background: ${mapBg}; overflow: hidden; }
     .leaflet-control-zoom {
       border: none !important;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
@@ -128,18 +137,19 @@ export function ServiceLocationMap({
       margin: 10px !important;
     }
     .leaflet-control-zoom a {
-      background-color: #FFFFFF !important;
-      color: #1E293B !important;
+      background-color: ${zoomBg} !important;
+      color: ${zoomColor} !important;
       font-weight: 700 !important;
       width: 28px !important;
       height: 28px !important;
       line-height: 28px !important;
       border: none !important;
-      border-bottom: 1px solid #E2E8F0 !important;
+      border-bottom: 1px solid ${zoomBorder} !important;
     }
     .leaflet-control-attribution { 
       font-size: 8px !important; 
-      background: rgba(255,255,255,0.7) !important; 
+      background: ${isDark ? 'rgba(19,28,49,0.8)' : 'rgba(255,255,255,0.7)'} !important;
+      color: ${isDark ? '#94A3B8' : '#475569'} !important;
     }
     .custom-marker {
       display: flex;
@@ -177,22 +187,6 @@ export function ServiceLocationMap({
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-4px); }
     }
-    .leaflet-popup-content-wrapper {
-      border-radius: 12px !important;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.18) !important;
-      padding: 4px 6px !important;
-    }
-    .popup-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: #0F172A;
-      margin-bottom: 2px;
-    }
-    .popup-addr {
-      font-size: 11px;
-      color: #475569;
-      line-height: 1.3;
-    }
   </style>
 </head>
 <body>
@@ -219,7 +213,7 @@ export function ServiceLocationMap({
     });
 
     var marker = L.marker([${lat}, ${lng}], { icon: markerIcon }).addTo(map);
-    marker.bindPopup('<div class="popup-title">${cleanName}</div><div class="popup-addr">${cleanAddress}</div>').openPopup();
+
 
     // Redimensionamento inteligente
     setTimeout(function() {
@@ -228,7 +222,7 @@ export function ServiceLocationMap({
   </script>
 </body>
 </html>`;
-  }, [lat, lng, displayAddress, clientName]);
+  }, [lat, lng, isDark]);
 
   // Ações de Abrir no Maps
   const handleOpenGoogleMaps = () => {
@@ -283,13 +277,15 @@ export function ServiceLocationMap({
     }
   };
 
+  const accentBlue = isDark ? '#60A5FA' : '#2563EB';
+
   return (
     <View style={styles.card}>
       {/* Header do Card */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <View style={styles.headerIconCircle}>
-            <MapPin size={18} color="#2563EB" />
+            <MapPin size={18} color={accentBlue} />
           </View>
           <View>
             <Text style={styles.cardTitle}>{title}</Text>
@@ -297,21 +293,13 @@ export function ServiceLocationMap({
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={styles.openMapsHeaderBtn}
-          onPress={() => setModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          <ExternalLink size={14} color="#2563EB" />
-          <Text style={styles.openMapsHeaderBtnText}>Opções de GPS</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Mapa Visual */}
       <View style={[styles.mapContainer, { height }]}>
         {geocoding && !coords ? (
           <View style={styles.mapLoading}>
-            <ActivityIndicator size="small" color="#2563EB" />
+            <ActivityIndicator size="small" color={accentBlue} />
             <Text style={styles.mapLoadingText}>Localizando endereço no mapa...</Text>
           </View>
         ) : Platform.OS === 'web' ? (
@@ -376,28 +364,20 @@ export function ServiceLocationMap({
           onPress={handleCopyAddress}
           activeOpacity={0.7}
         >
-          {copied ? <Check size={16} color="#16A34A" /> : <Copy size={16} color="#64748B" />}
+          {copied ? <Check size={16} color={colors.success} /> : <Copy size={16} color={colors.textSecondary} />}
         </TouchableOpacity>
       </View>
 
-      {/* Botões de Ação para Navegação */}
+      {/* Botão de Ação para Navegação GPS */}
       <View style={styles.actionsRow}>
         <TouchableOpacity 
-          style={styles.primaryMapsBtn}
-          onPress={handleOpenGoogleMaps}
+          style={styles.gpsActionButton}
+          onPress={() => setModalVisible(true)}
           activeOpacity={0.8}
         >
-          <Compass size={18} color="#FFFFFF" />
-          <Text style={styles.primaryMapsBtnText}>Ver no Google Maps</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.secondaryRouteBtn}
-          onPress={handleOpenRoute}
-          activeOpacity={0.8}
-        >
-          <Navigation size={18} color="#2563EB" />
-          <Text style={styles.secondaryRouteBtnText}>Traçar Rota</Text>
+          <Navigation size={18} color={accentBlue} />
+          <Text style={styles.gpsActionButtonText}>Opções de GPS</Text>
+          <ExternalLink size={15} color={accentBlue} style={{ marginLeft: 2 }} />
         </TouchableOpacity>
       </View>
 
@@ -424,8 +404,8 @@ export function ServiceLocationMap({
                 handleOpenGoogleMaps();
               }}
             >
-              <View style={[styles.modalOptionIconWrap, { backgroundColor: '#EFF6FF' }]}>
-                <Compass size={20} color="#2563EB" />
+              <View style={[styles.modalOptionIconWrap, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF' }]}>
+                <Compass size={20} color={accentBlue} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalOptionTitle}>Google Maps (Localização)</Text>
@@ -440,8 +420,8 @@ export function ServiceLocationMap({
                 handleOpenRoute();
               }}
             >
-              <View style={[styles.modalOptionIconWrap, { backgroundColor: '#EFF6FF' }]}>
-                <Navigation size={20} color="#2563EB" />
+              <View style={[styles.modalOptionIconWrap, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF' }]}>
+                <Navigation size={20} color={accentBlue} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalOptionTitle}>Google Maps (Iniciar Rota)</Text>
@@ -456,8 +436,8 @@ export function ServiceLocationMap({
                 handleOpenWaze();
               }}
             >
-              <View style={[styles.modalOptionIconWrap, { backgroundColor: '#F0FDF4' }]}>
-                <Car size={20} color="#16A34A" />
+              <View style={[styles.modalOptionIconWrap, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#F0FDF4' }]}>
+                <Car size={20} color={colors.success} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalOptionTitle}>Waze</Text>
@@ -473,8 +453,8 @@ export function ServiceLocationMap({
                   handleOpenAppleMaps();
                 }}
               >
-                <View style={[styles.modalOptionIconWrap, { backgroundColor: '#F8FAFC' }]}>
-                  <MapPin size={20} color="#0F172A" />
+                <View style={[styles.modalOptionIconWrap, { backgroundColor: colors.backgroundAlt }]}>
+                  <MapPin size={20} color={colors.text} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.modalOptionTitle}>Apple Maps</Text>
@@ -496,265 +476,234 @@ export function ServiceLocationMap({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  headerIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  openMapsHeaderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  openMapsHeaderBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2563EB',
-  },
-  mapContainer: {
-    width: '100%',
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
-    position: 'relative',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    marginBottom: 12,
-  },
-  fullSize: {
-    width: '100%',
-    height: '100%',
-  },
-  mapLoading: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    gap: 8,
-  },
-  mapLoadingText: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  fallbackContainer: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fallbackPin: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  floatingBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    zIndex: 10,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-  },
-  floatingBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  addressBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 12,
-    gap: 10,
-  },
-  addressLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 2,
-    textTransform: 'uppercase',
-  },
-  addressValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-    lineHeight: 18,
-  },
-  copyBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  copyBtnSuccess: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#86EFAC',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  primaryMapsBtn: {
-    flex: 1.2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#2563EB',
-    paddingVertical: 12,
-    borderRadius: 10,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  primaryMapsBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  secondaryRouteBtn: {
-    flex: 0.9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1.5,
-    borderColor: '#3B82F6',
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  secondaryRouteBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 4,
-  },
-  modalSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginBottom: 16,
-  },
-  modalOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  modalOptionIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalOptionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  modalOptionDesc: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  modalCancelBtn: {
-    marginTop: 16,
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  modalCancelBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#475569',
-  },
-});
+const createStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.backgroundCard,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.2 : 0.05,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      flex: 1,
+    },
+    headerIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : '#DBEAFE',
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    cardSubtitle: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    
+    mapContainer: {
+      width: '100%',
+      borderRadius: 14,
+      overflow: 'hidden',
+      backgroundColor: colors.backgroundAlt,
+      position: 'relative',
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 12,
+    },
+    fullSize: {
+      width: '100%',
+      height: '100%',
+    },
+    mapLoading: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.backgroundAlt,
+      gap: 8,
+    },
+    mapLoadingText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    fallbackContainer: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fallbackPin: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    floatingBadge: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: 'rgba(15, 23, 42, 0.85)',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 20,
+      zIndex: 10,
+    },
+    liveDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#EF4444',
+    },
+    floatingBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#FFFFFF',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    addressBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.backgroundAlt,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 12,
+      gap: 10,
+    },
+    addressLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 2,
+      textTransform: 'uppercase',
+    },
+    addressValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      lineHeight: 18,
+    },
+    copyBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.backgroundCard,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    copyBtnSuccess: {
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#DCFCE7',
+      borderColor: isDark ? 'rgba(52, 211, 153, 0.4)' : '#86EFAC',
+    },
+    actionsRow: {
+      width: '100%',
+    },
+    gpsActionButton: {
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
+      borderWidth: 1.5,
+      borderColor: isDark ? 'rgba(59, 130, 246, 0.4)' : '#BFDBFE',
+      borderRadius: 12,
+      paddingVertical: 13,
+      paddingHorizontal: 16,
+    },
+    gpsActionButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: isDark ? '#93C5FD' : '#1D4ED8',
+      letterSpacing: 0.2,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: colors.backgroundCard,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 20,
+      paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+      borderTopWidth: isDark ? 1 : 0,
+      borderColor: colors.border,
+    },
+    modalTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    modalSubtitle: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginBottom: 16,
+    },
+    modalOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalOptionIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalOptionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    modalOptionDesc: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    modalCancelBtn: {
+      marginTop: 16,
+      backgroundColor: colors.backgroundAlt,
+      paddingVertical: 12,
+      borderRadius: 10,
+      alignItems: 'center',
+    },
+    modalCancelBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+  });

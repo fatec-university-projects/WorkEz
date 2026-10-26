@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Platform, Image } from 'react-native';
 import { MapPin } from 'lucide-react-native';
+import { useAppTheme } from '../contexts/ThemeContext';
 
 let NativeWebView: any = null;
 if (Platform.OS !== 'web') {
@@ -24,6 +25,9 @@ export function RadiusMapPreview({
   longitude = -46.633308,
   addressText,
 }: RadiusMapPreviewProps) {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
   const lat = latitude || -23.55052;
   const lon = longitude || -46.633308;
 
@@ -45,11 +49,13 @@ export function RadiusMapPreview({
   const circleSize = Math.round(mapHeight * circleRatio);
 
   // Geração do HTML interativo com Leaflet para a Web:
-  // - O círculo é geograficamente ANCORADO nas coordenadas reais (L.circle).
-  // - Ao arrastar o mapa para o lado, o círculo se move JUNTO com as ruas!
-  // - Zoom in / Zoom out é 100% desabilitado (minZoom == maxZoom, sem controles, sem scroll zoom, sem pinch).
-  // - O mapa permite arrastar livremente (pan / drag) para ver os arredores.
   const leafletHtml = useMemo(() => {
+    const mapBg = isDark ? '#0B1120' : '#E2E8F0';
+    const zoomBg = isDark ? '#131C31' : '#FFFFFF';
+    const zoomColor = isDark ? '#F8FAFC' : '#1E293B';
+    const zoomBorder = isDark ? '#1E293B' : '#E2E8F0';
+    const zoomHoverBg = isDark ? '#1E293B' : '#F8FAFC';
+
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -59,7 +65,7 @@ export function RadiusMapPreview({
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #map { width: 100%; height: 100%; background: #E2E8F0; overflow: hidden; }
+    html, body, #map { width: 100%; height: 100%; background: ${mapBg}; overflow: hidden; }
     .leaflet-control-zoom {
       border: none !important;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
@@ -68,21 +74,21 @@ export function RadiusMapPreview({
       margin: 10px !important;
     }
     .leaflet-control-zoom a {
-      background-color: #FFFFFF !important;
-      color: #1E293B !important;
+      background-color: ${zoomBg} !important;
+      color: ${zoomColor} !important;
       font-weight: 700 !important;
       width: 30px !important;
       height: 30px !important;
       line-height: 30px !important;
       border: none !important;
-      border-bottom: 1px solid #E2E8F0 !important;
+      border-bottom: 1px solid ${zoomBorder} !important;
       font-size: 15px !important;
     }
     .leaflet-control-zoom a:hover {
-      background-color: #F8FAFC !important;
+      background-color: ${zoomHoverBg} !important;
       color: #2563EB !important;
     }
-    .leaflet-control-attribution { font-size: 9px !important; background: rgba(255,255,255,0.7) !important; padding: 2px 5px !important; }
+    .leaflet-control-attribution { font-size: 9px !important; background: ${isDark ? 'rgba(19,28,49,0.8)' : 'rgba(255,255,255,0.7)'} !important; color: ${isDark ? '#94A3B8' : '#475569'} !important; padding: 2px 5px !important; }
     .radius-tooltip {
       background: #2563EB !important;
       color: #FFFFFF !important;
@@ -200,7 +206,7 @@ export function RadiusMapPreview({
   </script>
 </body>
 </html>`;
-  }, [lat, lon, radiusKm]);
+  }, [lat, lon, radiusKm, isDark]);
 
   return (
     <View style={styles.container}>
@@ -343,7 +349,7 @@ export function RadiusMapPreview({
 
       {/* Legenda de Rodapé com endereço / coordenadas */}
       <View style={styles.footerRow}>
-        <MapPin size={13} color="#64748B" />
+        <MapPin size={13} color={colors.textSecondary} />
         <Text style={styles.coordsText} numberOfLines={1}>
           {addressText || `Coordenadas base: ${lat.toFixed(4)}, ${lon.toFixed(4)}`}
         </Text>
@@ -352,184 +358,188 @@ export function RadiusMapPreview({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    marginVertical: 6,
-  },
-  mapContainer: {
-    width: '100%',
-    height: 270,
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#E2E8F0',
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  webMapWrapper: {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
-  },
-  webView: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-  nativeMapWrapper: {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  /* Círculo de Cobertura para renderização nativa */
-  coverageCircleOverlay: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    borderWidth: 2.5,
-    borderColor: '#2563EB',
-    backgroundColor: 'rgba(37, 99, 235, 0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 15,
-  },
-  circleInnerFill: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-  },
-  circleKmTag: {
-    position: 'absolute',
-    top: -12,
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  circleKmTagText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  floatingPinBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    zIndex: 20,
-  },
-  pinDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-  },
-  floatingPinText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  centerMarkerContainer: {
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  centerPulse: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(37, 99, 235, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markerBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#2563EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  markerText: {
-    marginTop: 4,
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#0F172A',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  radiusBadge: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    alignItems: 'flex-end',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    zIndex: 20,
-  },
-  radiusBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  coverageText: {
-    fontSize: 10,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-    paddingHorizontal: 2,
-  },
-  coordsText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-    flex: 1,
-  },
-});
+const createStyles = (colors: any, isDark: boolean) => {
+  const badgeOverlayBg = isDark ? 'rgba(19, 28, 49, 0.95)' : 'rgba(255, 255, 255, 0.95)';
+
+  return StyleSheet.create({
+    container: {
+      width: '100%',
+      marginVertical: 6,
+    },
+    mapContainer: {
+      width: '100%',
+      height: 270,
+      borderRadius: 18,
+      overflow: 'hidden',
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      backgroundColor: isDark ? '#0B1120' : '#E2E8F0',
+      position: 'relative',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.25 : 0.08,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    webMapWrapper: {
+      width: '100%',
+      height: '100%',
+      position: 'relative',
+    },
+    webView: {
+      width: '100%',
+      height: '100%',
+      backgroundColor: isDark ? '#0B1120' : '#E2E8F0',
+      borderRadius: 18,
+      overflow: 'hidden',
+    },
+    nativeMapWrapper: {
+      width: '100%',
+      height: '100%',
+      position: 'relative',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    /* Círculo de Cobertura para renderização nativa */
+    coverageCircleOverlay: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      borderWidth: 2.5,
+      borderColor: '#2563EB',
+      backgroundColor: 'rgba(37, 99, 235, 0.18)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 15,
+    },
+    circleInnerFill: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 999,
+      backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    },
+    circleKmTag: {
+      position: 'absolute',
+      top: -12,
+      backgroundColor: '#2563EB',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 3,
+    },
+    circleKmTagText: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: 0.3,
+    },
+    floatingPinBadge: {
+      position: 'absolute',
+      top: 10,
+      left: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: badgeOverlayBg,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 2,
+      zIndex: 20,
+    },
+    pinDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#EF4444',
+    },
+    floatingPinText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    centerMarkerContainer: {
+      alignItems: 'center',
+      zIndex: 10,
+    },
+    centerPulse: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(37, 99, 235, 0.25)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    markerBadge: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: '#2563EB',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.2,
+      shadowRadius: 3,
+      elevation: 3,
+    },
+    markerText: {
+      marginTop: 4,
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.text,
+      backgroundColor: badgeOverlayBg,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    radiusBadge: {
+      position: 'absolute',
+      bottom: 10,
+      right: 10,
+      backgroundColor: badgeOverlayBg,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'flex-end',
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 2,
+      zIndex: 20,
+    },
+    radiusBadgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: isDark ? '#60A5FA' : '#2563EB',
+    },
+    coverageText: {
+      fontSize: 10,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    footerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 6,
+      paddingHorizontal: 2,
+    },
+    coordsText: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      fontWeight: '500',
+      flex: 1,
+    },
+  });
+};

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { resolveImageUrl } from '../services/api';
+import { useAppTheme } from '../contexts/ThemeContext';
 
 interface ImageViewerModalProps {
   visible: boolean;
@@ -31,6 +32,8 @@ export function ImageViewerModal({
   title,
   onClose,
 }: ImageViewerModalProps) {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [loading, setLoading] = useState(false);
 
@@ -69,7 +72,7 @@ export function ImageViewerModal({
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
-        <StatusBar barStyle="light-content" backgroundColor="#000000" />
+        <StatusBar barStyle="light-content" />
 
         {/* Top Header */}
         <View style={styles.header}>
@@ -159,103 +162,104 @@ export function ImageViewerModal({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(5, 10, 20, 0.96)',
-    justifyContent: 'space-between',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 54 : (StatusBar.currentHeight || 20) + 12,
-    paddingBottom: 12,
-    zIndex: 10,
-  },
-  titleContainer: {
-    flex: 1,
-    paddingRight: 16,
-  },
-  headerTitle: {
-    color: '#F8FAFC',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  counterText: {
-    color: '#94A3B8',
-    fontSize: 13,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  closeButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  imageWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  loadingContainer: {
-    position: 'absolute',
-    zIndex: 1,
-  },
-  image: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.75,
-  },
-  navButton: {
-    position: 'absolute',
-    top: '50%',
-    marginTop: -24,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 5,
-  },
-  prevButton: {
-    left: 16,
-  },
-  nextButton: {
-    right: 16,
-  },
-  footerThumbs: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-    paddingTop: 12,
-  },
-  thumbItem: {
-    width: 52,
-    height: 52,
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    opacity: 0.6,
-  },
-  thumbItemSelected: {
-    borderColor: '#3B82F6',
-    opacity: 1,
-    transform: [{ scale: 1.08 }],
-  },
-  thumbImage: {
-    width: '100%',
-    height: '100%',
-  },
-});
+const createStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: isDark ? 'rgba(5, 10, 20, 0.98)' : 'rgba(5, 10, 20, 0.96)',
+      justifyContent: 'space-between',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: Platform.OS === 'ios' ? 54 : (StatusBar.currentHeight || 20) + 12,
+      paddingBottom: 12,
+      zIndex: 10,
+    },
+    titleContainer: {
+      flex: 1,
+      paddingRight: 16,
+    },
+    headerTitle: {
+      color: '#F8FAFC',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    counterText: {
+      color: '#94A3B8',
+      fontSize: 13,
+      marginTop: 2,
+      fontWeight: '500',
+    },
+    closeButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    imageWrapper: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      position: 'relative',
+    },
+    loadingContainer: {
+      position: 'absolute',
+      zIndex: 1,
+    },
+    image: {
+      width: SCREEN_WIDTH,
+      height: SCREEN_HEIGHT * 0.75,
+    },
+    navButton: {
+      position: 'absolute',
+      top: '50%',
+      marginTop: -24,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 5,
+    },
+    prevButton: {
+      left: 16,
+    },
+    nextButton: {
+      right: 16,
+    },
+    footerThumbs: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+      paddingTop: 12,
+    },
+    thumbItem: {
+      width: 52,
+      height: 52,
+      borderRadius: 8,
+      overflow: 'hidden',
+      borderWidth: 2,
+      borderColor: 'transparent',
+      opacity: 0.6,
+    },
+    thumbItemSelected: {
+      borderColor: '#3B82F6',
+      opacity: 1,
+      transform: [{ scale: 1.08 }],
+    },
+    thumbImage: {
+      width: '100%',
+      height: '100%',
+    },
+  });

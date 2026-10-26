@@ -1,26 +1,55 @@
 import { Platform } from 'react-native';
 
+export const LightColors = {
+  primary: '#26FFF5', // Accent cyan (para fundos, badges, detalhes visuais)
+  primaryText: '#0F766E', // Versão com alto contraste para textos e lances
+  primaryDark: '#1E3A8A', // Deep Royal Blue
+  primaryLight: '#EFF6FF', // Soft Ice Blue tint
+  accent: '#F59E0B', // Warm Amber Accent for Negotiation & Prices
+  accentLight: '#FEF3C7',
+  background: '#FFFFFF',
+  backgroundAlt: '#F1F5F9', // slate-100
+  backgroundCard: '#FFFFFF',
+  card: '#FFFFFF',
+  surface: '#F8FAFC',
+  secondary: '#16A34A',
+  text: '#0F172A', // slate-900
+  textSecondary: '#64748B', // slate-500
+  textMuted: '#94A3B8', // slate-400
+  border: '#E2E8F0', // slate-200
+  borderFocus: '#93C5FD',
+  warning: '#F59E0B', // amber-500
+  danger: '#EF4444', // red-500
+  success: '#10B981', // emerald-500
+  successLight: '#DCFCE7',
+};
+
+export const DarkColors: typeof LightColors = {
+  primary: '#26FFF5',
+  primaryText: '#2DD4BF',
+  primaryDark: '#60A5FA',
+  primaryLight: '#1E293B',
+  accent: '#FBBF24',
+  accentLight: '#3B2F13',
+  background: '#0B1120', // Deep Midnight Slate
+  backgroundAlt: '#090E1A', // Abyssal Slate Canvas
+  backgroundCard: '#131C31', // Elevated Navy-Slate Surface
+  card: '#131C31',
+  surface: '#1E293B',
+  secondary: '#34D399',
+  text: '#F8FAFC', // slate-50
+  textSecondary: '#94A3B8', // slate-400
+  textMuted: '#64748B', // slate-500
+  border: '#1E293B', // slate-800
+  borderFocus: '#3B82F6',
+  warning: '#FBBF24',
+  danger: '#F87171',
+  success: '#34D399',
+  successLight: '#064E3B',
+};
+
 export const WorkEzTheme = {
-  colors: {
-    primary: '#26FFF5', // Accent cyan (para fundos, badges, detalhes visuais)
-    primaryText: '#0F766E', // Versão com alto contraste para textos e lances
-    primaryDark: '#1E3A8A', // Deep Royal Blue
-    primaryLight: '#EFF6FF', // Soft Ice Blue tint
-    accent: '#F59E0B', // Warm Amber Accent for Negotiation & Prices
-    accentLight: '#FEF3C7',
-    background: '#FFFFFF',
-    backgroundAlt: '#F1F5F9', // slate-100
-    backgroundCard: '#FFFFFF',
-    text: '#0F172A', // slate-900
-    textSecondary: '#64748B', // slate-500
-    textMuted: '#94A3B8', // slate-400
-    border: '#E2E8F0', // slate-200
-    borderFocus: '#93C5FD',
-    warning: '#F59E0B', // amber-500
-    danger: '#EF4444', // red-500
-    success: '#10B981', // emerald-500
-    successLight: '#DCFCE7',
-  },
+  colors: { ...LightColors },
   spacing: {
     xs: 4,
     sm: 8,
@@ -109,24 +138,34 @@ export const WorkEzTheme = {
   }
 };
 
+export function applyWorkEzThemePalette(isDark: boolean) {
+  const palette = isDark ? DarkColors : LightColors;
+  Object.assign(WorkEzTheme.colors, palette);
+  WorkEzTheme.header.container.backgroundColor = palette.backgroundCard;
+  WorkEzTheme.header.container.borderBottomColor = palette.border;
+  WorkEzTheme.header.title.color = palette.text;
+  WorkEzTheme.header.subtitle.color = palette.textSecondary;
+  WorkEzTheme.header.backButton.backgroundColor = palette.backgroundAlt;
+}
+
 const tintColorLight = '#2563EB';
 const tintColorDark = '#60A5FA';
 
 export const Colors = {
   light: {
-    text: WorkEzTheme.colors.text,
-    background: WorkEzTheme.colors.background,
+    text: LightColors.text,
+    background: LightColors.background,
     tint: tintColorLight,
-    icon: WorkEzTheme.colors.textSecondary,
-    tabIconDefault: WorkEzTheme.colors.textMuted,
+    icon: LightColors.textSecondary,
+    tabIconDefault: LightColors.textMuted,
     tabIconSelected: tintColorLight,
   },
   dark: {
-    text: '#F8FAFC',
-    background: '#0F172A',
+    text: DarkColors.text,
+    background: DarkColors.background,
     tint: tintColorDark,
-    icon: '#94A3B8',
-    tabIconDefault: '#64748B',
+    icon: DarkColors.textSecondary,
+    tabIconDefault: DarkColors.textMuted,
     tabIconSelected: tintColorDark,
   },
 };

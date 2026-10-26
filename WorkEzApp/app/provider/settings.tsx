@@ -3,9 +3,11 @@ import { ArrowLeft, User, CreditCard, FileText, MapPin, Bell, HelpCircle, Chevro
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { useAppTheme } from '../../contexts/ThemeContext';
 
 export default function ProviderSettings() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
 
   const menuItems = [
     { icon: User,        label: 'Dados pessoais',         path: '/provider/edit-profile' },
@@ -17,11 +19,11 @@ export default function ProviderSettings() {
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
       <ScreenHeader title="Configurações" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
           {menuItems.map((item, i) => {
             const Icon = item.icon;
             const isDisabled = item.path === '#';
@@ -31,13 +33,17 @@ export default function ProviderSettings() {
                 onPress={() => !isDisabled && router.push(item.path as any)}
                 disabled={isDisabled}
                 activeOpacity={0.7}
-                style={[styles.menuItem, i < menuItems.length - 1 && styles.menuItemBorder, isDisabled && styles.menuItemDisabled]}
+                style={[
+                  styles.menuItem,
+                  i < menuItems.length - 1 && [styles.menuItemBorder, { borderBottomColor: colors.border }],
+                  isDisabled && styles.menuItemDisabled,
+                ]}
               >
-                <View style={styles.iconBadge}>
-                  <Icon size={20} color="#2563EB" />
+                <View style={[styles.iconBadge, { backgroundColor: isDark ? 'rgba(37,99,235,0.18)' : 'rgba(37,99,235,0.08)' }]}>
+                  <Icon size={20} color={isDark ? '#60A5FA' : '#2563EB'} />
                 </View>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-                {!isDisabled && <ChevronRight size={18} color="#CBD5E1" />}
+                <Text style={[styles.menuLabel, { color: colors.text }]}>{item.label}</Text>
+                {!isDisabled && <ChevronRight size={18} color={colors.textSecondary} />}
               </TouchableOpacity>
             );
           })}
@@ -48,25 +54,11 @@ export default function ProviderSettings() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: { padding: 8, borderRadius: 8, backgroundColor: '#F1F5F9' },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#0F172A' },
+  container: { flex: 1 },
   scrollContent: { padding: 24, gap: 16, flexGrow: 1 },
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -75,8 +67,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, gap: 12 },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  menuItemBorder: { borderBottomWidth: 1 },
   menuItemDisabled: { opacity: 0.4 },
-  iconBadge: { width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(37,99,235,0.08)', alignItems: 'center', justifyContent: 'center' },
-  menuLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: '#0F172A' },
+  iconBadge: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  menuLabel: { flex: 1, fontSize: 15, fontWeight: '500' },
 });

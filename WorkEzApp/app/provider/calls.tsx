@@ -4,10 +4,11 @@ import { ServiceCard } from '../../components/ServiceCard';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Platform } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { useFetch } from '../../hooks/useFetch';
 import { apiRequest } from '../../services/api';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { Gavel, MessageCircle, Clock, CornerDownRight, Check, X as XIcon } from 'lucide-react-native';
+import { Gavel, MessageCircle, Clock, CornerDownRight } from 'lucide-react-native';
 
 const formatEstimatedTime = (time: string | undefined | null) => {
   if (!time) return '';
@@ -43,30 +44,28 @@ interface ProposalItem {
   counterPrice?: number;
   counterDescription?: string;
   counterOfferedAt?: string;
+  serviceStatus?: string;
 }
 
 export default function ProviderCalls() {
   const router = useRouter();
   const { user } = useAuth();
+  const { isDark, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<'opportunities' | 'proposals' | 'accepted'>('opportunities');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-  // Fetch opportunities (open calls matching category)
   const { data: opportunities, loading: loadingOps, error: errorOps, refetch: refetchOps } = useFetch<Call[]>(
     user ? `/api/Services/opportunities-by-user/${user.id}` : null
   );
 
-  // Fetch proposals made by this provider
   const { data: myProposals, loading: loadingProps, error: errorProps, refetch: refetchProps } = useFetch<ProposalItem[]>(
     user ? `/api/Proposals/by-provider-user/${user.id}` : null
   );
 
-  // Fetch accepted calls using the static user session ID
   const { data: acceptedCalls, loading: loadingAcc, error: errorAcc, refetch: refetchAcc } = useFetch<Call[]>(
     user ? `/api/Services/by-provider-user/${user.id}` : null
   );
 
-  // Refetch when the screen gets focus
   useFocusEffect(
     useCallback(() => {
       refetchOps();
@@ -75,7 +74,6 @@ export default function ProviderCalls() {
     }, [refetchOps, refetchProps, refetchAcc])
   );
 
-  // Auto-refresh em segundo plano a cada 5s para que novos chamados e aceites apareçam sem sair da tela
   useEffect(() => {
     const timer = setInterval(() => {
       refetchOps();
@@ -111,7 +109,7 @@ export default function ProviderCalls() {
           refetchAcc();
           setActiveTab('accepted');
         }
-      } catch (err) {
+      } catch {
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           window.alert('Erro ao conectar ao servidor.');
         } else {
@@ -162,7 +160,7 @@ export default function ProviderCalls() {
           }
           refetchProps();
         }
-      } catch (err) {
+      } catch {
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           window.alert('Erro ao conectar ao servidor.');
         } else {
@@ -189,9 +187,6 @@ export default function ProviderCalls() {
     }
   };
 
-  // Evita qualquer duplicação entre as abas:
-  // Se o prestador já fez uma proposta (em 'myProposals') ou se o chamado já foi aceito (em 'acceptedCalls'),
-  // ele NUNCA deve aparecer em 'Novos'!
   const handledServiceIds = new Set([
     ...(myProposals || []).map(p => p.serviceId),
     ...(acceptedCalls || []).map(c => c.id)
@@ -204,22 +199,34 @@ export default function ProviderCalls() {
   const calls = activeTab === 'opportunities' ? freshOpportunities : acceptedCalls;
   const loading = activeTab === 'opportunities' ? loadingOps : activeTab === 'proposals' ? loadingProps : loadingAcc;
   const error = activeTab === 'opportunities' ? errorOps : activeTab === 'proposals' ? errorProps : errorAcc;
+  const activeColor = isDark ? '#60A5FA' : '#2563EB';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
       <ScreenHeader title="Chamados & Propostas" />
 
       {/* Tabs */}
-      <View style={styles.tabsContainer}>
+      <View
+        style={[
+          styles.tabsContainer,
+          { backgroundColor: colors.backgroundCard, borderBottomColor: colors.border },
+        ]}
+      >
         <View style={styles.tabsRow}>
           <TouchableOpacity
             onPress={() => setActiveTab('opportunities')}
             style={styles.tabButton}
           >
-            <Text style={[styles.tabText, activeTab === 'opportunities' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                { color: colors.textSecondary },
+                activeTab === 'opportunities' && [styles.tabTextActive, { color: activeColor }],
+              ]}
+            >
               Novos
             </Text>
-            {activeTab === 'opportunities' && <View style={styles.activeIndicator} />}
+            {activeTab === 'opportunities' && <View style={[styles.activeIndicator, { backgroundColor: activeColor }]} />}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -227,24 +234,36 @@ export default function ProviderCalls() {
             style={styles.tabButton}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={[styles.tabText, activeTab === 'proposals' && styles.tabTextActive]}>
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: colors.textSecondary },
+                  activeTab === 'proposals' && [styles.tabTextActive, { color: activeColor }],
+                ]}
+              >
                 Minhas Propostas
               </Text>
               {myProposals && myProposals.some(p => p.status === 'CounterOffered') && (
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#D97706' }} />
               )}
             </View>
-            {activeTab === 'proposals' && <View style={styles.activeIndicator} />}
+            {activeTab === 'proposals' && <View style={[styles.activeIndicator, { backgroundColor: activeColor }]} />}
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => setActiveTab('accepted')}
             style={styles.tabButton}
           >
-            <Text style={[styles.tabText, activeTab === 'accepted' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                { color: colors.textSecondary },
+                activeTab === 'accepted' && [styles.tabTextActive, { color: activeColor }],
+              ]}
+            >
               Aceitos
             </Text>
-            {activeTab === 'accepted' && <View style={styles.activeIndicator} />}
+            {activeTab === 'accepted' && <View style={[styles.activeIndicator, { backgroundColor: activeColor }]} />}
           </TouchableOpacity>
         </View>
       </View>
@@ -252,12 +271,12 @@ export default function ProviderCalls() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {loading ? (
           <View style={{ padding: 48, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
-            <Text style={{ marginTop: 16, color: WorkEzTheme.colors.textSecondary }}>Carregando dados...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={{ marginTop: 16, color: colors.textSecondary }}>Carregando dados...</Text>
           </View>
         ) : error ? (
           <View style={{ padding: 48, alignItems: 'center' }}>
-            <Text style={{ color: WorkEzTheme.colors.danger }}>{error}</Text>
+            <Text style={{ color: colors.danger }}>{error}</Text>
           </View>
         ) : activeTab === 'proposals' ? (
           <View style={styles.content}>
@@ -265,19 +284,26 @@ export default function ProviderCalls() {
               const activeProposals = myProposals?.filter(p => p.status !== 'Accepted') || [];
               return activeProposals.length > 0 ? (
                 activeProposals.map((proposal) => {
-                  const isCountered = proposal.status === 'CounterOffered';
-                  const isPending = proposal.status === 'Pending';
-                  const isNegotiating = proposal.status === 'NegotiationOpen';
+                  const serviceSt = (proposal.serviceStatus || (proposal as any)?.ServiceStatus || '').toLowerCase();
+                  const isServiceClosed = serviceSt === 'completed' || serviceSt === 'cancelled';
+                  const isRejected = proposal.status === 'Rejected' || isServiceClosed;
+                  const isCountered = proposal.status === 'CounterOffered' && !isRejected;
+                  const isNegotiating = proposal.status === 'NegotiationOpen' && !isRejected;
                   const isAccepted = proposal.status === 'Accepted';
-                  const isRejected = proposal.status === 'Rejected';
                   const isLoading = actionLoadingId === proposal.id;
 
                   return (
-                    <View key={proposal.id} style={styles.proposalCard}>
+                    <View
+                      key={proposal.id}
+                      style={[
+                        styles.proposalCard,
+                        { backgroundColor: colors.backgroundCard, borderColor: colors.border },
+                      ]}
+                    >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Gavel size={18} color="#2563EB" />
-                          <Text style={{ fontWeight: '700', fontSize: 16, color: '#0F172A' }}>
+                          <Gavel size={18} color={activeColor} />
+                          <Text style={{ fontWeight: '700', fontSize: 16, color: colors.text }}>
                             R$ {proposal.proposedPrice?.toFixed(2).replace('.', ',')}
                           </Text>
                         </View>
@@ -304,14 +330,13 @@ export default function ProviderCalls() {
                         </View>
                       </View>
 
-                      {/* Detalhamento de Mão de Obra e Materiais */}
                       {proposal.materialsPrice && proposal.materialsPrice > 0 ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-                          <Text style={{ fontSize: 12, color: '#64748B' }}>
+                          <Text style={{ fontSize: 12, color: colors.textSecondary }}>
                             Mão de obra: R$ {(proposal.laborPrice || (proposal.proposedPrice - proposal.materialsPrice)).toFixed(2).replace('.', ',')}
                           </Text>
-                          <Text style={{ fontSize: 12, color: '#CBD5E1' }}>•</Text>
-                          <Text style={{ fontSize: 12, color: '#16A34A', fontWeight: '500' }}>
+                          <Text style={{ fontSize: 12, color: colors.border }}>•</Text>
+                          <Text style={{ fontSize: 12, color: colors.success, fontWeight: '500' }}>
                             Materiais: R$ {proposal.materialsPrice.toFixed(2).replace('.', ',')}
                           </Text>
                         </View>
@@ -319,20 +344,19 @@ export default function ProviderCalls() {
 
                       {proposal.estimatedTime && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                          <Clock size={13} color="#64748B" />
-                          <Text style={{ fontSize: 12, color: '#64748B' }}>
+                          <Clock size={13} color={colors.textSecondary} />
+                          <Text style={{ fontSize: 12, color: colors.textSecondary }}>
                             Estimativa: {formatEstimatedTime(proposal.estimatedTime)}
                           </Text>
                         </View>
                       )}
 
                       {proposal.description && (
-                        <Text style={{ fontSize: 13, color: '#475569', marginBottom: 8 }}>
+                        <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 8 }}>
                           "{proposal.description}"
                         </Text>
                       )}
 
-                      {/* Destaque de Contra-proposta */}
                       {isCountered && (
                         <View style={styles.counterBannerProvider}>
                           <CornerDownRight size={18} color="#D97706" style={{ marginTop: 2 }} />
@@ -370,19 +394,24 @@ export default function ProviderCalls() {
                         </View>
                       )}
 
-                      {/* Botão de Chat para negociação */}
                       <View style={{ marginTop: 10, flexDirection: 'row', gap: 8 }}>
                         <TouchableOpacity
                           style={[
                             styles.btnAction,
                             styles.btnChat,
                             { flex: 1 },
-                            isRejected && { backgroundColor: '#F8FAFC', borderColor: '#CBD5E1' }
+                            isDark && { backgroundColor: 'rgba(37, 99, 235, 0.16)', borderColor: 'rgba(96, 165, 250, 0.35)' },
+                            isRejected && { backgroundColor: colors.backgroundAlt, borderColor: colors.border }
                           ]}
-                          onPress={() => router.push(`/provider/chat/${proposal.id}` as any)}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/provider/chat/[id]',
+                              params: { id: proposal.id, serviceId: proposal.serviceId }
+                            } as any)
+                          }
                         >
-                          <MessageCircle size={16} color={isRejected ? '#64748B' : '#2563EB'} />
-                          <Text style={{ color: isRejected ? '#64748B' : '#2563EB', fontWeight: '600', fontSize: 13 }}>
+                          <MessageCircle size={16} color={isRejected ? colors.textSecondary : activeColor} />
+                          <Text style={{ color: isRejected ? colors.textSecondary : activeColor, fontWeight: '600', fontSize: 13 }}>
                             {isRejected ? 'Ver Histórico do Chat (Encerrado)' : 'Conversar / Barganhar no Chat'}
                           </Text>
                         </TouchableOpacity>
@@ -392,11 +421,11 @@ export default function ProviderCalls() {
                 })
               ) : (
                 <View style={{ padding: 48, alignItems: 'center' }}>
-                  <Gavel size={36} color="#94A3B8" />
-                  <Text style={{ color: WorkEzTheme.colors.textSecondary, marginTop: 12, fontSize: 15 }}>
+                  <Gavel size={36} color={colors.textMuted} />
+                  <Text style={{ color: colors.textSecondary, marginTop: 12, fontSize: 15 }}>
                     Nenhuma proposta ativa em negociação.
                   </Text>
-                  <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
                     Veja os chamados em "Novos" para enviar orçamentos ou acompanhe em "Aceitos".
                   </Text>
                 </View>
@@ -433,9 +462,9 @@ export default function ProviderCalls() {
 
             {(!calls || calls.length === 0) && (
               <View style={{ padding: 48, alignItems: 'center' }}>
-                <Text style={{ color: WorkEzTheme.colors.textSecondary }}>
-                  {activeTab === 'opportunities' 
-                    ? 'Nenhum chamado no momento.' 
+                <Text style={{ color: colors.textSecondary }}>
+                  {activeTab === 'opportunities'
+                    ? 'Nenhum chamado no momento.'
                     : 'Nenhum chamado aceito.'}
                 </Text>
               </View>
@@ -450,27 +479,12 @@ export default function ProviderCalls() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   scrollContent: {
     flexGrow: 1,
   },
-  header: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
-  },
-  headerTitle: {
-    ...WorkEzTheme.typography.xl,
-    fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
-  },
   tabsContainer: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
     borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
     paddingHorizontal: 24,
   },
   tabsRow: {
@@ -484,10 +498,8 @@ const styles = StyleSheet.create({
   },
   tabText: {
     ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
   },
   tabTextActive: {
-    color: '#2563EB',
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
   },
   activeIndicator: {
@@ -496,16 +508,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: '#2563EB',
   },
   content: {
     padding: 24,
     gap: 12,
   },
   proposalCard: {
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     borderRadius: 16,
     padding: 16,
     shadowColor: '#000',

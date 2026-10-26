@@ -8,7 +8,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
-import { WorkEzTheme } from '../../constants/theme';
+import { WorkEzTheme, LightColors } from '../../constants/theme';
 import { authService } from '../../services/authService';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -180,7 +180,7 @@ export default function ProviderSignUp() {
         <View style={styles.formContainer}>
           {/* Nome */}
           <View style={styles.inputWrapper}>
-            <User size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <User size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               placeholder="Nome completo"
               value={formData.name}
@@ -194,7 +194,7 @@ export default function ProviderSignUp() {
 
           {/* CPF com máscara e validação */}
           <View style={styles.inputWrapper}>
-            <FileText size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <FileText size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               placeholder="CPF (000.000.000-00)"
               value={formData.cpf}
@@ -208,7 +208,7 @@ export default function ProviderSignUp() {
 
           {/* E-mail */}
           <View style={styles.inputWrapper}>
-            <Mail size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Mail size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               placeholder="E-mail"
               value={formData.email}
@@ -223,7 +223,7 @@ export default function ProviderSignUp() {
 
           {/* Telefone com máscara */}
           <View style={styles.inputWrapper}>
-            <Phone size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Phone size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               placeholder="Telefone (00) 00000-0000"
               value={formData.phone}
@@ -237,7 +237,7 @@ export default function ProviderSignUp() {
 
           {/* Senha */}
           <View style={styles.inputWrapper}>
-            <Lock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Lock size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               secureTextEntry
               placeholder="Criar senha (mín. 8 caracteres)"
@@ -251,7 +251,7 @@ export default function ProviderSignUp() {
 
           {/* Confirmar Senha */}
           <View style={styles.inputWrapper}>
-            <Lock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Lock size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               secureTextEntry
               placeholder="Confirmar senha"
@@ -290,7 +290,7 @@ export default function ProviderSignUp() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: WorkEzTheme.colors.background,
+    backgroundColor: LightColors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   },
   apiErrorText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.danger,
+    color: LightColors.danger,
     textAlign: 'center',
   },
   button: {
