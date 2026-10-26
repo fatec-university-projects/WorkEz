@@ -173,6 +173,9 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
 
     public async Task<Result<ServiceProviderProfileDto>> UpdateLocationAsync(Guid providerId, double latitude, double longitude, double serviceRadiusKm)
     {
+        if (latitude < -90.0 || latitude > 90.0 || longitude < -180.0 || longitude > 180.0)
+            return Result<ServiceProviderProfileDto>.Failure("Coordenadas geográficas inválidas.", "INVALID_COORDINATES");
+
         var provider = await _providerRepository.GetByIdWithUserAsync(providerId);
         if (provider is null)
             return Result<ServiceProviderProfileDto>.Failure("Prestador não encontrado.", "PROVIDER_NOT_FOUND");

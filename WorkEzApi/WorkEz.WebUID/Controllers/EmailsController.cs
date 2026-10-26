@@ -1,16 +1,19 @@
 using Microsoft.AspNetCore.Mvc;
 using WorkEz.Domain.Interfaces;
+using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class EmailsController(IEmailService emailService) : ControllerBase
+public class EmailsController(IEmailService emailService, IWebHostEnvironment? env = null) : ControllerBase
 {
     private readonly IEmailService _emailService = emailService;
+    private readonly IWebHostEnvironment? _env = env;
 
     /// <summary>
     /// Endpoint de teste e diagnóstico para disparo imediato de e-mails via SMTP com templates estilizados.
+    /// Em produção exige usuário autenticado; em desenvolvimento aceita chamadas diretas para diagnóstico local.
     /// </summary>
     /// <param name="request">Parâmetros do e-mail de teste.</param>
     /// <returns>Resultado da solicitação de envio.</returns>
@@ -18,6 +21,12 @@ public class EmailsController(IEmailService emailService) : ControllerBase
     [Microsoft.AspNetCore.Authorization.AllowAnonymous]
     public async Task<IActionResult> TestSendEmail([FromBody] TestEmailRequest request)
     {
+        var isDev = _env == null || _env.IsDevelopment();
+        if (!isDev && User.GetUserId() == null)
+        {
+            return Unauthorized(new { error = "Autenticação obrigatória para disparo de e-mail de teste fora do ambiente de desenvolvimento." });
+        }
+
         if (string.IsNullOrWhiteSpace(request.ToEmail))
         {
             return BadRequest(new { error = "O campo toEmail é obrigatório." });

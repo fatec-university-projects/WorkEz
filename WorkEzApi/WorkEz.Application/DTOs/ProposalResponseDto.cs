@@ -22,7 +22,8 @@ public record ProposalResponseDto(
     decimal? MaterialsPrice = null,
     string? ProviderPhoto = null,
     decimal? ProviderRating = null,
-    Guid? ProviderUserId = null
+    Guid? ProviderUserId = null,
+    string? ServiceStatus = null
 );
 
 public record ChatMessageDto(

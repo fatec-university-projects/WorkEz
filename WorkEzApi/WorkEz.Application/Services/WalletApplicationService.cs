@@ -27,7 +27,9 @@ public class WalletApplicationService(
     IProposalRepository proposalRepository,
     IDelFinanceClient? delFinanceClient = null,
     ICustomerRepository? customerRepository = null,
-    IEmailService? emailService = null
+    IEmailService? emailService = null,
+    ITrackingNotificationService? trackingNotification = null,
+    IChatNotificationService? chatNotification = null
 ) : IWalletApplicationService
 {
     private readonly IWalletTransactionRepository _walletRepo = walletTransactionRepository;
@@ -39,6 +41,8 @@ public class WalletApplicationService(
     private readonly IDelFinanceClient? _delFinanceClient = delFinanceClient;
     private readonly ICustomerRepository? _customerRepo = customerRepository;
     private readonly IEmailService? _emailService = emailService;
+    private readonly ITrackingNotificationService? _trackingNotification = trackingNotification;
+    private readonly IChatNotificationService? _chatNotification = chatNotification;
 
     private const decimal PlatformFeeRate = 0.15m; // 15% sobre a mão de obra
     private const decimal MaterialsFeeRate = 0.00m; // 0% sobre materiais/peças
@@ -160,7 +164,9 @@ public class WalletApplicationService(
         var skip = (pageNumber - 1) * pageSize;
 
         // Mapeia filtro amigável para tipo ou query
-        WalletTransactionType? typeFilter = filter.Filter?.ToLowerInvariant() switch
+        var filterNorm = filter.Filter?.ToLowerInvariant() ?? "all";
+
+        WalletTransactionType? typeFilter = filterNorm switch
         {
             "withdrawal" or "saques" or "payout" => WalletTransactionType.Withdrawal,
             "escrow" or "custodia" => WalletTransactionType.EscrowHold,
@@ -173,49 +179,66 @@ public class WalletApplicationService(
             startDate: filter.StartDate,
             endDate: filter.EndDate,
             skip: 0,
-            take: 200)).ToList();
+            take: 500)).ToList();
 
-        // Filtro em memória para categorias refinadas como "entradas" ou "taxas"
+        // Filtro em memória refinado
         IEnumerable<WalletTransaction> filtered = rawList;
-        var filterNorm = filter.Filter?.ToLowerInvariant();
 
         if (filterNorm is "credit" or "entradas")
         {
             filtered = filtered.Where(t => t.TransactionType is WalletTransactionType.EscrowRelease or WalletTransactionType.Credit);
         }
+        else if (filterNorm is "escrow" or "custodia")
+        {
+            // Em custódia deve listar apenas o que está EFETIVAMENTE retido no momento (Held)
+            filtered = filtered.Where(t => t.TransactionType == WalletTransactionType.EscrowHold && t.Status == WalletTransactionStatus.Held);
+        }
         else if (filterNorm is "fee" or "taxas")
         {
             filtered = filtered.Where(t => t.PlatformFeeAmount > 0);
+        }
+        else // "all"
+        {
+            // Em "Todos", não duplicamos serviços finalizados:
+            // O EscrowHold com status Released já é plenamente representado pelo EscrowRelease
+            filtered = filtered.Where(t => !(t.TransactionType == WalletTransactionType.EscrowHold && t.Status == WalletTransactionStatus.Released));
         }
 
         var list = filtered.ToList();
         var totalCount = list.Count;
         var pagedItems = list.Skip(skip).Take(pageSize);
 
+        var isFeeFilter = filterNorm is "fee" or "taxas";
+
         var items = pagedItems.Select(t =>
         {
-            var isCredit = t.TransactionType is WalletTransactionType.EscrowRelease or WalletTransactionType.Credit;
             var isWithdrawal = t.TransactionType == WalletTransactionType.Withdrawal;
-            var isEscrow = t.TransactionType == WalletTransactionType.EscrowHold;
-
             var (typeLabel, statusLabel) = ResolveLabels(t);
             var receipt = $"WT-{t.Id.ToString()[..8].ToUpper()}";
+
+            var amount = isFeeFilter ? -t.PlatformFeeAmount : t.Amount;
+            var description = isFeeFilter 
+                ? $"Taxa WorkEz (15%): {t.Service?.Title ?? t.Description}" 
+                : (t.Description ?? (isWithdrawal ? "Saque via PIX" : (t.Service?.Title ?? "Transação")));
+            var txType = isFeeFilter ? "PlatformFee" : t.TransactionType.ToString();
+            var txTypeLabel = isFeeFilter ? "Taxa da Plataforma" : typeLabel;
+            var stLabel = isFeeFilter ? "Descontado" : statusLabel;
 
             return new WalletStatementItemDto(
                 Id: t.Id,
                 Date: t.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
                 CreatedAt: t.CreatedAt,
-                Description: t.Description ?? (isWithdrawal ? "Saque via PIX" : (t.Service?.Title ?? "Transação")),
+                Description: description,
                 ServiceTitle: t.Service?.Title,
-                TransactionType: t.TransactionType.ToString(),
-                TransactionTypeLabel: typeLabel,
+                TransactionType: txType,
+                TransactionTypeLabel: txTypeLabel,
                 GrossAmount: t.GrossAmount,
                 LaborAmount: t.LaborAmount,
                 MaterialsAmount: t.MaterialsAmount,
                 PlatformFeeAmount: t.PlatformFeeAmount,
-                Amount: t.Amount,
+                Amount: amount,
                 Status: t.Status.ToString(),
-                StatusLabel: statusLabel,
+                StatusLabel: stLabel,
                 ReceiptNumber: receipt
             );
         });
@@ -346,17 +369,37 @@ public class WalletApplicationService(
         if (service == null)
             return Result<EscrowCheckoutPixDto>.Failure("Serviço não encontrado.", "SERVICE_NOT_FOUND");
 
-        if (_customerRepo != null)
-        {
-            var customer = await _customerRepo.GetByUserIdWithUserAsync(callerUserId);
-            if (customer != null && service.CustomerId != customer.Id && !isAdmin)
-                return Result<EscrowCheckoutPixDto>.Failure("Acesso negado para gerar cobrança deste serviço.", "FORBIDDEN");
-        }
-
         var acceptedProposal = service.Proposals?.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Accepted)
             ?? (await _proposalRepo.GetProposalsByServiceIdAsync(serviceId)).FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Accepted);
 
         var appointment = await _appointmentRepo.GetByServiceIdAsync(serviceId);
+
+        if (!isAdmin)
+        {
+            var customerOwnerUserId = service.Customer?.UserId;
+            if (customerOwnerUserId == null && _customerRepo != null)
+            {
+                var svcCustomer = await _customerRepo.GetByIdWithUserAsync(service.CustomerId);
+                customerOwnerUserId = svcCustomer?.UserId;
+            }
+
+            var assignedProviderUserId = service.Appointment?.Provider?.UserId ?? acceptedProposal?.Provider?.UserId;
+            if (assignedProviderUserId == null && appointment != null)
+            {
+                var assignedProvider = await _providerRepo.GetByIdWithUserAsync(appointment.ProviderId);
+                assignedProviderUserId = assignedProvider?.UserId;
+            }
+
+            var isServiceCustomer = customerOwnerUserId.HasValue && customerOwnerUserId.Value == callerUserId;
+            var isAssignedProvider = assignedProviderUserId.HasValue && assignedProviderUserId.Value == callerUserId;
+
+            if ((customerOwnerUserId.HasValue || assignedProviderUserId.HasValue || _customerRepo != null)
+                && !isServiceCustomer && !isAssignedProvider)
+            {
+                return Result<EscrowCheckoutPixDto>.Failure("Acesso negado para gerar cobrança deste serviço.", "FORBIDDEN");
+            }
+        }
+
         var (labor, materials, gross, _, _) = CalculateFinancials(acceptedProposal, appointment?.FinalPrice);
 
         if (gross <= 0m)
@@ -434,9 +477,10 @@ public class WalletApplicationService(
             var corrIdStr = payload.CorrelationId ?? payload.Proof?.CorrelationId;
             if (Guid.TryParse(corrIdStr, out var serviceId))
             {
-                var service = await _serviceRepo.GetByIdAsync(serviceId);
+                var service = await _serviceRepo.GetByIdWithDetailsAsync(serviceId) ?? await _serviceRepo.GetByIdAsync(serviceId);
                 if (service != null && service.ServiceStatus == ServiceStatus.WaitingPayment)
                 {
+                    var previousStatus = service.ServiceStatus.ToString();
                     service.ServiceStatus = ServiceStatus.Completed;
                     service.Touch();
                     _serviceRepo.Update(service);
@@ -452,7 +496,16 @@ public class WalletApplicationService(
                         await _appointmentRepo.SaveChangesAsync();
                     }
 
-                    await ReleaseEscrowForServiceAsync(serviceId, appointment?.FinalPrice);
+                    var effectivePrice = payload.Amount ?? appointment?.FinalPrice;
+                    await ReleaseEscrowForServiceAsync(serviceId, effectivePrice);
+
+                    if (_trackingNotification != null)
+                        await _trackingNotification.NotifyServiceUpdateAsync(serviceId, "status_changed", new { status = "completed" });
+
+                    if (_chatNotification != null)
+                        await _chatNotification.NotifyChatUpdateAsync(Guid.Empty, serviceId, "service_status_changed", new { status = "completed" });
+
+                    await NotifyWebhookPaymentEmailsAsync(service, previousStatus, effectivePrice);
                 }
                 else
                 {
@@ -465,7 +518,7 @@ public class WalletApplicationService(
             var e2e = payload.EndToEndId ?? payload.Proof?.EndToEndId;
             if (!string.IsNullOrEmpty(e2e))
             {
-                var withdrawal = (await _withdrawalRepo.GetAllAsync()).FirstOrDefault(w => w.ReceiptNumber == e2e);
+                var withdrawal = (await _withdrawalRepo.FindAsync(w => w.ReceiptNumber == e2e)).FirstOrDefault();
                 if (withdrawal != null && withdrawal.Status != WithdrawalStatus.Transferred)
                 {
                     withdrawal.Status = WithdrawalStatus.Transferred;
@@ -481,7 +534,7 @@ public class WalletApplicationService(
             var e2e = payload.EndToEndId ?? payload.Proof?.EndToEndId;
             if (!string.IsNullOrEmpty(e2e))
             {
-                var withdrawal = (await _withdrawalRepo.GetAllAsync()).FirstOrDefault(w => w.ReceiptNumber == e2e);
+                var withdrawal = (await _withdrawalRepo.FindAsync(w => w.ReceiptNumber == e2e)).FirstOrDefault();
                 if (withdrawal != null && withdrawal.Status != WithdrawalStatus.Rejected)
                 {
                     withdrawal.Status = WithdrawalStatus.Rejected;
@@ -504,6 +557,32 @@ public class WalletApplicationService(
         }
 
         return Result.Success();
+    }
+
+    private async Task NotifyWebhookPaymentEmailsAsync(Service service, string previousStatus, decimal? effectivePrice)
+    {
+        if (_emailService == null) return;
+
+        var detailed = service.Customer?.User != null
+            ? service
+            : await _serviceRepo.GetByIdWithDetailsAsync(service.Id);
+        if (detailed == null) return;
+
+        var value = effectivePrice ?? detailed.Appointment?.FinalPrice ?? 0m;
+        var transactionId = detailed.Id.ToString("N")[..12].ToUpperInvariant();
+
+        var client = detailed.Customer?.User;
+        if (!string.IsNullOrWhiteSpace(client?.Email))
+        {
+            await _emailService.SendOrderStatusUpdatedNotificationAsync(client!.Email, client.Name, detailed.Title, previousStatus, "Completed");
+            await _emailService.SendPaymentCompletedNotificationAsync(client.Email, client.Name, detailed.Title, value, "PIX", transactionId);
+        }
+
+        var provider = detailed.Appointment?.Provider?.User;
+        if (!string.IsNullOrWhiteSpace(provider?.Email))
+        {
+            await _emailService.SendPaymentCompletedNotificationAsync(provider!.Email, provider.Name, detailed.Title, value, "PIX", transactionId);
+        }
     }
 
     public async Task<Result> HoldEscrowForServiceAsync(Guid serviceId)
@@ -612,14 +691,16 @@ public class WalletApplicationService(
     {
         decimal gross = explicitFinalPrice ?? proposal?.ProposedPrice ?? 0m;
         decimal materials = proposal?.MaterialsPrice ?? 0m;
-        decimal labor = proposal?.LaborPrice ?? (gross - materials);
-
-        if (labor < 0m) labor = gross;
         if (materials < 0m) materials = 0m;
-        if (labor + materials <= 0m)
+        if (materials > gross) materials = gross;
+
+        decimal labor = (explicitFinalPrice.HasValue && proposal != null && explicitFinalPrice.Value != proposal.ProposedPrice)
+            ? gross - materials
+            : (proposal?.LaborPrice ?? (gross - materials));
+
+        if (labor < 0m || labor + materials != gross)
         {
-            labor = gross;
-            materials = 0m;
+            labor = Math.Max(0m, gross - materials);
         }
 
         // Regra de comissão justa: taxa de 15% calculada estritamente sobre a mão de obra

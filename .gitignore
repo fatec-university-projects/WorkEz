@@ -142,6 +142,7 @@ WorkEzApp/.yarn-integrity
 *.env.*
 appsettings.Production.json
 appsettings.Secrets.json
+**/appsettings.Secrets.json
 secrets.json
 .secrets/
 

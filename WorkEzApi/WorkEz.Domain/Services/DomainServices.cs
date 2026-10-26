@@ -92,6 +92,16 @@ namespace WorkEz.Domain.Services
                 return Result<Proposal>.Failure($"Não é possível enviar propostas para um serviço com status '{service.ServiceStatus}'.", "INVALID_SERVICE_STATUS");
             }
 
+            if (proposedPrice <= 0m && ((laborPrice ?? 0m) + (materialsPrice ?? 0m)) <= 0m)
+            {
+                return Result<Proposal>.Failure("O valor proposto deve ser maior que zero.", "INVALID_PRICE");
+            }
+
+            if ((laborPrice.HasValue && laborPrice.Value < 0m) || (materialsPrice.HasValue && materialsPrice.Value < 0m))
+            {
+                return Result<Proposal>.Failure("Os valores de mão de obra e materiais não podem ser negativos.", "INVALID_PRICE");
+            }
+
             var (finalLabor, finalMaterials, totalProposed) = CalculateProposalPrices(proposedPrice, laborPrice, materialsPrice);
 
             var existingProposal = await _proposalRepository.GetExistingProposalAsync(service.Id, provider.Id);
@@ -242,6 +252,19 @@ namespace WorkEz.Domain.Services
             // Aceita com o valor da contra-proposta
             var finalPrice = proposal.CounterPrice ?? proposal.ProposedPrice;
             proposal.ProposedPrice = finalPrice;
+            if (proposal.LaborPrice.HasValue)
+            {
+                var materials = proposal.MaterialsPrice ?? 0m;
+                if (finalPrice >= materials)
+                {
+                    proposal.LaborPrice = finalPrice - materials;
+                }
+                else
+                {
+                    proposal.LaborPrice = finalPrice;
+                    proposal.MaterialsPrice = 0m;
+                }
+            }
             proposal.ProposalStatus = ProposalStatus.Accepted;
             _proposalRepository.Update(proposal);
 

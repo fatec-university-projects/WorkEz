@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 
 namespace WorkEz.Domain.Services;
 
@@ -12,19 +13,35 @@ public static class EmailTemplateFactory
     /// <summary>Formata valores monetários sempre em pt-BR, independente da cultura do servidor.</summary>
     private static string Money(decimal value) => value.ToString("N2", PtBr);
 
+    /// <summary>Sanitiza textos fornecidos pelo usuário para prevenir injeção de HTML/XSS nos e-mails preservando acentos UTF-8.</summary>
+    private static string Encode(string? value) =>
+        string.IsNullOrEmpty(value)
+            ? string.Empty
+            : value
+                .Replace("&", "&amp;")
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;")
+                .Replace("\"", "&quot;")
+                .Replace("'", "&#39;");
+
     public static string BuildProposalNotificationTemplate(string clientName, string providerName, string serviceTitle, decimal proposedPrice, string? description)
     {
-        string descHtml = !string.IsNullOrWhiteSpace(description)
-            ? $"<p style=\"margin: 12px 0 0 0; color: #475569; font-size: 14px;\"><strong>Observações do Prestador:</strong> {description}</p>"
+        var safeClient = Encode(clientName);
+        var safeProvider = Encode(providerName);
+        var safeTitle = Encode(serviceTitle);
+        var safeDesc = Encode(description);
+
+        string descHtml = !string.IsNullOrWhiteSpace(safeDesc)
+            ? $"<p style=\"margin: 12px 0 0 0; color: #475569; font-size: 14px;\"><strong>Observações do Prestador:</strong> {safeDesc}</p>"
             : string.Empty;
 
         return BuildBaseLayout(
             title: "Nova Proposta Recebida!",
-            subtitle: $"Olá, {clientName}! Você recebeu um orçamento para seu serviço.",
+            subtitle: $"Olá, {safeClient}! Você recebeu um orçamento para seu serviço.",
             contentHtml: $@"
                 <div style=""background-color: #F8FAFC; border-radius: 12px; padding: 20px; border: 1px solid #E2E8F0; margin-bottom: 24px;"">
-                    <h3 style=""margin: 0 0 8px 0; color: #1E293B; font-size: 18px;"">{serviceTitle}</h3>
-                    <p style=""margin: 0 0 16px 0; color: #64748B; font-size: 14px;"">Prestador: <strong>{providerName}</strong></p>
+                    <h3 style=""margin: 0 0 8px 0; color: #1E293B; font-size: 18px;"">{safeTitle}</h3>
+                    <p style=""margin: 0 0 16px 0; color: #64748B; font-size: 14px;"">Prestador: <strong>{safeProvider}</strong></p>
                     <div style=""background-color: #EFF6FF; border-left: 4px solid #2563EB; padding: 12px 16px; border-radius: 6px;"">
                         <span style=""font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #1D4ED8; font-weight: 600;"">Valor Proposto</span>
                         <div style=""font-size: 26px; font-weight: 800; color: #1E3A8A; margin-top: 4px;"">R$ {Money(proposedPrice)}</div>
@@ -42,26 +59,38 @@ public static class EmailTemplateFactory
 
     public static string BuildProposalAcceptedTemplate(string providerName, string clientName, string serviceTitle, decimal agreedPrice, string confirmationCode)
     {
+        var safeProvider = Encode(providerName);
+        var safeClient = Encode(clientName);
+        var safeTitle = Encode(serviceTitle);
+        var safeCode = Encode(confirmationCode);
+
+        var codeBlockHtml = !string.IsNullOrWhiteSpace(safeCode)
+            ? $@"<div style=""background-color: #FEF3C7; padding: 12px 16px; border-radius: 8px; flex: 1;"">
+                    <span style=""font-size: 11px; text-transform: uppercase; color: #92400E; font-weight: 700;"">Código de Confirmação</span>
+                    <div style=""font-size: 22px; font-weight: 800; color: #78350F; margin-top: 2px;"">#{safeCode}</div>
+                </div>"
+            : $@"<div style=""background-color: #EFF6FF; padding: 12px 16px; border-radius: 8px; flex: 1;"">
+                    <span style=""font-size: 11px; text-transform: uppercase; color: #1D4ED8; font-weight: 700;"">Check-in Presencial</span>
+                    <div style=""font-size: 13px; font-weight: 600; color: #1E3A8A; margin-top: 4px;"">Solicite o código de 4 dígitos ao cliente no local</div>
+                </div>";
+
         return BuildBaseLayout(
             title: "Proposta Aceita! 🎉",
-            subtitle: $"Parabéns, {providerName}! O cliente aceitou o seu orçamento.",
+            subtitle: $"Parabéns, {safeProvider}! O cliente aceitou o seu orçamento.",
             contentHtml: $@"
                 <div style=""background-color: #F0FDF4; border-radius: 12px; padding: 20px; border: 1px solid #BBF7D0; margin-bottom: 24px;"">
-                    <h3 style=""margin: 0 0 8px 0; color: #14532D; font-size: 18px;"">{serviceTitle}</h3>
-                    <p style=""margin: 0 0 16px 0; color: #15803D; font-size: 14px;"">Cliente: <strong>{clientName}</strong></p>
+                    <h3 style=""margin: 0 0 8px 0; color: #14532D; font-size: 18px;"">{safeTitle}</h3>
+                    <p style=""margin: 0 0 16px 0; color: #15803D; font-size: 14px;"">Cliente: <strong>{safeClient}</strong></p>
                     <div style=""display: flex; gap: 12px; margin-bottom: 12px;"">
                         <div style=""background-color: #DCFCE7; padding: 12px 16px; border-radius: 8px; flex: 1;"">
                             <span style=""font-size: 11px; text-transform: uppercase; color: #166534; font-weight: 700;"">Valor Fechado</span>
                             <div style=""font-size: 22px; font-weight: 800; color: #14532D; margin-top: 2px;"">R$ {Money(agreedPrice)}</div>
                         </div>
-                        <div style=""background-color: #FEF3C7; padding: 12px 16px; border-radius: 8px; flex: 1;"">
-                            <span style=""font-size: 11px; text-transform: uppercase; color: #92400E; font-weight: 700;"">Código de Confirmação</span>
-                            <div style=""font-size: 22px; font-weight: 800; color: #78350F; margin-top: 2px;"">#{confirmationCode}</div>
-                        </div>
+                        {codeBlockHtml}
                     </div>
                 </div>
                 <p style=""color: #334155; font-size: 15px; line-height: 1.6;"">
-                    O serviço está agendado e confirmado! Guarde o código de confirmação para informar ao cliente ao concluir o trabalho.
+                    O serviço está agendado e confirmado! Ao chegar no endereço do cliente, solicite o código de check-in de 4 dígitos para iniciar o atendimento com segurança.
                 </p>
             ",
             ctaText: "Abrir Detalhes do Serviço",
@@ -71,16 +100,20 @@ public static class EmailTemplateFactory
 
     public static string BuildProposalRejectedTemplate(string providerName, string serviceTitle, string? reason)
     {
-        string reasonHtml = !string.IsNullOrWhiteSpace(reason)
-            ? $"<p style=\"margin: 12px 0 0 0; color: #B91C1C; font-size: 14px;\"><strong>Motivo informado:</strong> {reason}</p>"
+        var safeProvider = Encode(providerName);
+        var safeTitle = Encode(serviceTitle);
+        var safeReason = Encode(reason);
+
+        string reasonHtml = !string.IsNullOrWhiteSpace(safeReason)
+            ? $"<p style=\"margin: 12px 0 0 0; color: #B91C1C; font-size: 14px;\"><strong>Motivo informado:</strong> {safeReason}</p>"
             : string.Empty;
 
         return BuildBaseLayout(
             title: "Atualização de Proposta",
-            subtitle: $"Olá, {providerName}. O cliente não aceitou o orçamento enviado.",
+            subtitle: $"Olá, {safeProvider}. O cliente não aceitou o orçamento enviado.",
             contentHtml: $@"
                 <div style=""background-color: #FEF2F2; border-radius: 12px; padding: 20px; border: 1px solid #FECACA; margin-bottom: 24px;"">
-                    <h3 style=""margin: 0 0 8px 0; color: #7F1D1D; font-size: 18px;"">{serviceTitle}</h3>
+                    <h3 style=""margin: 0 0 8px 0; color: #7F1D1D; font-size: 18px;"">{safeTitle}</h3>
                     {reasonHtml}
                 </div>
                 <p style=""color: #334155; font-size: 15px; line-height: 1.6;"">
@@ -94,20 +127,26 @@ public static class EmailTemplateFactory
 
     public static string BuildOrderStatusUpdatedTemplate(string recipientName, string serviceTitle, string oldStatus, string newStatus, string? observations)
     {
-        string obsHtml = !string.IsNullOrWhiteSpace(observations)
-            ? $"<p style=\"margin: 14px 0 0 0; color: #475569; font-size: 14px;\"><strong>Observações:</strong> {observations}</p>"
+        var safeRecipient = Encode(recipientName);
+        var safeTitle = Encode(serviceTitle);
+        var safeOld = Encode(oldStatus);
+        var safeNew = Encode(newStatus);
+        var safeObs = Encode(observations);
+
+        string obsHtml = !string.IsNullOrWhiteSpace(safeObs)
+            ? $"<p style=\"margin: 14px 0 0 0; color: #475569; font-size: 14px;\"><strong>Observações:</strong> {safeObs}</p>"
             : string.Empty;
 
         return BuildBaseLayout(
             title: "Atualização no Status do Pedido",
-            subtitle: $"Olá, {recipientName}! O status do seu serviço foi atualizado.",
+            subtitle: $"Olá, {safeRecipient}! O status do seu serviço foi atualizado.",
             contentHtml: $@"
                 <div style=""background-color: #F8FAFC; border-radius: 12px; padding: 20px; border: 1px solid #E2E8F0; margin-bottom: 24px;"">
-                    <h3 style=""margin: 0 0 12px 0; color: #1E293B; font-size: 18px;"">{serviceTitle}</h3>
+                    <h3 style=""margin: 0 0 12px 0; color: #1E293B; font-size: 18px;"">{safeTitle}</h3>
                     <div style=""display: flex; align-items: center; gap: 10px; margin-bottom: 12px;"">
-                        <span style=""background-color: #E2E8F0; color: #475569; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 6px;"">{oldStatus}</span>
+                        <span style=""background-color: #E2E8F0; color: #475569; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 6px;"">{safeOld}</span>
                         <span style=""color: #2563EB; font-weight: 800; font-size: 16px;"">➔</span>
-                        <span style=""background-color: #DBEAFE; color: #1D4ED8; font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 6px;"">{newStatus}</span>
+                        <span style=""background-color: #DBEAFE; color: #1D4ED8; font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 6px;"">{safeNew}</span>
                     </div>
                     {obsHtml}
                 </div>
@@ -122,15 +161,18 @@ public static class EmailTemplateFactory
 
     public static string BuildProviderAcceptedTemplate(string clientName, string providerName, string serviceTitle, decimal agreedPrice, DateTime? scheduledDate)
     {
+        var safeClient = Encode(clientName);
+        var safeProvider = Encode(providerName);
+        var safeTitle = Encode(serviceTitle);
         string dateFormatted = scheduledDate?.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture) ?? "A combinar no chat";
 
         return BuildBaseLayout(
             title: "Fornecedor Confirmou seu Pedido! 🤝",
-            subtitle: $"Excelente, {clientName}! O prestador aceitou realizar o serviço.",
+            subtitle: $"Excelente, {safeClient}! O prestador aceitou realizar o serviço.",
             contentHtml: $@"
                 <div style=""background-color: #F0FDF4; border-radius: 12px; padding: 20px; border: 1px solid #BBF7D0; margin-bottom: 24px;"">
-                    <h3 style=""margin: 0 0 8px 0; color: #14532D; font-size: 18px;"">{serviceTitle}</h3>
-                    <p style=""margin: 0 0 16px 0; color: #166534; font-size: 14px;"">Prestador Confirmado: <strong>{providerName}</strong></p>
+                    <h3 style=""margin: 0 0 8px 0; color: #14532D; font-size: 18px;"">{safeTitle}</h3>
+                    <p style=""margin: 0 0 16px 0; color: #166534; font-size: 14px;"">Prestador Confirmado: <strong>{safeProvider}</strong></p>
                     <div style=""display: flex; gap: 12px; margin-bottom: 12px;"">
                         <div style=""background-color: #DCFCE7; padding: 12px 16px; border-radius: 8px; flex: 1;"">
                             <span style=""font-size: 11px; text-transform: uppercase; color: #166534; font-weight: 700;"">Valor Acordado</span>
@@ -153,19 +195,24 @@ public static class EmailTemplateFactory
 
     public static string BuildPaymentCompletedTemplate(string recipientName, string serviceTitle, decimal amount, string paymentMethod, string transactionId)
     {
+        var safeRecipient = Encode(recipientName);
+        var safeTitle = Encode(serviceTitle);
+        var safeMethod = Encode(paymentMethod);
+        var safeTx = Encode(transactionId);
+
         return BuildBaseLayout(
             title: "Pagamento Concluído com Sucesso! 💳",
-            subtitle: $"Olá, {recipientName}! O pagamento foi processado e confirmado.",
+            subtitle: $"Olá, {safeRecipient}! O pagamento foi processado e confirmado.",
             contentHtml: $@"
                 <div style=""background-color: #F8FAFC; border-radius: 12px; padding: 20px; border: 1px solid #E2E8F0; margin-bottom: 24px;"">
-                    <h3 style=""margin: 0 0 8px 0; color: #1E293B; font-size: 18px;"">{serviceTitle}</h3>
+                    <h3 style=""margin: 0 0 8px 0; color: #1E293B; font-size: 18px;"">{safeTitle}</h3>
                     <div style=""background-color: #ECFDF5; border-left: 4px solid #10B981; padding: 14px 18px; border-radius: 6px; margin-bottom: 16px;"">
                         <span style=""font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #047857; font-weight: 700;"">Total Pago</span>
                         <div style=""font-size: 26px; font-weight: 800; color: #065F46; margin-top: 4px;"">R$ {Money(amount)}</div>
                     </div>
                     <div style=""display: flex; justify-content: space-between; font-size: 13px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 12px;"">
-                        <span>Método: <strong>{paymentMethod}</strong></span>
-                        <span>Transação: <strong>#{transactionId}</strong></span>
+                        <span>Método: <strong>{safeMethod}</strong></span>
+                        <span>Transação: <strong>#{safeTx}</strong></span>
                     </div>
                 </div>
                 <p style=""color: #334155; font-size: 15px; line-height: 1.6;"">
@@ -179,16 +226,19 @@ public static class EmailTemplateFactory
 
     public static string BuildWelcomeUserTemplate(string userName, string userRole)
     {
+        var safeName = Encode(userName);
+        var safeRole = Encode(userRole);
+
         string roleDescription = userRole.Equals("ServiceProvider", StringComparison.OrdinalIgnoreCase) || userRole.Equals("Prestador", StringComparison.OrdinalIgnoreCase)
             ? "Como prestador de serviços, você pode encontrar clientes na sua região, enviar orçamentos personalizados e gerenciar seus atendimentos com segurança."
             : "Como cliente, você pode solicitar orçamentos rápidos para reparos, reformas e serviços diversos com profissionais verificados e avaliados.";
 
         return BuildBaseLayout(
             title: "Bem-vindo(a) ao WorkEz! 🚀",
-            subtitle: $"Olá, {userName}! Sua conta foi criada com sucesso.",
+            subtitle: $"Olá, {safeName}! Sua conta foi criada com sucesso.",
             contentHtml: $@"
                 <div style=""background-color: #EFF6FF; border-radius: 12px; padding: 20px; border: 1px solid #BFDBFE; margin-bottom: 24px;"">
-                    <h3 style=""margin: 0 0 8px 0; color: #1E3A8A; font-size: 18px;"">Perfil Cadastrado: {userRole}</h3>
+                    <h3 style=""margin: 0 0 8px 0; color: #1E3A8A; font-size: 18px;"">Perfil Cadastrado: {safeRole}</h3>
                     <p style=""margin: 0; color: #1E40AF; font-size: 14px; line-height: 1.5;"">{roleDescription}</p>
                 </div>
                 <div style=""margin-bottom: 24px;"">
@@ -207,6 +257,10 @@ public static class EmailTemplateFactory
 
     public static string BuildPixInvoiceTemplate(string clientName, string serviceTitle, decimal totalAmount, string pixCopiaECola, string? qrCodeBase64, DateTime expiresAt)
     {
+        var safeClient = Encode(clientName);
+        var safeTitle = Encode(serviceTitle);
+        var safePix = Encode(pixCopiaECola);
+
         string qrHtml = string.Empty;
         if (!string.IsNullOrWhiteSpace(qrCodeBase64))
         {
@@ -220,17 +274,17 @@ public static class EmailTemplateFactory
 
         return BuildBaseLayout(
             title: "Serviço concluído - hora de pagar",
-            subtitle: $"Olá, {clientName}! O prestador finalizou o serviço. Pague via PIX para liberar o pagamento.",
+            subtitle: $"Olá, {safeClient}! O prestador finalizou o serviço. Pague via PIX para liberar o pagamento.",
             contentHtml: $@"
                 <div style=""background-color: #F8FAFC; border-radius: 12px; padding: 20px; border: 1px solid #E2E8F0; margin-bottom: 24px;"">
-                    <h3 style=""margin: 0 0 8px 0; color: #1E293B; font-size: 18px;"">{serviceTitle}</h3>
+                    <h3 style=""margin: 0 0 8px 0; color: #1E293B; font-size: 18px;"">{safeTitle}</h3>
                     <div style=""background-color: #ECFDF5; border-left: 4px solid #10B981; padding: 14px 18px; border-radius: 6px; margin-bottom: 16px;"">
                         <span style=""font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #047857; font-weight: 700;"">Valor a pagar</span>
                         <div style=""font-size: 26px; font-weight: 800; color: #065F46; margin-top: 4px;"">R$ {Money(totalAmount)}</div>
                     </div>
                     {qrHtml}
                     <p style=""margin: 12px 0 6px 0; font-size: 12px; text-transform: uppercase; color: #64748B; font-weight: 700;"">PIX Copia e Cola</p>
-                    <div style=""background-color: #FFFFFF; border: 1px dashed #94A3B8; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; color: #0F172A; word-break: break-all;"">{pixCopiaECola}</div>
+                    <div style=""background-color: #FFFFFF; border: 1px dashed #94A3B8; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; color: #0F172A; word-break: break-all;"">{safePix}</div>
                     <p style=""margin: 12px 0 0 0; font-size: 13px; color: #64748B;"">Cobrança válida até <strong>{expires}</strong> (horário de Brasília).</p>
                 </div>
                 <p style=""color: #334155; font-size: 15px; line-height: 1.6;"">

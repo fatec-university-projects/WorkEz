@@ -91,7 +91,7 @@ public class ProposalApplicationService(
             return result;
 
         await NotifyTrackingAsync(request.ServiceId, "proposal_created", result.Value);
-        DispatchProposalPushNotification(request.ServiceId, result.Value);
+        await DispatchProposalPushNotificationAsync(request.ServiceId, result.Value);
         await SendProposalEmailAsync(request.ServiceId, result.Value.Id, ProposalEmailKind.Submitted, null);
 
         return result;
@@ -256,6 +256,7 @@ public class ProposalApplicationService(
         if (result.IsSuccess && result.Value != null)
         {
             await NotifyTrackingAsync(result.Value.ServiceId, "counter_accepted", result.Value);
+            await SendProposalEmailAsync(result.Value.ServiceId, result.Value.Id, ProposalEmailKind.Accepted, null);
             await NotifyProposalChatAsync(result.Value.Id, result.Value.ServiceId, "proposal_updated", result.Value);
         }
         return result;
@@ -373,11 +374,17 @@ public class ProposalApplicationService(
         var accepted = proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Accepted);
         if (accepted is not null) return MapToResponseDto(accepted);
 
+        var countered = proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.CounterOffered);
+        if (countered is not null) return MapToResponseDto(countered);
+
         var inNegotiation = proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.NegotiationOpen);
         if (inNegotiation is not null) return MapToResponseDto(inNegotiation);
 
         var pending = proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Pending);
         if (pending is not null) return MapToResponseDto(pending);
+
+        var rejected = proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Rejected);
+        if (rejected is not null) return MapToResponseDto(rejected);
 
         return null;
     }
@@ -385,12 +392,41 @@ public class ProposalApplicationService(
     public async Task<Result<ProposalResponseDto>> GetActiveChatProposalByServiceIdAsync(Guid serviceId, Guid callerUserId, bool isAdmin)
     {
         var service = _serviceRepository != null ? await _serviceRepository.GetByIdWithDetailsAsync(serviceId) : null;
-        var isCustomer = service?.Customer?.UserId == callerUserId;
-        var isProvider = service != null && (service.Appointment?.Provider?.UserId == callerUserId || service.Proposals.Any(p => p.Provider?.UserId == callerUserId));
+        if (service == null)
+        {
+            var directProposal = await _proposalDomainService.GetByIdAsync(serviceId);
+            if (directProposal != null)
+            {
+                var isPropProvider = directProposal.Provider?.UserId == callerUserId || directProposal.ProviderId == callerUserId;
+                var isPropCustomer = directProposal.Service?.Customer?.UserId == callerUserId;
+                if (!isAdmin && !isPropProvider && !isPropCustomer)
+                {
+                    return Result<ProposalResponseDto>.Failure("Você não possui permissão para acessar o chat desta proposta.", "FORBIDDEN");
+                }
+                return Result<ProposalResponseDto>.Success(MapToResponseDto(directProposal));
+            }
 
-        if (!isAdmin && !isCustomer && !isProvider)
+            if (_serviceRepository != null)
+            {
+                return Result<ProposalResponseDto>.Failure("Nenhum chat ativo encontrado para este serviço.", "NOT_FOUND");
+            }
+        }
+
+        var isCustomer = service?.Customer?.UserId == callerUserId;
+        var isProvider = service != null && (service.Appointment?.Provider?.UserId == callerUserId || service.Proposals.Any(p => p.Provider?.UserId == callerUserId || p.ProviderId == callerUserId));
+
+        if (_serviceRepository != null && !isAdmin && !isCustomer && !isProvider)
         {
             return Result<ProposalResponseDto>.Failure("Você não possui permissão para acessar o chat deste serviço.", "FORBIDDEN");
+        }
+
+        if (service != null && isProvider && !isCustomer && !isAdmin)
+        {
+            var providerProposal = service.Proposals.FirstOrDefault(p => p.Provider?.UserId == callerUserId || p.ProviderId == callerUserId);
+            if (providerProposal != null)
+            {
+                return Result<ProposalResponseDto>.Success(MapToResponseDto(providerProposal));
+            }
         }
 
         var proposal = await GetActiveChatProposalByServiceIdAsync(serviceId);
@@ -426,7 +462,8 @@ public class ProposalApplicationService(
             MaterialsPrice: financialVo.MaterialsAmount,
             ProviderPhoto: providerPhoto,
             ProviderRating: providerRating,
-            ProviderUserId: providerUserId
+            ProviderUserId: providerUserId,
+            ServiceStatus: proposal.Service?.ServiceStatus.ToString()
         );
     }
 
@@ -460,13 +497,10 @@ public class ProposalApplicationService(
         if (proposal.ProposalStatus == ProposalStatus.Rejected)
             return Result<bool>.Failure("Não é possível enviar mensagens em propostas recusadas.", "PROPOSAL_REJECTED");
 
-        if (proposal.ProposalStatus == ProposalStatus.Accepted)
+        if (proposal.Service is not null &&
+            (proposal.Service.ServiceStatus == ServiceStatus.Completed || proposal.Service.ServiceStatus == ServiceStatus.Cancelled))
         {
-            if (proposal.Service is not null &&
-                (proposal.Service.ServiceStatus == ServiceStatus.Completed || proposal.Service.ServiceStatus == ServiceStatus.Cancelled))
-            {
-                return Result<bool>.Failure("O serviço já foi finalizado. O chat está encerrado.", "SERVICE_FINISHED");
-            }
+            return Result<bool>.Failure("O serviço já foi finalizado. O chat está encerrado.", "SERVICE_FINISHED");
         }
 
         if (proposal.ProposalStatus == ProposalStatus.Pending)
@@ -499,10 +533,19 @@ public class ProposalApplicationService(
                     clientUser!.Email, clientUser.Name, providerUser?.Name ?? "Prestador",
                     service.Title, proposal.ProposedPrice, proposal.Description);
                 break;
-            case ProposalEmailKind.Accepted when !string.IsNullOrWhiteSpace(providerUser?.Email):
-                await _emailService.SendProposalAcceptedNotificationAsync(
-                    providerUser!.Email, providerUser.Name, clientUser?.Name ?? "Cliente",
-                    service.Title, proposal.ProposedPrice, service.Appointment?.ConfirmationCode ?? string.Empty);
+            case ProposalEmailKind.Accepted:
+                if (!string.IsNullOrWhiteSpace(providerUser?.Email))
+                {
+                    await _emailService.SendProposalAcceptedNotificationAsync(
+                        providerUser!.Email, providerUser.Name, clientUser?.Name ?? "Cliente",
+                        service.Title, proposal.ProposedPrice, string.Empty);
+                }
+                if (!string.IsNullOrWhiteSpace(clientUser?.Email))
+                {
+                    await _emailService.SendProviderAcceptedNotificationAsync(
+                        clientUser!.Email, clientUser.Name, providerUser?.Name ?? "Prestador",
+                        service.Title, proposal.ProposedPrice, service.Appointment?.ScheduledDate);
+                }
                 break;
             case ProposalEmailKind.Rejected when !string.IsNullOrWhiteSpace(providerUser?.Email):
                 await _emailService.SendProposalRejectedNotificationAsync(
@@ -523,33 +566,33 @@ public class ProposalApplicationService(
             await _chatNotification.NotifyChatUpdateAsync(proposalId, serviceId, eventType, payload);
     }
 
-    private void DispatchProposalPushNotification(Guid serviceId, ProposalResponseDto proposal)
+    private async Task DispatchProposalPushNotificationAsync(Guid serviceId, ProposalResponseDto proposal)
     {
         if (_pushNotification == null || _serviceRepository == null) return;
 
-        _ = Task.Run(async () =>
+        try
         {
-            try
-            {
-                var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId);
-                if (service?.Customer?.UserId != null)
+            var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId);
+            var customerUserId = service?.Customer?.UserId;
+            if (customerUserId == null) return;
+
+            var targetUserId = customerUserId.Value;
+            var targetServiceId = service!.Id;
+            var priceFormatted = proposal.ProposedPrice.ToString("C", new System.Globalization.CultureInfo("pt-BR"));
+            var provName = string.IsNullOrWhiteSpace(proposal.ProviderName) ? "Um profissional" : proposal.ProviderName;
+
+            await _pushNotification.SendToUserAsync(
+                targetUserId,
+                "💰 Nova proposta recebida!",
+                $"{provName} enviou uma proposta de {priceFormatted} para seu chamado.",
+                new
                 {
-                    var priceFormatted = proposal.ProposedPrice.ToString("C", new System.Globalization.CultureInfo("pt-BR"));
-                    var provName = string.IsNullOrWhiteSpace(proposal.ProviderName) ? "Um profissional" : proposal.ProviderName;
-                    await _pushNotification.SendToUserAsync(
-                        service.Customer.UserId,
-                        "💰 Nova proposta recebida!",
-                        $"{provName} enviou uma proposta de {priceFormatted} para seu chamado.",
-                        new
-                        {
-                            type = "new_proposal",
-                            serviceId = service.Id,
-                            proposalId = proposal.Id
-                        }
-                    );
+                    type = "new_proposal",
+                    serviceId = targetServiceId,
+                    proposalId = proposal.Id
                 }
-            }
-            catch { }
-        });
+            );
+        }
+        catch { }
     }
 }

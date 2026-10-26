@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using WorkEz.Application.DTOs;
 using WorkEz.Application.Services;
 using WorkEz.Domain.Common;
 using WorkEz.WebUID.Auth;
 
 namespace WorkEz.WebUID.Controllers;
+
+public record CompleteServiceBodyRequest(decimal? Price);
 
 /// <summary>
 /// Controller magra (Thin Controller) para Serviços e Chamados em Clean Architecture.
@@ -171,16 +174,20 @@ public class ServicesController(
     }
 
     /// <summary>
-    /// Prestador conclui o serviço e informa valor final.
+    /// Prestador conclui o serviço e informa valor final (via query string ou JSON body).
     /// </summary>
     [HttpPost("{id:guid}/complete")]
     [HttpPatch("{id:guid}/complete")]
-    public async Task<IActionResult> CompleteService(Guid id, [FromQuery] decimal? price)
+    public async Task<IActionResult> CompleteService(
+        Guid id,
+        [FromQuery] decimal? price = null,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CompleteServiceBodyRequest? body = null)
     {
         var me = User.GetUserId();
         if (me == null) return Unauthorized();
 
-        var result = await _serviceAppService.CompleteServiceAsync(id, price, me.Value, User.IsAdmin());
+        var effectivePrice = price ?? body?.Price;
+        var result = await _serviceAppService.CompleteServiceAsync(id, effectivePrice, me.Value, User.IsAdmin());
         return ToActionResult(result);
     }
 

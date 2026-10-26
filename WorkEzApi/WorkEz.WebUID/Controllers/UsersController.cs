@@ -39,20 +39,28 @@ public class UsersController(IUserApplicationService userService, IWebHostEnviro
 
     /// <summary>
     /// Atualiza os dados de perfil do usuário (nome, e-mail, telefone, foto de perfil).
+    /// Suporta tanto PUT /api/Users/profile quanto PUT /api/Users/{id:guid}.
     /// </summary>
     [HttpPut("profile")]
+    [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileRequest request)
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileRequest request, [FromRoute] Guid? id = null)
     {
-        var userId = User.GetUserId();
-        if (userId is null)
+        var callerUserId = User.GetUserId();
+        if (callerUserId is null)
             return Unauthorized(new { message = "Usuário não autenticado." });
 
+        if (id.HasValue && id.Value != callerUserId.Value && !User.IsAdmin())
+            return Forbid();
+
+        var targetUserId = id ?? callerUserId.Value;
+
         var result = await _userService.UpdateProfileAsync(
-            userId.Value,
+            targetUserId,
             request,
             Request.Scheme,
             Request.Host.Value,

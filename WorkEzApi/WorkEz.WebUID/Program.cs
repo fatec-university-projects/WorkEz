@@ -9,6 +9,7 @@ using WorkEz.WebUID.Auth;
 using WorkEz.WebUID.WebSockets;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();

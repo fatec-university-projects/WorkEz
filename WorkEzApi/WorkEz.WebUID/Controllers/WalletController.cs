@@ -11,9 +11,10 @@ namespace WorkEz.WebUID.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class WalletController(IWalletApplicationService walletService) : ControllerBase
+public class WalletController(IWalletApplicationService walletService, IConfiguration? configuration = null) : ControllerBase
 {
     private readonly IWalletApplicationService _walletService = walletService;
+    private readonly IConfiguration? _configuration = configuration;
 
     /// <summary>
     /// Retorna o resumo financeiro da carteira do prestador (Saldo Disponível, Em Custódia e Total do Mês).
@@ -51,12 +52,26 @@ public class WalletController(IWalletApplicationService walletService) : Control
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetStatement(Guid providerId, [FromQuery] WalletStatementFilterDto filter)
+    public async Task<IActionResult> GetStatement(
+        Guid providerId,
+        [FromQuery] string? filter = null,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 50)
     {
         var callerUserId = User.GetUserId();
         if (callerUserId == null) return Unauthorized(new { message = "Usuário não autenticado." });
 
-        var result = await _walletService.GetStatementAsync(providerId, filter, callerUserId.Value, User.IsAdmin());
+        var filterDto = new WalletStatementFilterDto(
+            Filter: filter ?? "all",
+            StartDate: startDate,
+            EndDate: endDate,
+            PageNumber: pageNumber,
+            PageSize: pageSize
+        );
+
+        var result = await _walletService.GetStatementAsync(providerId, filterDto, callerUserId.Value, User.IsAdmin());
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -161,8 +176,23 @@ public class WalletController(IWalletApplicationService walletService) : Control
     [Microsoft.AspNetCore.Authorization.AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ReceiveDelFinanceWebhook([FromBody] DelFinanceWebhookPayload payload)
     {
+        if (Request?.Headers != null)
+        {
+            var providedSecret = Request.Headers["x-delfinance-webhook-secret"].FirstOrDefault()
+                ?? Request.Headers["x-webhook-secret"].FirstOrDefault();
+            var configuredSecret = _configuration?["DelFinance:WebhookSecret"];
+
+            if (!string.IsNullOrWhiteSpace(providedSecret)
+                && !string.IsNullOrWhiteSpace(configuredSecret)
+                && !string.Equals(providedSecret, configuredSecret, StringComparison.Ordinal))
+            {
+                return Unauthorized(new { message = "Assinatura/segredo do webhook inválido.", code = "INVALID_WEBHOOK_SECRET" });
+            }
+        }
+
         var result = await _walletService.ProcessDelFinanceWebhookAsync(payload);
         if (!result.IsSuccess)
         {

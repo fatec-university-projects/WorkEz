@@ -25,7 +25,7 @@ public class SmtpEmailService(IConfiguration configuration, ILogger<SmtpEmailSer
         var fromEmail = _configuration["Smtp:FromEmail"] ?? "no-reply@workez.com.br";
         var fromName = _configuration["Smtp:FromName"] ?? "WorkEz Plataforma";
 
-        if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUser))
+        if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUser) || string.IsNullOrWhiteSpace(smtpPass))
         {
             _logger.LogInformation("===============================================================================");
             _logger.LogInformation("[DEV EMAIL SIMULATOR] To: {ToEmail} | Subject: {Subject}", toEmail, subject);

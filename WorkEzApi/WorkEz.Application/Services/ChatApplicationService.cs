@@ -143,7 +143,8 @@ public class ChatApplicationService(
 
     private async Task<Result<(Guid? proposalId, Guid? serviceId)>> ValidateProposalChatTargetAsync(Guid proposalId, Guid? serviceId)
     {
-        var proposal = await _proposalRepository.GetByIdAsync(proposalId);
+        var proposal = await _proposalRepository.GetByIdWithServiceAndProviderAsync(proposalId)
+            ?? await _proposalRepository.GetByIdAsync(proposalId);
         if (proposal is null)
             return Result<(Guid?, Guid?)>.Failure("Proposta não encontrada.", "PROPOSAL_NOT_FOUND");
 
@@ -152,13 +153,10 @@ public class ChatApplicationService(
         if (proposal.ProposalStatus == ProposalStatus.Rejected)
             return Result<(Guid?, Guid?)>.Failure("Não é possível enviar mensagens em propostas recusadas.", "PROPOSAL_REJECTED");
 
-        if (proposal.ProposalStatus == ProposalStatus.Accepted)
+        var service = proposal.Service ?? await _serviceRepository.GetByIdAsync(resolvedServiceId);
+        if (service is not null && (service.ServiceStatus == ServiceStatus.Completed || service.ServiceStatus == ServiceStatus.Cancelled))
         {
-            var service = proposal.Service ?? await _serviceRepository.GetByIdAsync(resolvedServiceId);
-            if (service is not null && (service.ServiceStatus == ServiceStatus.Completed || service.ServiceStatus == ServiceStatus.Cancelled))
-            {
-                return Result<(Guid?, Guid?)>.Failure("O serviço já foi finalizado. O chat está encerrado.", "SERVICE_FINISHED");
-            }
+            return Result<(Guid?, Guid?)>.Failure("O serviço já foi finalizado. O chat está encerrado.", "SERVICE_FINISHED");
         }
 
         if (proposal.ProposalStatus == ProposalStatus.Pending)
@@ -277,6 +275,21 @@ public class ChatApplicationService(
 
     public async Task<Result<IEnumerable<ChatMessageResponseDto>>> GetMessagesByServiceIdAsync(Guid serviceId, Guid callerUserId, bool isAdmin)
     {
+        var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId)
+            ?? await _serviceRepository.GetByIdAsync(serviceId);
+
+        if (service is null)
+        {
+            var proposalFallback = await _proposalRepository.GetByIdWithServiceAndProviderAsync(serviceId)
+                ?? await _proposalRepository.GetByIdAsync(serviceId);
+            if (proposalFallback is not null)
+            {
+                return await GetMessagesByProposalIdAsync(proposalFallback.Id, callerUserId, isAdmin);
+            }
+
+            return Result<IEnumerable<ChatMessageResponseDto>>.Failure("Serviço não encontrado.", "SERVICE_NOT_FOUND");
+        }
+
         var (isCustomer, isProvider) = await CheckParticipationAsync(null, serviceId, callerUserId);
         if (!isAdmin && !isCustomer && !isProvider)
         {
@@ -294,21 +307,56 @@ public class ChatApplicationService(
         var accepted = proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Accepted);
         if (accepted is not null) return MapProposalToDto(accepted);
 
+        var countered = proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.CounterOffered);
+        if (countered is not null) return MapProposalToDto(countered);
+
         var inNegotiation = proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.NegotiationOpen);
         if (inNegotiation is not null) return MapProposalToDto(inNegotiation);
 
         var pending = proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Pending);
         if (pending is not null) return MapProposalToDto(pending);
 
+        var rejected = proposals.FirstOrDefault(p => p.ProposalStatus == ProposalStatus.Rejected);
+        if (rejected is not null) return MapProposalToDto(rejected);
+
         return null;
     }
 
     public async Task<Result<ProposalResponseDto>> GetActiveChatProposalByServiceIdAsync(Guid serviceId, Guid callerUserId, bool isAdmin)
     {
+        var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId)
+            ?? await _serviceRepository.GetByIdAsync(serviceId);
+
+        if (service is null)
+        {
+            var proposalFallback = await _proposalRepository.GetByIdWithServiceAndProviderAsync(serviceId)
+                ?? await _proposalRepository.GetByIdAsync(serviceId);
+            if (proposalFallback is not null)
+            {
+                var (isPropCust, isPropProv) = await CheckParticipationAsync(proposalFallback.Id, null, callerUserId);
+                if (!isAdmin && !isPropCust && !isPropProv)
+                {
+                    return Result<ProposalResponseDto>.Failure("Você não possui permissão para acessar o chat desta proposta.", "FORBIDDEN");
+                }
+                return Result<ProposalResponseDto>.Success(MapProposalToDto(proposalFallback));
+            }
+
+            return Result<ProposalResponseDto>.Failure("Nenhum chat ativo encontrado para este serviço.", "NOT_FOUND");
+        }
+
         var (isCustomer, isProvider) = await CheckParticipationAsync(null, serviceId, callerUserId);
         if (!isAdmin && !isCustomer && !isProvider)
         {
             return Result<ProposalResponseDto>.Failure("Você não possui permissão para acessar o chat deste serviço.", "FORBIDDEN");
+        }
+
+        if (isProvider && !isCustomer && !isAdmin)
+        {
+            var providerProposal = service.Proposals?.FirstOrDefault(p => p.Provider?.UserId == callerUserId || p.ProviderId == callerUserId);
+            if (providerProposal is not null)
+            {
+                return Result<ProposalResponseDto>.Success(MapProposalToDto(providerProposal));
+            }
         }
 
         var proposal = await GetActiveChatProposalByServiceIdAsync(serviceId);
@@ -326,7 +374,7 @@ public class ChatApplicationService(
 
             if (proposal != null)
             {
-                var isProv = proposal.Provider?.UserId == userId;
+                var isProv = proposal.Provider?.UserId == userId || proposal.ProviderId == userId;
                 if (!isProv && _providerRepository != null)
                 {
                     var prov = await _providerRepository.GetByIdAsync(proposal.ProviderId);
@@ -464,7 +512,8 @@ public class ChatApplicationService(
             MaterialsPrice: financialVo.MaterialsAmount,
             ProviderPhoto: providerPhoto,
             ProviderRating: providerRating,
-            ProviderUserId: providerUserId
+            ProviderUserId: providerUserId,
+            ServiceStatus: proposal.Service?.ServiceStatus.ToString()
         );
     }
 }

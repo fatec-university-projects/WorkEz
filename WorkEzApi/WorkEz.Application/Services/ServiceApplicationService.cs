@@ -40,6 +40,15 @@ public class ServiceApplicationService(
     IEmailService? emailService = null
 ) : IServiceApplicationService
 {
+    private static readonly HttpClient SharedGeoHttpClient = CreateGeoHttpClient();
+
+    private static HttpClient CreateGeoHttpClient()
+    {
+        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        client.DefaultRequestHeaders.Add("User-Agent", "WorkEzApp/1.0");
+        return client;
+    }
+
     private readonly IServiceRepository _serviceRepository = serviceRepository;
     private readonly IAppointmentRepository _appointmentRepository = appointmentRepository;
     private readonly IServiceProviderRepository _providerRepository = providerRepository;
@@ -238,10 +247,22 @@ public class ServiceApplicationService(
 
         if (status == false)
         {
+            if (service.ServiceStatus == ServiceStatus.Completed)
+                return Result<ServiceStatusResultDto>.Failure("Não é possível cancelar um serviço já concluído.", "INVALID_SERVICE_STATUS");
+
             var previousStatus = service.ServiceStatus.ToString();
             service.ServiceStatus = ServiceStatus.Cancelled;
             service.Touch();
             _serviceRepository.Update(service);
+
+            var appointment = service.Appointment ?? await _appointmentRepository.GetByServiceIdAsync(serviceId);
+            if (appointment != null && appointment.AppointmentStatus != AppointmentStatus.Completed)
+            {
+                appointment.AppointmentStatus = AppointmentStatus.Cancelled;
+                appointment.Touch();
+                _appointmentRepository.Update(appointment);
+            }
+
             await _serviceRepository.SaveChangesAsync();
 
             await NotifyStatusChangedAsync(serviceId, "cancelled");
@@ -274,7 +295,7 @@ public class ServiceApplicationService(
         await _serviceRepository.SaveChangesAsync();
         await NotifyStatusChangedAsync(serviceId, "on-the-way");
         await SendStatusEmailAsync(serviceId, previousStatus, "OnTheWay");
-        DispatchDisplacementPushNotification(service);
+        await DispatchDisplacementPushNotificationAsync(service);
 
         return Result<ServiceStatusResultDto>.Success(new ServiceStatusResultDto(service.Id, "on-the-way"));
     }
@@ -681,27 +702,26 @@ public class ServiceApplicationService(
         }
     }
 
-    private void DispatchDisplacementPushNotification(Service service)
+    private async Task DispatchDisplacementPushNotificationAsync(Service service)
     {
         if (_pushNotification == null) return;
 
-        _ = Task.Run(async () =>
+        try
         {
-            try
-            {
-                var customer = service.Customer ?? (await _customerRepository.FindAsync(c => c.Id == service.CustomerId)).FirstOrDefault();
-                if (customer != null)
-                {
-                    await _pushNotification.SendToUserAsync(
-                        customer.UserId,
-                        "🚗 Prestador a caminho!",
-                        "O profissional iniciou o deslocamento até o seu endereço.",
-                        new { type = "provider_on_the_way", serviceId = service.Id }
-                    );
-                }
-            }
-            catch { }
-        });
+            var customer = service.Customer ?? (await _customerRepository.FindAsync(c => c.Id == service.CustomerId)).FirstOrDefault();
+            if (customer == null) return;
+
+            var targetUserId = customer.UserId;
+            var targetServiceId = service.Id;
+
+            await _pushNotification.SendToUserAsync(
+                targetUserId,
+                "🚗 Prestador a caminho!",
+                "O profissional iniciou o deslocamento até o seu endereço.",
+                new { type = "provider_on_the_way", serviceId = targetServiceId }
+            );
+        }
+        catch { }
     }
 
     private static OpportunityCallDto MapToOpportunityCallDto(Appointment a)
@@ -731,10 +751,8 @@ public class ServiceApplicationService(
     {
         try
         {
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.Add("User-Agent", "WorkEzApp/1.0");
             var url = $"https://nominatim.openstreetmap.org/search?q={Uri.EscapeDataString(addressQuery)}&format=json&limit=1";
-            var response = await client.GetAsync(url);
+            var response = await SharedGeoHttpClient.GetAsync(url);
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
@@ -799,17 +817,10 @@ public class ServiceApplicationService(
                 }
                 return list.ToArray();
             }
-            return [json.Trim()];
         }
-        catch
-        {
-            return [json.Trim()];
-        }
+        catch { }
+        return [];
     }
 
-    private class NominatimResult
-    {
-        public string? lat { get; set; }
-        public string? lon { get; set; }
-    }
+    private record NominatimResult(string? lat, string? lon);
 }

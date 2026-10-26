@@ -53,9 +53,9 @@ public static class DependencyInjection
             var settings = new WorkEz.Application.DTOs.DelFinanceSettings
             {
                 BaseUrl = config["DelFinance:BaseUrl"] ?? "https://apisandbox.delbank.com.br",
-                ApiKey = config["DelFinance:ApiKey"] ?? "PJPyJ2xGmyB9oDHyNIUwNOt1dgpgolBwcE16ybaKD5rYEc8ujLtarBP0nNw2FKdgK+5YJFciFwTdORlZsdaTzjEbKN5ut+Ag4xGy69bbtXJmzkzRDHry9ubYbMW4xFMb",
+                ApiKey = config["DelFinance:ApiKey"] ?? string.Empty,
                 AccountId = config["DelFinance:AccountId"] ?? "31712",
-                WebhookSecret = config["DelFinance:WebhookSecret"] ?? "workez-delfinance-webhook-secret"
+                WebhookSecret = config["DelFinance:WebhookSecret"] ?? string.Empty
             };
             return new DelFinanceClient(client, logger, settings);
         });
