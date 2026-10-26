@@ -6,6 +6,22 @@ const STORAGE_KEY_ACCESS = '@workez_access_token';
 const STORAGE_KEY_REFRESH = '@workez_refresh_token';
 const PRODUCTION_API_URL = 'https://workez-api.onrender.com';
 const LOCAL_API_URL = 'http://localhost:5065';
+const FALLBACK_LAN_IP = '192.168.1.92';
+
+function resolveMobileHostIp(): string {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
+    (Constants as any).manifest?.debuggerHost;
+  const rawHost = hostUri ? hostUri.split(':')[0] : null;
+
+  // Ignora interfaces virtuais do WSL/Hyper-V (172.x) ou túneis (.exp.direct) e usa o IP da rede local
+  if (rawHost && /^\d+\.\d+\.\d+\.\d+$/.test(rawHost) && !rawHost.startsWith('172.')) {
+    return rawHost;
+  }
+
+  return FALLBACK_LAN_IP;
+}
 
 function resolveApiBaseUrl(): string {
   // Em modo de desenvolvimento (__DEV__), o padrão é a API local (http://localhost:5065)
@@ -13,16 +29,10 @@ function resolveApiBaseUrl(): string {
   let url = (process.env.EXPO_PUBLIC_API_URL || defaultUrl).replace(/\/+$/, '');
 
   // Se estiver em dispositivo móvel (físico ou emulador) e a URL contiver localhost/127.0.0.1:
-  // Resolve automaticamente para o IP da máquina host onde o Metro Bundler está rodando.
+  // Resolve automaticamente para o IP da máquina host na rede local, mantendo localhost no navegador.
   if (Platform.OS !== 'web' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
-    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest?.debuggerHost;
-    const hostIp = hostUri ? hostUri.split(':')[0] : null;
-
-    if (hostIp) {
-      url = url.replace('localhost', hostIp).replace('127.0.0.1', hostIp);
-    } else if (Platform.OS === 'android') {
-      url = url.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
-    }
+    const hostIp = resolveMobileHostIp();
+    url = url.replace('localhost', hostIp).replace('127.0.0.1', hostIp);
   }
 
   return url;
@@ -172,11 +182,8 @@ export function resolveImageUrl(url?: string | null): string | undefined {
     return `${API_BASE_URL}${trimmed}`;
   }
   if (Platform.OS !== 'web' && (trimmed.includes('localhost') || trimmed.includes('127.0.0.1'))) {
-    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest?.debuggerHost;
-    const hostIp = hostUri ? hostUri.split(':')[0] : null;
-    if (hostIp) {
-      return trimmed.replace('localhost', hostIp).replace('127.0.0.1', hostIp);
-    }
+    const hostIp = resolveMobileHostIp();
+    return trimmed.replace('localhost', hostIp).replace('127.0.0.1', hostIp);
   }
   return trimmed;
 }
@@ -321,6 +328,59 @@ export async function confirmServicePayment(serviceId: string) {
 export async function resendPixEmail(serviceId: string) {
   return apiRequest<{ message: string }>(`/api/Wallet/resend-pix-email/${serviceId}`, {
     method: 'POST',
+  }, true);
+}
+
+export interface AddressItem {
+  id: string;
+  userId: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  addressType: 'Home' | 'Work' | 'Other' | string;
+  latitude?: number;
+  longitude?: number;
+  isDefault?: boolean;
+}
+
+export interface AddressPayload {
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  addressType?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export async function fetchUserAddresses() {
+  return apiRequest<AddressItem[]>('/api/Addresses', { method: 'GET' }, true);
+}
+
+export async function createAddress(payload: AddressPayload) {
+  return apiRequest<AddressItem>('/api/Addresses', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, true);
+}
+
+export async function updateAddress(id: string, payload: AddressPayload) {
+  return apiRequest<AddressItem>(`/api/Addresses/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, true);
+}
+
+export async function deleteAddress(id: string) {
+  return apiRequest<void>(`/api/Addresses/${id}`, {
+    method: 'DELETE',
   }, true);
 }
 
