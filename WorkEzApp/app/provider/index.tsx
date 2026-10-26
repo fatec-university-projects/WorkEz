@@ -1,14 +1,14 @@
 import { useMemo, useCallback } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { DollarSign, Star, Briefcase, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
+import { DollarSign, Star, Briefcase, TrendingUp, TrendingDown, Minus, Sun, Moon } from 'lucide-react-native';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView,
+  View, Text, StyleSheet, ScrollView,
   ActivityIndicator, TouchableOpacity
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WorkEzTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { useFetch } from '../../hooks/useFetch';
 
 interface WeeklySummary {
@@ -25,6 +25,7 @@ export default function ProviderHome() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { isDark, colors, toggleTheme } = useAppTheme();
 
   const { data: rawProvider, refetch: refetchProvider } = useFetch<any>(
     user ? `/api/ServiceProviders/by-user/${user.id}` : null
@@ -96,118 +97,128 @@ export default function ProviderHome() {
       case 'positive':
         return {
           icon: <TrendingUp size={18} color="#06B6D4" />,
-          bgColor: 'rgba(6, 182, 212, 0.12)',
+          bgColor: 'rgba(6, 182, 212, 0.14)',
           defaultTitle: 'Ótimo desempenho!',
           defaultSub: 'Você cresceu esta semana',
         };
       case 'negative':
         return {
           icon: <TrendingDown size={18} color="#EF4444" />,
-          bgColor: 'rgba(239, 68, 68, 0.12)',
+          bgColor: 'rgba(239, 68, 68, 0.14)',
           defaultTitle: 'Desempenho em queda',
           defaultSub: 'Abaixo da semana anterior',
         };
       case 'stable':
         return {
           icon: <Minus size={18} color="#2563EB" />,
-          bgColor: 'rgba(37, 99, 235, 0.12)',
+          bgColor: 'rgba(37, 99, 235, 0.14)',
           defaultTitle: 'Desempenho constante!',
           defaultSub: 'Você manteve o ritmo da semana passada',
         };
       case 'neutral':
       default:
         return {
-          icon: <Minus size={18} color="#64748B" />,
-          bgColor: 'rgba(100, 116, 139, 0.12)',
+          icon: <Minus size={18} color={colors.textSecondary} />,
+          bgColor: 'rgba(100, 116, 139, 0.14)',
           defaultTitle: 'Sem atividades recentes',
           defaultSub: 'Aceite chamados para começar a crescer',
         };
     }
-  }, [weeklySummary, stats.weekCompleted]);
+  }, [weeklySummary, stats.weekCompleted, colors.textSecondary]);
 
   const formatCurrency = (value: number) =>
     value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.backgroundAlt }]}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       {/* ── Header Gradient ── */}
       <LinearGradient
-        colors={['#06B6D4', '#2563EB']}
+        colors={isDark ? ['#0F172A', '#1E3A8A'] : ['#06B6D4', '#2563EB']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 16 : 44 }]}
       >
-        <Text style={styles.greetingText}>
-          Olá, {user?.name?.split(' ')[0] || 'Prestador'}! 👋
-        </Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.greetingText}>
+            Olá, {user?.name?.split(' ')[0] || 'Prestador'}! 👋
+          </Text>
+          <TouchableOpacity
+            onPress={toggleTheme}
+            activeOpacity={0.8}
+            style={styles.headerThemeBtn}
+            accessibilityLabel={isDark ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
+          >
+            {isDark ? <Sun size={18} color="#FBBF24" /> : <Moon size={18} color="#FFFFFF" />}
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
 
       {/* ── Stats Grid ── */}
       <View style={styles.statsGrid}>
-
-        <View style={styles.statCard}>
-          <View style={[styles.iconBadge, { backgroundColor: 'rgba(6, 182, 212, 0.12)' }]}>
+        <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <View style={[styles.iconBadge, { backgroundColor: 'rgba(6, 182, 212, 0.14)' }]}>
             <DollarSign size={16} color="#06B6D4" />
           </View>
           {loading ? (
             <ActivityIndicator size="small" color="#06B6D4" style={styles.loader} />
           ) : (
-            <Text style={styles.statValue}>R$ {formatCurrency(stats.monthlyEarnings)}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>R$ {formatCurrency(stats.monthlyEarnings)}</Text>
           )}
-          <Text style={styles.statLabel}>Ganhos do mês</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Ganhos do mês</Text>
         </View>
 
-        <View style={styles.statCard}>
-          <View style={[styles.iconBadge, { backgroundColor: 'rgba(37, 99, 235, 0.12)' }]}>
-            <DollarSign size={16} color="#2563EB" />
+        <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <View style={[styles.iconBadge, { backgroundColor: 'rgba(37, 99, 235, 0.14)' }]}>
+            <DollarSign size={16} color={isDark ? '#60A5FA' : '#2563EB'} />
           </View>
           {loading ? (
             <ActivityIndicator size="small" color="#2563EB" style={styles.loader} />
           ) : (
-            <Text style={styles.statValue}>R$ {formatCurrency(stats.availableBalance)}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>R$ {formatCurrency(stats.availableBalance)}</Text>
           )}
-          <Text style={styles.statLabel}>Saldo disponível</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Saldo disponível</Text>
         </View>
 
-        <View style={styles.statCard}>
-          <View style={[styles.iconBadge, { backgroundColor: 'rgba(251, 191, 36, 0.12)' }]}>
+        <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <View style={[styles.iconBadge, { backgroundColor: 'rgba(251, 191, 36, 0.14)' }]}>
             <Star size={16} color="#F59E0B" />
           </View>
           {loading ? (
             <ActivityIndicator size="small" color="#F59E0B" style={styles.loader} />
           ) : (
-            <Text style={styles.statValue}>{stats.averageRating.toFixed(1)}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{stats.averageRating.toFixed(1)}</Text>
           )}
-          <Text style={styles.statLabel}>Nota média</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Nota média</Text>
         </View>
 
-        <View style={styles.statCard}>
-          <View style={[styles.iconBadge, { backgroundColor: 'rgba(6, 182, 212, 0.12)' }]}>
+        <View style={[styles.statCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <View style={[styles.iconBadge, { backgroundColor: 'rgba(6, 182, 212, 0.14)' }]}>
             <Briefcase size={16} color="#06B6D4" />
           </View>
           {loading ? (
             <ActivityIndicator size="small" color="#06B6D4" style={styles.loader} />
           ) : (
-            <Text style={styles.statValue}>{stats.completedCount}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{stats.completedCount}</Text>
           )}
-          <Text style={styles.statLabel}>Serviços concluídos</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Serviços totais</Text>
         </View>
-
       </View>
 
       {/* ── Resumo da Semana ── */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Resumo da semana</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Resumo da semana</Text>
 
-        <View style={styles.summaryCard}>
-          {/* Performance Banner */}
-          <View style={styles.performanceBanner}>
+        <View style={[styles.summaryCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <View style={[styles.performanceBanner, { borderBottomColor: colors.border }]}>
             <View style={[styles.iconBadge, { backgroundColor: trendConfig.bgColor }]}>
               {trendConfig.icon}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.performanceTitle}>
+              <Text style={[styles.performanceTitle, { color: colors.text }]}>
                 {weeklySummary?.performanceTitle ?? trendConfig.defaultTitle}
               </Text>
               <Text style={styles.performanceSub}>
@@ -216,24 +227,23 @@ export default function ProviderHome() {
             </View>
           </View>
 
-          {/* Stats Rows */}
           <View style={styles.statsRows}>
             <View style={styles.statsRow}>
-              <Text style={styles.rowLabel}>Serviços concluídos</Text>
-              <Text style={styles.rowValue}>
+              <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>Serviços da semana</Text>
+              <Text style={[styles.rowValue, { color: colors.text }]}>
                 {weeklySummary?.completedServices ?? stats.weekCompleted}
               </Text>
             </View>
             <View style={styles.statsRow}>
-              <Text style={styles.rowLabel}>Taxa de aceitação</Text>
-              <Text style={[styles.rowValue, { color: '#2563EB' }]}>
+              <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>Taxa de aceitação</Text>
+              <Text style={[styles.rowValue, { color: isDark ? '#60A5FA' : '#2563EB' }]}>
                 {weeklySummary?.acceptanceRate ?? stats.acceptanceRate}%
               </Text>
             </View>
             <View style={styles.statsRow}>
-              <Text style={styles.rowLabel}>Avaliação média</Text>
+              <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>Avaliação média</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={styles.rowValue}>
+                <Text style={[styles.rowValue, { color: colors.text }]}>
                   {(weeklySummary?.averageRating ?? stats.averageRating).toFixed(1)}
                 </Text>
                 <Text style={{ color: '#F59E0B' }}>⭐</Text>
@@ -259,7 +269,6 @@ export default function ProviderHome() {
           </TouchableOpacity>
         </View>
       </View>
-
     </ScrollView>
   );
 }
@@ -267,14 +276,11 @@ export default function ProviderHome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 32,
   },
-
-  /* Header */
   header: {
     paddingHorizontal: 24,
     paddingTop: 52,
@@ -282,14 +288,27 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerThemeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   greetingText: {
     fontSize: 22,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 0,
   },
-
-  /* Stats Grid */
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -298,11 +317,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -325,15 +342,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
   },
   statLabel: {
     fontSize: 12,
-    color: '#64748B',
     fontWeight: '500',
   },
-
-  /* Section */
   section: {
     paddingHorizontal: 20,
     marginTop: 24,
@@ -342,13 +355,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
   },
   summaryCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -362,12 +372,10 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
   performanceTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
   },
   performanceSub: {
     fontSize: 12,
@@ -386,16 +394,12 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 13,
-    color: '#64748B',
     fontWeight: '500',
   },
   rowValue: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
   },
-
-  /* Tip Card */
   tipSection: {
     paddingHorizontal: 20,
     marginTop: 20,
@@ -432,4 +436,3 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
-

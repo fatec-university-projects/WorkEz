@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   TrendingUp, Calendar, ArrowDownToLine,
@@ -23,10 +24,13 @@ import {
   WalletStatementItem,
   WithdrawalResponse
 } from '../../services/api';
+import { formatDateTime } from '../../utils/date';
 
 type FilterType = 'all' | 'credit' | 'fee' | 'withdrawal' | 'escrow';
 
 export default function Wallet() {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -38,6 +42,68 @@ export default function Wallet() {
 
   // Filtros
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+
+  // Filtro inteligente e reativo de transações na interface
+  const filteredStatement = useMemo(() => {
+    if (!statement || statement.length === 0) return [];
+
+    switch (activeFilter) {
+      case 'credit':
+        return statement.filter((item) => {
+          const type = (item.transactionType || '').toLowerCase();
+          return type === 'escrowrelease' || type === 'credit' || (item.amount > 0 && type !== 'escrowhold');
+        });
+
+      case 'withdrawal':
+        return statement.filter((item) => {
+          const type = (item.transactionType || '').toLowerCase();
+          return type === 'withdrawal' || (item.amount < 0 && type !== 'platformfee');
+        });
+
+      case 'escrow':
+        return statement.filter((item) => {
+          const type = (item.transactionType || '').toLowerCase();
+          const status = (item.status || '').toLowerCase();
+          // Apenas o que está retido no momento (Held / Pending)
+          return type === 'escrowhold' && (status === 'held' || status === 'pending');
+        });
+
+      case 'fee':
+        return statement
+          .filter((item) => {
+            const type = (item.transactionType || '').toLowerCase();
+            return type === 'platformfee' || (item.platformFeeAmount != null && item.platformFeeAmount > 0);
+          })
+          .map((item) => {
+            const type = (item.transactionType || '').toLowerCase();
+            if (type !== 'platformfee' && item.platformFeeAmount > 0) {
+              return {
+                ...item,
+                id: `fee-${item.id}`,
+                transactionType: 'PlatformFee' as const,
+                transactionTypeLabel: 'Taxa da Plataforma',
+                description: `Taxa WorkEz (15%): ${item.serviceTitle || item.description}`,
+                amount: -Math.abs(item.platformFeeAmount),
+                status: 'Completed',
+                statusLabel: 'Descontado',
+              };
+            }
+            return item;
+          });
+
+      case 'all':
+      default:
+        // No extrato geral, esconde EscrowHold com status Released para não duplicar com EscrowRelease
+        return statement.filter((item) => {
+          const type = (item.transactionType || '').toLowerCase();
+          const status = (item.status || '').toLowerCase();
+          if (type === 'escrowhold' && (status === 'released' || status === 'completed')) {
+            return false;
+          }
+          return true;
+        });
+    }
+  }, [statement, activeFilter]);
 
   // Modal de Saque PIX
   const [isWithdrawModalVisible, setIsWithdrawModalVisible] = useState(false);
@@ -60,7 +126,7 @@ export default function Wallet() {
     try {
       const [sumRes, stmtRes] = await Promise.all([
         fetchWalletSummary(user.id),
-        fetchWalletStatement(user.id, activeFilter)
+        fetchWalletStatement(user.id, 'all')
       ]);
 
       if (sumRes.data) {
@@ -81,17 +147,13 @@ export default function Wallet() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, activeFilter]);
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
       loadWalletData();
     }, [loadWalletData])
   );
-
-  useEffect(() => {
-    loadWalletData();
-  }, [activeFilter, loadWalletData]);
 
   const handleOpenWithdrawModal = () => {
     setWithdrawError(null);
@@ -250,8 +312,8 @@ export default function Wallet() {
                 {/* Bloco 2: Total Faturado no Mês */}
                 <View style={styles.smallCard}>
                   <View style={styles.smallCardHeader}>
-                    <View style={[styles.iconCircle, { backgroundColor: 'rgba(37, 99, 235, 0.12)' }]}>
-                      <TrendingUp size={18} color={WorkEzTheme.colors.primary} />
+                    <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(38, 255, 245, 0.12)' : 'rgba(37, 99, 235, 0.1)' }]}>
+                      <TrendingUp size={18} color={isDark ? colors.primary : '#2563EB'} />
                     </View>
                     <Text style={styles.smallCardLabel}>Este Mês</Text>
                   </View>
@@ -337,10 +399,10 @@ export default function Wallet() {
                 >
                   {[
                     { key: 'all', label: 'Todos' },
-                    { key: 'credit', label: 'Entradas' },
-                    { key: 'fee', label: 'Taxas da Plataforma' },
-                    { key: 'withdrawal', label: 'Saques' },
+                    { key: 'credit', label: 'Entradas (+)' },
+                    { key: 'withdrawal', label: 'Saques (-)' },
                     { key: 'escrow', label: 'Em Custódia' },
+                    { key: 'fee', label: 'Taxas da Plataforma' },
                   ].map((chip) => {
                     const isSelected = activeFilter === chip.key;
                     return (
@@ -359,18 +421,27 @@ export default function Wallet() {
 
                 {/* Lista de Transações */}
                 <View style={styles.historyList}>
-                  {statement.length === 0 ? (
+                  {filteredStatement.length === 0 ? (
                     <View style={styles.emptyStatementBox}>
                       <Text style={styles.emptyStatementText}>
                         Nenhuma transação encontrada para este filtro.
                       </Text>
                     </View>
                   ) : (
-                    statement.map((item, index) => {
+                    filteredStatement.map((item, index) => {
                       const isCredit = item.transactionType === 'EscrowRelease' || item.transactionType === 'Credit';
                       const isWithdrawal = item.transactionType === 'Withdrawal';
                       const isEscrow = item.transactionType === 'EscrowHold';
-                      const isLast = index === statement.length - 1;
+                      const isFee = item.transactionType === 'PlatformFee';
+                      const isLast = index === filteredStatement.length - 1;
+
+                      // Determina estilo semântico do status (Saques e Taxas = Vermelho, Pendente = Âmbar, Concluído = Verde)
+                      const st = (item.status || '').toLowerCase();
+                      const isHeld = st === 'held' || st === 'pending';
+                      const isFailed = st === 'failed' || st === 'cancelled';
+                      const isRedBadge = isWithdrawal || isFee || isFailed;
+                      const badgeBg = isRedBadge ? styles.statusFeeBg : isHeld ? styles.statusPendingBg : styles.statusReceivedBg;
+                      const badgeText = isRedBadge ? styles.statusFeeText : isHeld ? styles.statusPendingText : styles.statusReceivedText;
 
                       return (
                         <TouchableOpacity
@@ -382,10 +453,12 @@ export default function Wallet() {
                           <View style={styles.historyItemLeft}>
                             <View style={[
                               styles.txIconCircle,
-                              isCredit ? styles.txIconCredit : isWithdrawal ? styles.txIconWithdrawal : styles.txIconEscrow
+                              isCredit ? styles.txIconCredit : isFee ? styles.txIconFee : isWithdrawal ? styles.txIconWithdrawal : styles.txIconEscrow
                             ]}>
                               {isCredit ? (
                                 <ArrowDownLeft size={18} color="#10B981" />
+                              ) : isFee ? (
+                                <FileText size={18} color="#EF4444" />
                               ) : isWithdrawal ? (
                                 <ArrowUpRight size={18} color="#EF4444" />
                               ) : (
@@ -396,25 +469,19 @@ export default function Wallet() {
                               <Text style={styles.historyItemService} numberOfLines={1}>
                                 {item.description}
                               </Text>
-                              <Text style={styles.historyItemDate}>{item.date}</Text>
+                              <Text style={styles.historyItemDate}>{formatDateTime(item.date || item.createdAt)}</Text>
                             </View>
                           </View>
 
                           <View style={styles.historyItemRight}>
                             <Text style={[
                               styles.historyItemValue,
-                              isCredit ? styles.valCredit : isWithdrawal ? styles.valWithdrawal : styles.valEscrow
+                              isCredit ? styles.valCredit : (isWithdrawal || isFee) ? styles.valWithdrawal : styles.valEscrow
                             ]}>
                               {item.amount > 0 ? `+ R$ ${formatCurrency(item.amount)}` : `- R$ ${formatCurrency(Math.abs(item.amount))}`}
                             </Text>
-                            <View style={[
-                              styles.statusBadge,
-                              isCredit ? styles.statusReceivedBg : isWithdrawal ? styles.statusWithdrawBg : styles.statusPendingBg
-                            ]}>
-                              <Text style={[
-                                styles.statusBadgeText,
-                                isCredit ? styles.statusReceivedText : isWithdrawal ? styles.statusWithdrawText : styles.statusPendingText
-                              ]}>
+                            <View style={[styles.statusBadge, badgeBg]}>
+                              <Text style={[styles.statusBadgeText, badgeText]}>
                                 {item.statusLabel}
                               </Text>
                             </View>
@@ -619,7 +686,7 @@ export default function Wallet() {
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptFieldLabel}>Data e Hora</Text>
                   <Text style={styles.receiptFieldValue}>
-                    {'date' in (selectedReceipt || {}) ? (selectedReceipt as any).date : new Date().toLocaleString('pt-BR')}
+                    {formatDateTime((selectedReceipt as any)?.date || (selectedReceipt as any)?.createdAt || (selectedReceipt as any)?.processedAt || new Date())}
                   </Text>
                 </View>
 
@@ -697,10 +764,10 @@ export default function Wallet() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -715,18 +782,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
   },
   errorBox: {
     padding: 32,
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2',
     borderRadius: 16,
   },
   errorText: {
-    color: WorkEzTheme.colors.danger,
+    color: colors.danger,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -734,7 +801,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: WorkEzTheme.colors.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
@@ -749,7 +816,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.12)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -757,7 +824,7 @@ const styles = StyleSheet.create({
   verifiedBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#059669',
+    color: isDark ? '#4ADE80' : '#059669',
   },
 
   // Balance Card
@@ -840,14 +907,14 @@ const styles = StyleSheet.create({
   },
   smallCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: isDark ? 0.2 : 0.04,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -865,48 +932,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   smallCardLabel: {
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '600',
   },
   smallCardValue: {
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
     fontSize: 20,
     fontWeight: '800',
     marginBottom: 6,
   },
   escrowBadge: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.1)',
     alignSelf: 'flex-start',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
   escrowBadgeText: {
-    color: '#D97706',
+    color: isDark ? '#FCD34D' : '#D97706',
     fontSize: 10,
     fontWeight: '700',
   },
   monthBadge: {
-    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : 'rgba(37, 99, 235, 0.08)',
     alignSelf: 'flex-start',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
   monthBadgeText: {
-    color: '#2563EB',
+    color: isDark ? colors.primary : '#2563EB',
     fontSize: 10,
     fontWeight: '700',
   },
 
   // Fair Commission Card
   commissionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
   },
   commissionHeader: {
     flexDirection: 'row',
@@ -918,26 +985,26 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : 'rgba(37, 99, 235, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   commissionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
   },
   commissionSubtitle: {
     fontSize: 11,
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   commissionBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
   },
   commissionRow: {
     flexDirection: 'row',
@@ -947,16 +1014,16 @@ const styles = StyleSheet.create({
   commissionBoxText: {
     fontSize: 13,
     fontWeight: '600',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
   },
   commissionBoxValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
   },
   commissionDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.border,
     marginVertical: 10,
   },
   commissionDetailsGrid: {
@@ -969,32 +1036,32 @@ const styles = StyleSheet.create({
   },
   detailColLabel: {
     fontSize: 11,
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
   },
   detailColValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
     marginTop: 2,
   },
   noCommissionBox: {
     padding: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     borderRadius: 10,
   },
   noCommissionText: {
     fontSize: 12,
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 
   // History / Statement Card
   historyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     marginBottom: 24,
   },
   historyHeader: {
@@ -1006,7 +1073,7 @@ const styles = StyleSheet.create({
   historyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
   },
   filterRow: {
     flexDirection: 'row',
@@ -1014,21 +1081,25 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: isDark ? colors.surface : '#F1F5F9',
+    borderWidth: 1,
+    borderColor: isDark ? colors.border : '#E2E8F0',
   },
   filterChipActive: {
-    backgroundColor: WorkEzTheme.colors.primary,
+    backgroundColor: isDark ? '#2563EB' : '#1D4ED8',
+    borderColor: isDark ? '#3B82F6' : '#1D4ED8',
   },
   filterChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
   },
   filterChipTextActive: {
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   historyList: {
     marginTop: 4,
@@ -1039,7 +1110,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: colors.border,
   },
   historyItemLast: {
     borderBottomWidth: 0,
@@ -1058,22 +1129,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   txIconCredit: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
   },
   txIconWithdrawal: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+  },
+  txIconFee: {
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
   },
   txIconEscrow: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.1)',
   },
   historyItemService: {
     fontSize: 14,
     fontWeight: '600',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
   },
   historyItemDate: {
     fontSize: 11,
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   historyItemRight: {
@@ -1085,13 +1159,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   valCredit: {
-    color: '#059669',
+    color: isDark ? '#4ADE80' : '#059669',
   },
   valWithdrawal: {
-    color: '#DC2626',
+    color: colors.danger,
   },
   valEscrow: {
-    color: '#D97706',
+    color: isDark ? '#FCD34D' : '#D97706',
   },
   statusBadge: {
     paddingHorizontal: 6,
@@ -1099,26 +1173,32 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   statusReceivedBg: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
   },
   statusWithdrawBg: {
-    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+  },
+  statusFeeBg: {
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
   },
   statusPendingBg: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.1)',
   },
   statusBadgeText: {
     fontSize: 10,
     fontWeight: '700',
   },
   statusReceivedText: {
-    color: '#059669',
+    color: isDark ? '#4ADE80' : '#059669',
   },
   statusWithdrawText: {
-    color: '#2563EB',
+    color: isDark ? '#F87171' : '#DC2626',
+  },
+  statusFeeText: {
+    color: isDark ? '#F87171' : '#DC2626',
   },
   statusPendingText: {
-    color: '#D97706',
+    color: isDark ? '#FCD34D' : '#D97706',
   },
   emptyStatementBox: {
     padding: 24,
@@ -1126,18 +1206,18 @@ const styles = StyleSheet.create({
   },
   emptyStatementText: {
     fontSize: 13,
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 
   // Modal Backdrop
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -1154,14 +1234,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : 'rgba(37, 99, 235, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
   },
   modalCloseBtn: {
     padding: 4,
@@ -1170,7 +1250,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
@@ -1178,31 +1258,31 @@ const styles = StyleSheet.create({
   },
   modalBalanceLabel: {
     fontSize: 13,
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
   },
   modalBalanceVal: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#2563EB',
+    color: colors.primary,
   },
   modalErrorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2',
     padding: 10,
     borderRadius: 8,
     marginBottom: 12,
   },
   modalErrorText: {
-    color: '#DC2626',
+    color: colors.danger,
     fontSize: 12,
     flex: 1,
   },
   inputLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
     marginBottom: 6,
     marginTop: 8,
   },
@@ -1210,15 +1290,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   inputCurrencyPrefix: {
     fontSize: 16,
     fontWeight: '700',
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
     marginRight: 6,
   },
   textInput: {
@@ -1226,7 +1306,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     fontWeight: '700',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
   },
   quickAmountRow: {
     flexDirection: 'row',
@@ -1236,21 +1316,21 @@ const styles = StyleSheet.create({
   },
   quickAmountChip: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     paddingVertical: 6,
     borderRadius: 8,
     alignItems: 'center',
   },
   quickAmountAll: {
-    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-    borderColor: 'rgba(37, 99, 235, 0.3)',
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : 'rgba(37, 99, 235, 0.08)',
+    borderColor: colors.primary,
   },
   quickAmountText: {
     fontSize: 12,
     fontWeight: '600',
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
   },
   pixKeyTypeRow: {
     flexDirection: 'row',
@@ -1261,41 +1341,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surface,
   },
   keyTypeChipActive: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
   },
   keyTypeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
   },
   keyTypeTextActive: {
     color: '#FFFFFF',
   },
   singleTextInput: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: WorkEzTheme.colors.text,
-    backgroundColor: '#FFFFFF',
+    color: colors.text,
+    backgroundColor: colors.surface,
   },
   pixInfoAlert: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.08)',
     padding: 10,
     borderRadius: 8,
     marginTop: 14,
   },
   pixInfoAlertText: {
     fontSize: 11,
-    color: '#059669',
+    color: isDark ? '#6EE7B7' : '#059669',
     flex: 1,
     lineHeight: 15,
   },
@@ -1304,7 +1384,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: WorkEzTheme.colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     marginTop: 18,
@@ -1317,7 +1397,7 @@ const styles = StyleSheet.create({
 
   // Receipt Modal
   receiptContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 20,
     marginHorizontal: 16,
     marginVertical: 'auto',
@@ -1330,7 +1410,7 @@ const styles = StyleSheet.create({
   },
   receiptHeader: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.border,
     paddingBottom: 14,
     marginBottom: 14,
   },
@@ -1341,7 +1421,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   receiptLogo: {
-    backgroundColor: WorkEzTheme.colors.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
@@ -1355,12 +1435,12 @@ const styles = StyleSheet.create({
   receiptTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
     letterSpacing: 0.5,
   },
   receiptDocNumber: {
     fontSize: 11,
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     marginTop: 2,
   },
@@ -1370,7 +1450,7 @@ const styles = StyleSheet.create({
   receiptStatusBox: {
     alignItems: 'center',
     padding: 14,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.08)',
     borderRadius: 12,
     marginBottom: 8,
     gap: 4,
@@ -1378,11 +1458,11 @@ const styles = StyleSheet.create({
   receiptStatusText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#059669',
+    color: isDark ? '#4ADE80' : '#059669',
   },
   receiptStatusSub: {
     fontSize: 11,
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
   },
   receiptRow: {
     flexDirection: 'row',
@@ -1391,35 +1471,35 @@ const styles = StyleSheet.create({
   },
   receiptFieldLabel: {
     fontSize: 12,
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
   },
   receiptFieldValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
   },
   receiptDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.border,
     marginVertical: 4,
   },
   receiptRowHighlight: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     padding: 10,
     borderRadius: 8,
   },
   receiptHighlightLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: WorkEzTheme.colors.text,
+    color: colors.text,
   },
   receiptHighlightValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#2563EB',
+    color: colors.primary,
   },
   receiptFooter: {
     flexDirection: 'row',
@@ -1427,7 +1507,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: colors.border,
   },
   shareReceiptBtn: {
     flex: 1,
@@ -1436,25 +1516,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderWidth: 1,
-    borderColor: '#2563EB',
+    borderColor: colors.primary,
     borderRadius: 10,
     paddingVertical: 10,
   },
   shareReceiptBtnText: {
-    color: '#2563EB',
+    color: colors.primary,
     fontWeight: '700',
     fontSize: 13,
   },
   closeReceiptBtn: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeReceiptBtnText: {
-    color: WorkEzTheme.colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
     fontSize: 13,
   },
