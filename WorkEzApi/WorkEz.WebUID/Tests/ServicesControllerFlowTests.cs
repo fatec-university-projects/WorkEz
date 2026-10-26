@@ -39,6 +39,38 @@ public class ServicesControllerFlowTests
         }
     }
 
+    private class FakeWalletService : IWalletApplicationService
+    {
+        public List<(Guid ServiceId, decimal? Price)> ReleasedEscrows { get; } = [];
+
+        public Task<Result> HoldEscrowForServiceAsync(Guid serviceId) =>
+            Task.FromResult(Result.Success());
+
+        public Task<Result> ReleaseEscrowForServiceAsync(Guid serviceId, decimal? finalPrice = null)
+        {
+            ReleasedEscrows.Add((serviceId, finalPrice));
+            return Task.FromResult(Result.Success());
+        }
+
+        public Task<Result<WalletSummaryDto>> GetSummaryAsync(Guid providerOrUserId, Guid callerUserId, bool isAdmin) =>
+            Task.FromResult(Result<WalletSummaryDto>.Failure("N/A", "N/A"));
+
+        public Task<Result<WalletStatementResponseDto>> GetStatementAsync(Guid providerOrUserId, WalletStatementFilterDto filter, Guid callerUserId, bool isAdmin) =>
+            Task.FromResult(Result<WalletStatementResponseDto>.Failure("N/A", "N/A"));
+
+        public Task<Result<WithdrawalResponseDto>> RequestWithdrawalAsync(CreateWithdrawalRequestDto request, Guid callerUserId, bool isAdmin) =>
+            Task.FromResult(Result<WithdrawalResponseDto>.Failure("N/A", "N/A"));
+
+        public Task<Result<EscrowCheckoutPixDto>> GenerateEscrowPixCheckoutAsync(Guid serviceId, Guid callerUserId, bool isAdmin) =>
+            Task.FromResult(Result<EscrowCheckoutPixDto>.Failure("N/A", "N/A"));
+
+        public Task<Result> SendPixInvoiceEmailAsync(Guid serviceId, Guid callerUserId, bool isAdmin) =>
+            Task.FromResult(Result.Success());
+
+        public Task<Result> ProcessDelFinanceWebhookAsync(DelFinanceWebhookPayload payload) =>
+            Task.FromResult(Result.Success());
+    }
+
     private static AppDbContext CreateInMemoryDbContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -50,7 +82,8 @@ public class ServicesControllerFlowTests
     private static ServicesController CreateController(
         AppDbContext db,
         FakeTrackingNotificationService? fakeTracker = null,
-        FakeOpportunityService? fakeOpp = null)
+        FakeOpportunityService? fakeOpp = null,
+        IWalletApplicationService? walletService = null)
     {
         var serviceRepo = new ServiceRepository(db);
         var apptRepo = new AppointmentRepository(db);
@@ -66,7 +99,8 @@ public class ServicesControllerFlowTests
             customerRepo,
             addressRepo,
             userRepo,
-            fakeTracker
+            fakeTracker,
+            walletService: walletService
         );
 
         return new ServicesController(fakeOpp ?? new FakeOpportunityService(), serviceAppService);
@@ -75,7 +109,7 @@ public class ServicesControllerFlowTests
     private static void Authenticate(ControllerBase controller, Guid userId, string role = "Customer")
     {
         var identity = new ClaimsIdentity(
-            [new Claim("sub", userId.ToString()), new Claim("role", role)],
+            [new Claim("sub", userId.ToString()), new Claim("role", role), new Claim(ClaimTypes.Role, role)],
             "TestAuth");
         controller.ControllerContext = new ControllerContext
         {
@@ -172,9 +206,8 @@ public class ServicesControllerFlowTests
         Authenticate(controller, providerUser.Id, "ServiceProvider");
 
         var result = await controller.StartDisplacement(service.Id);
-        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.IsType<OkObjectResult>(result);
 
-        // Verifica no banco
         var updatedService = await db.Services.FindAsync(service.Id);
         Assert.NotNull(updatedService);
         Assert.Equal(ServiceStatus.OnTheWay, updatedService.ServiceStatus);
@@ -182,7 +215,6 @@ public class ServicesControllerFlowTests
         var updatedAppt = await db.Appointments.FirstAsync(a => a.ServiceId == service.Id);
         Assert.Equal(AppointmentStatus.InProgress, updatedAppt.AppointmentStatus);
 
-        // Verifica notificação WebSocket
         Assert.Single(fakeTracker.Notifications);
         var notification = fakeTracker.Notifications.First();
         Assert.Equal(service.Id, notification.ServiceId);
@@ -279,13 +311,11 @@ public class ServicesControllerFlowTests
 
         Authenticate(controller, providerUser.Id, "ServiceProvider");
 
-        // Prestador conclui e informa o valor final (ex: R$ 850,00)
         var result = await controller.CompleteService(service.Id, 850m);
         Assert.IsType<OkObjectResult>(result);
 
         var updatedService = await db.Services.FindAsync(service.Id);
         Assert.NotNull(updatedService);
-        // Conclusão pelo prestador aguarda o pagamento (PIX) do cliente; Completed só após ConfirmPayment.
         Assert.Equal(ServiceStatus.WaitingPayment, updatedService.ServiceStatus);
 
         var updatedAppt = await db.Appointments.FirstAsync(a => a.ServiceId == service.Id);
@@ -294,6 +324,217 @@ public class ServicesControllerFlowTests
 
         Assert.Single(fakeTracker.Notifications);
         Assert.Equal("status_changed", fakeTracker.Notifications[0].EventType);
+    }
+
+    [Fact]
+    public async Task CompleteService_WithJsonBodyPrice_ShouldAcceptAndUpdateFinalPrice()
+    {
+        using var db = CreateInMemoryDbContext();
+        var fakeTracker = new FakeTrackingNotificationService();
+        var controller = CreateController(db, fakeTracker);
+
+        var providerUser = new User { Id = Guid.NewGuid(), Name = "Prestador 1", Role = UserRole.ServiceProvider };
+        var provider = new ServiceProviderEntity { Id = Guid.NewGuid(), UserId = providerUser.Id, User = providerUser };
+        db.Users.Add(providerUser);
+        db.Providers.Add(provider);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente 1" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        db.Users.Add(customerUser);
+        db.Customers.Add(customer);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            ServiceStatus = ServiceStatus.InProgress,
+            Title = "Instalação Ar"
+        };
+        var appt = new Appointment
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProviderId = provider.Id,
+            Provider = provider,
+            FinalPrice = 500m,
+            AppointmentStatus = AppointmentStatus.InProgress
+        };
+        db.Services.Add(service);
+        db.Appointments.Add(appt);
+        await db.SaveChangesAsync();
+
+        Authenticate(controller, providerUser.Id, "ServiceProvider");
+
+        var result = await controller.CompleteService(service.Id, null, new CompleteServiceBodyRequest(920m));
+        Assert.IsType<OkObjectResult>(result);
+
+        var updatedAppt = await db.Appointments.FirstAsync(a => a.ServiceId == service.Id);
+        Assert.Equal(920m, updatedAppt.FinalPrice);
+    }
+
+    [Fact]
+    public async Task ConfirmPayment_ShouldMarkCompleted_ReleaseEscrow_AndBlockNonParticipants()
+    {
+        using var db = CreateInMemoryDbContext();
+        var fakeTracker = new FakeTrackingNotificationService();
+        var fakeWallet = new FakeWalletService();
+        var controller = CreateController(db, fakeTracker, walletService: fakeWallet);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente Pagador" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        var providerUser = new User { Id = Guid.NewGuid(), Name = "Prestador", Role = UserRole.ServiceProvider };
+        var provider = new ServiceProviderEntity { Id = Guid.NewGuid(), UserId = providerUser.Id, User = providerUser };
+
+        db.Users.AddRange(customerUser, providerUser);
+        db.Customers.Add(customer);
+        db.Providers.Add(provider);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            ServiceStatus = ServiceStatus.WaitingPayment,
+            Title = "Troca de Disjuntor"
+        };
+        var appt = new Appointment
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProviderId = provider.Id,
+            Provider = provider,
+            CustomerId = customer.Id,
+            FinalPrice = 420m,
+            AppointmentStatus = AppointmentStatus.InProgress
+        };
+        db.Services.Add(service);
+        db.Appointments.Add(appt);
+        await db.SaveChangesAsync();
+
+        // Terceiro estranho não pode confirmar pagamento
+        Authenticate(controller, Guid.NewGuid(), "Customer");
+        var forbidRes = await controller.ConfirmPayment(service.Id);
+        Assert.IsType<ForbidResult>(forbidRes);
+
+        // Cliente confirma pagamento -> status vai para Completed e libera Escrow
+        Authenticate(controller, customerUser.Id, "Customer");
+        var okRes = await controller.ConfirmPayment(service.Id);
+        Assert.IsType<OkObjectResult>(okRes);
+
+        var updatedService = await db.Services.FindAsync(service.Id);
+        Assert.Equal(ServiceStatus.Completed, updatedService!.ServiceStatus);
+
+        var updatedAppt = await db.Appointments.FindAsync(appt.Id);
+        Assert.Equal(AppointmentStatus.Completed, updatedAppt!.AppointmentStatus);
+        Assert.NotNull(updatedAppt.CompletedAt);
+
+        Assert.Single(fakeWallet.ReleasedEscrows);
+        Assert.Equal(service.Id, fakeWallet.ReleasedEscrows[0].ServiceId);
+        Assert.Equal(420m, fakeWallet.ReleasedEscrows[0].Price);
+    }
+
+    [Fact]
+    public async Task CreateService_And_GetByCustomer_ShouldPersistAddressAndEnforceCustomerOwnership()
+    {
+        using var db = CreateInMemoryDbContext();
+        var controller = CreateController(db);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Ana Cliente", Phone = "(11) 97777-6666" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        db.Users.Add(customerUser);
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var request = new CreateServiceRequest
+        {
+            Title = "Elétrica Residencial",
+            Description = "Instalar tomadas",
+            Address = new CreateAddressDto
+            {
+                Street = "Av. Paulista",
+                Number = "1000",
+                Neighborhood = "Bela Vista",
+                City = "São Paulo",
+                State = "SP",
+                ZipCode = "01310-100",
+                Latitude = -23.5614,
+                Longitude = -46.6559
+            }
+        };
+
+        // Outro usuário tentando criar chamado em nome de Ana -> 403 Forbid
+        Authenticate(controller, Guid.NewGuid(), "Customer");
+        var forbidCreate = await controller.CreateService(customer.Id, request);
+        Assert.IsType<ForbidResult>(forbidCreate);
+
+        // Ana cria seu próprio chamado
+        Authenticate(controller, customerUser.Id, "Customer");
+        var createRes = await controller.CreateService(customer.Id, request);
+        var okCreate = Assert.IsType<OkObjectResult>(createRes);
+        var createdDto = Assert.IsType<ServiceDetailDto>(okCreate.Value);
+        Assert.Equal("Elétrica Residencial", createdDto.Category);
+        Assert.Contains("Av. Paulista, 1000", createdDto.Address);
+
+        // Listagem de chamados de Ana
+        var listRes = await controller.GetByCustomer(customer.Id);
+        var okList = Assert.IsType<OkObjectResult>(listRes);
+        var summaries = Assert.IsAssignableFrom<IEnumerable<CustomerServiceSummaryDto>>(okList.Value);
+        Assert.Single(summaries);
+
+        // Outro usuário tentando listar chamados de Ana -> 403 Forbid
+        Authenticate(controller, Guid.NewGuid(), "Customer");
+        var forbidList = await controller.GetByCustomer(customer.Id);
+        Assert.IsType<ForbidResult>(forbidList);
+    }
+
+    [Fact]
+    public async Task GetById_UnassignedProviderViewingOpenCall_ShouldMaskClientPhoneAndCheckInCode()
+    {
+        using var db = CreateInMemoryDbContext();
+        var controller = CreateController(db);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente Privado", Phone = "(11) 91234-5678" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        var address = new Address
+        {
+            Id = Guid.NewGuid(),
+            UserId = customerUser.Id,
+            Street = "Rua Secreta",
+            Number = "99",
+            Neighborhood = "Centro",
+            City = "Campinas",
+            State = "SP"
+        };
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            AddressId = address.Id,
+            Address = address,
+            Title = "Hidráulica",
+            ServiceStatus = ServiceStatus.Open,
+            StartCheckInCode = "4821"
+        };
+
+        db.Users.Add(customerUser);
+        db.Customers.Add(customer);
+        db.Addresses.Add(address);
+        db.Services.Add(service);
+        await db.SaveChangesAsync();
+
+        // Prestador que ainda não foi contratado visualiza o chamado aberto no radar
+        var unassignedProviderUserId = Guid.NewGuid();
+        Authenticate(controller, unassignedProviderUserId, "ServiceProvider");
+
+        var res = await controller.GetById(service.Id);
+        var okRes = Assert.IsType<OkObjectResult>(res);
+        var detail = Assert.IsType<ServiceDetailDto>(okRes.Value);
+
+        Assert.Equal("", detail.ClientPhone);
+        Assert.Null(detail.StartCheckInCode);
+        Assert.Equal("Centro, Campinas/SP", detail.AddressApproximate);
     }
 
     [Fact]
@@ -330,6 +571,38 @@ public class ServicesControllerFlowTests
 
         Assert.Single(fakeTracker.Notifications);
         Assert.Equal("status_changed", fakeTracker.Notifications[0].EventType);
+    }
+
+    [Fact]
+    public async Task UpdateStatus_CancelCompletedService_ShouldReturnBadRequest()
+    {
+        using var db = CreateInMemoryDbContext();
+        var fakeTracker = new FakeTrackingNotificationService();
+        var controller = CreateController(db, fakeTracker);
+
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente 1" };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        db.Users.Add(customerUser);
+        db.Customers.Add(customer);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            ServiceStatus = ServiceStatus.Completed,
+            Title = "Vistoria Concluída"
+        };
+        db.Services.Add(service);
+        await db.SaveChangesAsync();
+
+        Authenticate(controller, customerUser.Id, "Customer");
+
+        var result = await controller.UpdateStatus(service.Id, false);
+        Assert.IsType<BadRequestObjectResult>(result);
+
+        var unchanged = await db.Services.FindAsync(service.Id);
+        Assert.Equal(ServiceStatus.Completed, unchanged!.ServiceStatus);
     }
 
     [Fact]
@@ -544,7 +817,6 @@ public class ServicesControllerFlowTests
         db.Appointments.Add(appt);
         await db.SaveChangesAsync();
 
-        // Atacante tenta iniciar deslocamento de chamado de outro
         Authenticate(controller, attackerUser.Id, "ServiceProvider");
 
         var result = await controller.StartDisplacement(service.Id);
@@ -562,7 +834,6 @@ public class ServicesControllerFlowTests
         db.Services.Add(service);
         await db.SaveChangesAsync();
 
-        // Não autenticado
         var result = await controller.CompleteService(service.Id, 100m);
         Assert.IsType<UnauthorizedResult>(result);
     }

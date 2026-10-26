@@ -19,6 +19,9 @@ public class ProposalDomainServiceTests
     private readonly FakeCustomerRepository _customerRepository = new();
     private readonly BaseMessageBroker _messageBroker = new();
 
+    private ProposalDomainService CreateDomainService() =>
+        new(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+
     [Fact]
     public async Task ProposePriceAsync_Success_ShouldCreateProposalAndMoveServiceToUnderNegotiation()
     {
@@ -29,7 +32,7 @@ public class ProposalDomainServiceTests
         await _providerRepository.AddAsync(provider);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = CreateDomainService();
 
         var result = await serviceDomain.ProposePriceAsync(provider.UserId, service.Id, 200.00m, "Troca de torneira", "2 horas");
 
@@ -38,6 +41,64 @@ public class ProposalDomainServiceTests
         Assert.Equal(200.00m, result.Value.ProposedPrice);
         Assert.Equal(ServiceStatus.UnderNegotiation, service.ServiceStatus);
         Assert.Single(_proposalRepository.Proposals);
+    }
+
+    [Fact]
+    public async Task ProposePriceAsync_ExistingPendingProposal_ShouldUpdateInPlaceInsteadOfDuplicating()
+    {
+        var user = new User { Id = Guid.NewGuid(), Name = "Pedro Prestador", Email = "pedro@test.com", Role = UserRole.ServiceProvider };
+        var provider = new ServiceProviderEntity { Id = Guid.NewGuid(), UserId = user.Id, User = user };
+        var service = new Service { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Title = "Reparo Vazamento", ServiceStatus = ServiceStatus.Open };
+
+        await _providerRepository.AddAsync(provider);
+        await _serviceRepository.AddAsync(service);
+
+        var serviceDomain = CreateDomainService();
+
+        var first = await serviceDomain.ProposePriceAsync(provider.UserId, service.Id, 200.00m, "Primeira oferta", "2h");
+        var second = await serviceDomain.ProposePriceAsync(provider.UserId, service.Id, 175.00m, "Oferta revisada", "1h30", 125.00m, 50.00m);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Single(_proposalRepository.Proposals);
+        Assert.Equal(first.Value!.Id, second.Value!.Id);
+        Assert.Equal(175.00m, second.Value.ProposedPrice);
+        Assert.Equal(125.00m, second.Value.LaborPrice);
+        Assert.Equal(50.00m, second.Value.MaterialsPrice);
+        Assert.Equal("Oferta revisada", second.Value.Description);
+    }
+
+    [Theory]
+    [InlineData(0.0, null, null)]
+    [InlineData(-50.0, null, null)]
+    [InlineData(100.0, -10.0, 50.0)]
+    [InlineData(100.0, 50.0, -5.0)]
+    public async Task ProposePriceAsync_InvalidPrices_ShouldReturnInvalidPriceError(
+        double proposedPrice,
+        double? laborPrice,
+        double? materialsPrice)
+    {
+        var user = new User { Id = Guid.NewGuid(), Name = "Pedro Prestador", Email = "pedro@test.com", Role = UserRole.ServiceProvider };
+        var provider = new ServiceProviderEntity { Id = Guid.NewGuid(), UserId = user.Id, User = user };
+        var service = new Service { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Title = "Reparo", ServiceStatus = ServiceStatus.Open };
+
+        await _providerRepository.AddAsync(provider);
+        await _serviceRepository.AddAsync(service);
+
+        var serviceDomain = CreateDomainService();
+
+        var result = await serviceDomain.ProposePriceAsync(
+            provider.UserId,
+            service.Id,
+            (decimal)proposedPrice,
+            "Proposta inválida",
+            "1h",
+            laborPrice.HasValue ? (decimal)laborPrice.Value : null,
+            materialsPrice.HasValue ? (decimal)materialsPrice.Value : null);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("INVALID_PRICE", result.ErrorCode);
+        Assert.Empty(_proposalRepository.Proposals);
     }
 
     [Fact]
@@ -50,7 +111,7 @@ public class ProposalDomainServiceTests
         await _providerRepository.AddAsync(provider);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = CreateDomainService();
 
         var result = await serviceDomain.ProposePriceAsync(provider.UserId, service.Id, 150.00m, "Tentativa em serviço concluído", "1h");
 
@@ -73,7 +134,7 @@ public class ProposalDomainServiceTests
         await _proposalRepository.AddAsync(proposal);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = CreateDomainService();
 
         var result = await serviceDomain.AcceptProposalAsync(customerUser.Id, proposal.Id);
 
@@ -81,7 +142,37 @@ public class ProposalDomainServiceTests
         Assert.Equal(ServiceStatus.Accepted, service.ServiceStatus);
         Assert.Equal(ProposalStatus.Accepted, proposal.ProposalStatus);
         Assert.Single(_appointmentRepository.Appointments);
-        Assert.Equal(250.00m, _appointmentRepository.Appointments.First().FinalPrice);
+        var appt = _appointmentRepository.Appointments.First();
+        Assert.Equal(250.00m, appt.FinalPrice);
+        Assert.False(string.IsNullOrWhiteSpace(appt.ConfirmationCode));
+        Assert.Equal(4, appt.ConfirmationCode!.Length);
+    }
+
+    [Fact]
+    public async Task AcceptProposalAsync_MultiplePendingProposals_ShouldRejectAllCompetingProposals()
+    {
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Maria Cliente", Role = UserRole.Customer };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        var service = new Service { Id = Guid.NewGuid(), CustomerId = customer.Id, Customer = customer, ServiceStatus = ServiceStatus.UnderNegotiation };
+
+        var winnerProposal = new Proposal { Id = Guid.NewGuid(), ServiceId = service.Id, ProviderId = Guid.NewGuid(), ProposedPrice = 220m, ProposalStatus = ProposalStatus.Pending, Service = service };
+        var competitor1 = new Proposal { Id = Guid.NewGuid(), ServiceId = service.Id, ProviderId = Guid.NewGuid(), ProposedPrice = 280m, ProposalStatus = ProposalStatus.Pending, Service = service };
+        var competitor2 = new Proposal { Id = Guid.NewGuid(), ServiceId = service.Id, ProviderId = Guid.NewGuid(), ProposedPrice = 310m, ProposalStatus = ProposalStatus.Pending, Service = service };
+
+        await _customerRepository.AddAsync(customer);
+        await _serviceRepository.AddAsync(service);
+        await _proposalRepository.AddAsync(winnerProposal);
+        await _proposalRepository.AddAsync(competitor1);
+        await _proposalRepository.AddAsync(competitor2);
+
+        var serviceDomain = CreateDomainService();
+        var result = await serviceDomain.AcceptProposalAsync(customerUser.Id, winnerProposal.Id);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ProposalStatus.Accepted, winnerProposal.ProposalStatus);
+        Assert.Equal(ProposalStatus.Rejected, competitor1.ProposalStatus);
+        Assert.Equal(ProposalStatus.Rejected, competitor2.ProposalStatus);
+        Assert.Equal(ServiceStatus.Accepted, service.ServiceStatus);
     }
 
     [Fact]
@@ -96,13 +187,67 @@ public class ProposalDomainServiceTests
         await _proposalRepository.AddAsync(proposal);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = CreateDomainService();
 
         var result = await serviceDomain.RejectProposalAsync(customerUser.Id, proposal.Id, "Preço elevado");
 
         Assert.True(result.IsSuccess);
         Assert.Equal(ProposalStatus.Rejected, proposal.ProposalStatus);
         Assert.Equal(ServiceStatus.Open, service.ServiceStatus);
+    }
+
+    [Fact]
+    public async Task RejectProposalAsync_WhenAnotherPendingProposalExists_ShouldKeepServiceUnderNegotiation()
+    {
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Maria Cliente", Role = UserRole.Customer };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        var service = new Service { Id = Guid.NewGuid(), CustomerId = customer.Id, ServiceStatus = ServiceStatus.UnderNegotiation };
+
+        var proposal1 = new Proposal { Id = Guid.NewGuid(), ServiceId = service.Id, ProviderId = Guid.NewGuid(), ProposedPrice = 300m, ProposalStatus = ProposalStatus.Pending, Service = service };
+        var proposal2 = new Proposal { Id = Guid.NewGuid(), ServiceId = service.Id, ProviderId = Guid.NewGuid(), ProposedPrice = 240m, ProposalStatus = ProposalStatus.Pending, Service = service };
+
+        await _customerRepository.AddAsync(customer);
+        await _serviceRepository.AddAsync(service);
+        await _proposalRepository.AddAsync(proposal1);
+        await _proposalRepository.AddAsync(proposal2);
+
+        var serviceDomain = CreateDomainService();
+        var result = await serviceDomain.RejectProposalAsync(customerUser.Id, proposal1.Id, "Acima do orçamento");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ProposalStatus.Rejected, proposal1.ProposalStatus);
+        Assert.Equal(ProposalStatus.Pending, proposal2.ProposalStatus);
+        Assert.Equal(ServiceStatus.UnderNegotiation, service.ServiceStatus);
+    }
+
+    [Fact]
+    public async Task AcceptRejectAndCounter_WhenCallerIsNotServiceOwner_ShouldReturnUnauthorizedCustomer()
+    {
+        var ownerUser = new User { Id = Guid.NewGuid(), Name = "Dono Real", Role = UserRole.Customer };
+        var ownerCustomer = new Customer { Id = Guid.NewGuid(), UserId = ownerUser.Id, User = ownerUser };
+        var intrudingUserId = Guid.NewGuid();
+
+        var service = new Service { Id = Guid.NewGuid(), CustomerId = ownerCustomer.Id, Customer = ownerCustomer, ServiceStatus = ServiceStatus.UnderNegotiation };
+        var proposal = new Proposal { Id = Guid.NewGuid(), ServiceId = service.Id, ProviderId = Guid.NewGuid(), ProposedPrice = 300m, ProposalStatus = ProposalStatus.Pending, Service = service };
+
+        await _customerRepository.AddAsync(ownerCustomer);
+        await _serviceRepository.AddAsync(service);
+        await _proposalRepository.AddAsync(proposal);
+
+        var serviceDomain = CreateDomainService();
+
+        var acceptRes = await serviceDomain.AcceptProposalAsync(intrudingUserId, proposal.Id);
+        var rejectRes = await serviceDomain.RejectProposalAsync(intrudingUserId, proposal.Id, "Fraude");
+        var counterRes = await serviceDomain.CounterProposalAsync(intrudingUserId, proposal.Id, 100m, "Fraude");
+
+        Assert.True(acceptRes.IsFailure);
+        Assert.Equal("UNAUTHORIZED_CUSTOMER", acceptRes.ErrorCode);
+
+        Assert.True(rejectRes.IsFailure);
+        Assert.Equal("UNAUTHORIZED_CUSTOMER", rejectRes.ErrorCode);
+
+        Assert.True(counterRes.IsFailure);
+        Assert.Equal("UNAUTHORIZED_CUSTOMER", counterRes.ErrorCode);
     }
 
     [Fact]
@@ -117,7 +262,7 @@ public class ProposalDomainServiceTests
         await _proposalRepository.AddAsync(proposal);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = CreateDomainService();
 
         var result = await serviceDomain.CounterProposalAsync(customerUser.Id, proposal.Id, 250.00m, "Podemos fechar por 250?");
 
@@ -150,7 +295,7 @@ public class ProposalDomainServiceTests
         await _proposalRepository.AddAsync(proposal);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = CreateDomainService();
 
         var result = await serviceDomain.AcceptCounterAsync(providerUser.Id, proposal.Id);
 
@@ -184,7 +329,7 @@ public class ProposalDomainServiceTests
         await _proposalRepository.AddAsync(proposal);
         await _serviceRepository.AddAsync(service);
 
-        var serviceDomain = new ProposalDomainService(_proposalRepository, _serviceRepository, _appointmentRepository, _providerRepository, _customerRepository, _messageBroker);
+        var serviceDomain = CreateDomainService();
 
         var result = await serviceDomain.RejectCounterAsync(providerUser.Id, proposal.Id);
 

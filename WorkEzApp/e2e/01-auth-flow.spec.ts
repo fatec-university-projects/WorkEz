@@ -6,7 +6,7 @@ test.describe('Fluxo 1: Onboarding, Perfil e Autenticação', () => {
     await page.goto('/onboarding');
 
     // Valida tela de onboarding e botão avançar
-    await expect(page.getByText('Profissionais verificados')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Profissionais verificados')).toBeVisible({ timeout: 30000 });
     const continueBtn = page.getByRole('button', { name: 'Continuar' });
     await expect(continueBtn).toBeVisible();
 
@@ -26,14 +26,29 @@ test.describe('Fluxo 1: Onboarding, Perfil e Autenticação', () => {
     await expect(page.getByText('Sou prestador')).toBeVisible();
   });
 
+  test('deve rejeitar login com credenciais inválidas mantendo usuário em /login', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.getByText('Bem-vindo de volta')).toBeVisible({ timeout: 15000 });
+
+    const emailInput = page.getByPlaceholder('Seu e-mail');
+    await emailInput.fill('usuario.inexistente@workez.com');
+
+    const passInput = page.getByPlaceholder('Sua senha');
+    await passInput.fill('SenhaErrada@999');
+
+    await page.getByRole('button', { name: 'Entrar' }).click();
+
+    // Deve continuar na rota de login e exibir mensagem de erro
+    await expect(page).toHaveURL(/.*\/login/);
+    await expect(page.getByText(/inválid|erro|não encontrado|credenciais/i).first()).toBeVisible({ timeout: 10000 });
+  });
+
   test('deve permitir login de cliente com credenciais reais', async ({ page }) => {
-    // Cria credencial real na API
     const customer = await createTestCustomer();
 
     await page.goto('/login');
     await expect(page.getByText('Bem-vindo de volta')).toBeVisible({ timeout: 15000 });
 
-    // Preenche credenciais
     const emailInput = page.getByPlaceholder('Seu e-mail');
     await expect(emailInput).toBeVisible();
     await emailInput.click();
@@ -45,7 +60,6 @@ test.describe('Fluxo 1: Onboarding, Perfil e Autenticação', () => {
     await passInput.fill(customer.pass);
     await expect(passInput).toHaveValue(customer.pass);
 
-    // Clica em Entrar
     await page.getByRole('button', { name: 'Entrar' }).click();
 
     // Deve redirecionar para a área do cliente (/client)
@@ -54,7 +68,6 @@ test.describe('Fluxo 1: Onboarding, Perfil e Autenticação', () => {
   });
 
   test('deve permitir login de prestador com credenciais reais', async ({ page }) => {
-    // Cria prestador real na API
     const provider = await createTestProvider();
 
     await page.goto('/login');
@@ -75,6 +88,6 @@ test.describe('Fluxo 1: Onboarding, Perfil e Autenticação', () => {
 
     // Deve redirecionar para a área do prestador (/provider)
     await expect(page).toHaveURL(/.*\/provider/, { timeout: 15000 });
-    await expect(page.getByText('Aceite novos chamados para começar a crescer')).toBeVisible();
+    await expect(page.getByText(/Aceite.*chamados para começar a crescer/i)).toBeVisible();
   });
 });

@@ -1,70 +1,64 @@
 import { test, expect } from '@playwright/test';
-import { createTestCustomer, createTestProvider, createTestServiceCall, API_BASE_URL, injectAuth } from './helpers/test-api';
+import {
+  createTestCustomer,
+  createTestProvider,
+  createTestServiceCall,
+  getCustomerProfile,
+  createTestProposal,
+  acceptTestProposal,
+  completeAndPayService,
+  API_BASE_URL,
+  injectAuth,
+} from './helpers/test-api';
 
 test.describe('Fluxo 4: Execução do Serviço, Conclusão e Avaliação Real', () => {
-  test('deve concluir serviço e registrar avaliação de 5 estrelas com tags', async ({ page }) => {
+  test('deve exibir etapa de aguardando pagamento no tracking e permitir avaliação após conclusão', async ({ page }) => {
     test.setTimeout(90000);
     const customer = await createTestCustomer();
     const provider = await createTestProvider();
 
-    // Injeta auth na sessão do navegador
     await injectAuth(page, customer);
 
-    const customerProfileRes = await fetch(`${API_BASE_URL}/api/Customers/by-user/${customer.tokens.user.id}`, {
-      headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
-    });
-    const customerProfile = await customerProfileRes.json();
+    const customerProfile = await getCustomerProfile(customer);
     const serviceCall = await createTestServiceCall(customerProfile.id, customer.tokens.accessToken);
 
-    const providerProfileRes = await fetch(`${API_BASE_URL}/api/ServiceProviders/by-user/${provider.tokens.user.id}`, {
-      headers: { Authorization: `Bearer ${provider.tokens.accessToken}` },
-    });
-    const providerProfile = await providerProfileRes.json();
-
     // 1. Prestador envia proposta e cliente aceita
-    const propRes = await fetch(`${API_BASE_URL}/api/Proposals/propose`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${provider.tokens.accessToken}`,
-      },
-      body: JSON.stringify({
-        serviceId: serviceCall.id,
-        providerUserId: provider.tokens.user.id,
-        laborPrice: 100.0,
-        materialsPrice: 0.0,
-        proposedPrice: 100.0,
-        description: 'Serviço rápido.',
-      }),
-    });
-    const proposal = await propRes.json();
-
-    await fetch(`${API_BASE_URL}/api/Proposals/accept`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${customer.tokens.accessToken}`,
-      },
-      body: JSON.stringify({
-        proposalId: proposal.id,
-        customerUserId: customer.tokens.user.id,
-      }),
+    const proposal = await createTestProposal(provider, serviceCall.id, {
+      laborPrice: 100.0,
+      materialsPrice: 0.0,
+      proposedPrice: 100.0,
+      description: 'Serviço rápido.',
     });
 
-    // 2. Prestador avança o chamado para completed
+    await acceptTestProposal(customer, proposal.id);
+
+    // 2. Prestador conclui execução (status vai para waiting-payment)
     const completeRes = await fetch(`${API_BASE_URL}/api/Services/${serviceCall.id}/complete`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${provider.tokens.accessToken}`,
       },
+      body: JSON.stringify({ price: 100.0 }),
     });
     expect(completeRes.ok).toBeTruthy();
 
-    // Auto aceita alertas na web
-    page.on('dialog', dialog => dialog.accept());
+    // Valida que no tracking do cliente aparece o botão de pagamento
+    await page.goto(`/client/tracking/${serviceCall.id}`);
+    await expect(page.getByText('Efetuar Pagamento do Chamado')).toBeVisible({ timeout: 15000 });
 
-    // 3. Cliente acessa a tela de avaliação (/client/rating/[id])
+    // 3. Confirma o pagamento para que o serviço alcance o status "completed"
+    await completeAndPayService(
+      serviceCall.id,
+      provider.tokens.accessToken,
+      customer.tokens.accessToken,
+      100.0
+    );
+
+    // Auto aceita alertas na web
+    page.on('dialog', (dialog) => dialog.accept());
+
+    // 4. Cliente acessa a tela de avaliação (/client/rating/[id])
     await page.goto(`/client/rating/${serviceCall.id}`);
 
     await expect(page.getByText('Como foi sua experiência?')).toBeVisible({ timeout: 15000 });
@@ -87,14 +81,15 @@ test.describe('Fluxo 4: Execução do Serviço, Conclusão e Avaliação Real', 
     const submitBtn = page.getByRole('button', { name: 'Enviar avaliação' });
     await expect(submitBtn).toBeVisible();
     await Promise.all([
-      page.waitForResponse(resp => resp.url().includes('/api/Reviews/by-customer') && resp.status() === 200, { timeout: 15000 }),
+      page.waitForResponse((resp) => resp.url().includes('/api/Reviews/by-customer') && resp.status() === 200, {
+        timeout: 15000,
+      }),
       submitBtn.click(),
     ]);
 
-    // Aguarda o processamento
     await page.waitForTimeout(500);
 
-    // 4. Confere API de reviews do prestador
+    // 5. Confere API de reviews do prestador
     const reviewsRes = await fetch(`${API_BASE_URL}/api/Reviews/by-user/${provider.tokens.user.id}`, {
       headers: { Authorization: `Bearer ${customer.tokens.accessToken}` },
     });

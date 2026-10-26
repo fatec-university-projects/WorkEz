@@ -78,6 +78,34 @@ public class EmailFlowTests
         Assert.Contains("prestador de serviços", html);
     }
 
+    [Fact]
+    public void Template_ShouldHtmlEncodeUserSuppliedContent_PreventingHtmlInjection()
+    {
+        var html = EmailTemplateFactory.BuildProposalNotificationTemplate(
+            clientName: "Maria <script>alert(1)</script>",
+            providerName: "João <b>Hacker</b>",
+            serviceTitle: "Reparo <img src=x onerror=alert(1)>",
+            proposedPrice: 200m,
+            description: "Descrição <a href='http://phishing.test'>clique</a>");
+
+        Assert.DoesNotContain("<script>alert(1)</script>", html);
+        Assert.Contains("&lt;script&gt;alert(1)&lt;/script&gt;", html);
+        Assert.DoesNotContain("<img src=x onerror=alert(1)>", html);
+    }
+
+    [Fact]
+    public void Template_ProposalAccepted_WithoutConfirmationCode_ShouldInstructProviderToAskCustomerOnSite()
+    {
+        var html = EmailTemplateFactory.BuildProposalAcceptedTemplate(
+            providerName: "Carlos",
+            clientName: "Ana",
+            serviceTitle: "Elétrica",
+            agreedPrice: 300m,
+            confirmationCode: string.Empty);
+
+        Assert.Contains("Solicite o código de 4 dígitos ao cliente no local", html);
+    }
+
     // ── Fluxos de aplicação ─────────────────────────────────────────────────
 
     private class TrackingEmailService : IEmailService
@@ -358,6 +386,4 @@ public class EmailFlowTests
         Assert.True(result.IsSuccess);
         Assert.Equal("joao@workez.com", Assert.Single(email.Welcomes));
     }
-
-
 }

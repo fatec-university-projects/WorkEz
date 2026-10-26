@@ -161,6 +161,60 @@ public class WalletApplicationServiceTests
     }
 
     [Fact]
+    public async Task ReleaseEscrow_WithAdjustedFinalPrice_ShouldRecalculateLaborAndCommissionProportionally()
+    {
+        var (walletService, db, providerUser, provider, customerUser, customer) = CreateTestSetup();
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Title = "Manutenção Elétrica Completa",
+            ServiceStatus = ServiceStatus.WaitingPayment
+        };
+        var proposal = new Proposal
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProviderId = provider.Id,
+            ProposedPrice = 500m,
+            LaborPrice = 300m,
+            MaterialsPrice = 200m,
+            ProposalStatus = ProposalStatus.Accepted
+        };
+        var appointment = new Appointment
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProposalId = proposal.Id,
+            CustomerId = customer.Id,
+            ProviderId = provider.Id,
+            FinalPrice = 700m,
+            ScheduledDate = DateTime.UtcNow,
+            AppointmentStatus = AppointmentStatus.InProgress
+        };
+
+        db.Services.Add(service);
+        db.Proposals.Add(proposal);
+        db.Appointments.Add(appointment);
+        await db.SaveChangesAsync();
+
+        // Valor final ajustado para R$ 700 (materiais R$ 200 mantidos => mão de obra passa a R$ 500)
+        // Taxa da plataforma = 15% de R$ 500 = R$ 75. Líquido = R$ 625.
+        var releaseResult = await walletService.ReleaseEscrowForServiceAsync(service.Id, 700m);
+        Assert.True(releaseResult.IsSuccess);
+
+        var summary = await walletService.GetSummaryAsync(provider.Id, providerUser.Id, false);
+        Assert.True(summary.IsSuccess);
+        Assert.NotNull(summary.Value.LastCommission);
+        Assert.Equal(700m, summary.Value.LastCommission.GrossAmount);
+        Assert.Equal(500m, summary.Value.LastCommission.LaborAmount);
+        Assert.Equal(200m, summary.Value.LastCommission.MaterialsAmount);
+        Assert.Equal(75m, summary.Value.LastCommission.PlatformFeeAmount);
+        Assert.Equal(625m, summary.Value.LastCommission.NetAmount);
+    }
+
+    [Fact]
     public async Task RequestWithdrawalAsync_ValidAmount_ShouldDeductBalance_AndReturnReceipt()
     {
         var (walletService, db, providerUser, provider, customerUser, customer) = CreateTestSetup();
@@ -441,6 +495,67 @@ public class WalletApplicationServiceTests
         Assert.StartsWith("000201010212", result.Value.PixCopiaECola);
         Assert.Equal("mock_base64_qrcode", result.Value.QrCodeBase64);
         Assert.Equal("vcharge123456789", result.Value.TransactionId);
+    }
+
+    [Fact]
+    public async Task GenerateEscrowPixCheckout_WhenCalledByUnrelatedProvider_ReturnsForbidden()
+    {
+        var (baseWalletService, db, providerUser, provider, customerUser, customer) = CreateTestSetup();
+
+        var unrelatedProviderUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Outro Prestador",
+            Email = "outro@workez.com",
+            Role = UserRole.ServiceProvider
+        };
+        var unrelatedProvider = new ServiceProviderEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = unrelatedProviderUser.Id,
+            User = unrelatedProviderUser
+        };
+        db.Users.Add(unrelatedProviderUser);
+        db.Providers.Add(unrelatedProvider);
+
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            Title = "Instalação Ar Condicionado",
+            ServiceStatus = ServiceStatus.Accepted
+        };
+        var proposal = new Proposal
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            ProviderId = provider.Id,
+            Provider = provider,
+            ProposedPrice = 600m,
+            LaborPrice = 400m,
+            MaterialsPrice = 200m,
+            ProposalStatus = ProposalStatus.Accepted
+        };
+
+        db.Services.Add(service);
+        db.Proposals.Add(proposal);
+        await db.SaveChangesAsync();
+
+        var walletService = new WalletApplicationService(
+            new WalletTransactionRepository(db),
+            new WithdrawalRequestRepository(db),
+            new ServiceProviderRepository(db),
+            new ServiceRepository(db),
+            new AppointmentRepository(db),
+            new ProposalRepository(db),
+            new MockDelFinanceClient(),
+            new CustomerRepository(db)
+        );
+
+        var result = await walletService.GenerateEscrowPixCheckoutAsync(service.Id, unrelatedProviderUser.Id, false);
+        Assert.False(result.IsSuccess);
+        Assert.Equal("FORBIDDEN", result.ErrorCode);
     }
 
     [Fact]
