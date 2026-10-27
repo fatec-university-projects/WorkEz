@@ -199,6 +199,8 @@ export default function ProviderCalls() {
   const calls = activeTab === 'opportunities' ? freshOpportunities : acceptedCalls;
   const loading = activeTab === 'opportunities' ? loadingOps : activeTab === 'proposals' ? loadingProps : loadingAcc;
   const error = activeTab === 'opportunities' ? errorOps : activeTab === 'proposals' ? errorProps : errorAcc;
+  const hasData = activeTab === 'opportunities' ? !!opportunities : activeTab === 'proposals' ? !!myProposals : !!acceptedCalls;
+  const isInitialLoading = loading && !hasData;
   const activeColor = isDark ? '#60A5FA' : '#2563EB';
 
   return (
@@ -269,7 +271,7 @@ export default function ProviderCalls() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {loading ? (
+        {isInitialLoading ? (
           <View style={{ padding: 48, alignItems: 'center' }}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={{ marginTop: 16, color: colors.textSecondary }}>Carregando dados...</Text>

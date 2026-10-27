@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAppTheme } from '../../../contexts/ThemeContext';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { formatDate } from '../../../utils/date';
@@ -145,11 +145,10 @@ export default function ServiceTracking() {
   useFocusEffect(
     useCallback(() => {
       if (id) {
-        refetchInitialService();
-        refetchInitialProposals();
-        refetchServiceReview();
+        silentFetchService();
+        silentFetchProposals();
       }
-    }, [id, refetchInitialService, refetchInitialProposals, refetchServiceReview])
+    }, [id, silentFetchService, silentFetchProposals])
   );
 
   const [service, setService] = useState<ServiceData | null>(null);
@@ -192,6 +191,14 @@ export default function ServiceTracking() {
   }, [id]);
 
   // Conexão WebSocket para atualizações em tempo real (push)
+  const silentFetchProposalsRef = useRef(silentFetchProposals);
+  const silentFetchServiceRef = useRef(silentFetchService);
+
+  useEffect(() => {
+    silentFetchProposalsRef.current = silentFetchProposals;
+    silentFetchServiceRef.current = silentFetchService;
+  });
+
   useEffect(() => {
     if (!id) return;
 
@@ -199,14 +206,13 @@ export default function ServiceTracking() {
     let reconnectTimeout: any = null;
     let isMounted = true;
 
-    // Polling redundante a cada 4s para garantir sincronização contínua
+    // Polling redundante a cada 8s como fallback caso o socket oscile
     const pollTimer = setInterval(() => {
       if (isMounted) {
-        silentFetchProposals();
-        silentFetchService();
-        refetchServiceReview();
+        silentFetchProposalsRef.current();
+        silentFetchServiceRef.current();
       }
-    }, 4000);
+    }, 8000);
 
     async function connect() {
       if (!isMounted) return;
@@ -224,9 +230,8 @@ export default function ServiceTracking() {
             const data = JSON.parse(event.data);
             console.log('[Client Tracking WS] Atualização recebida:', data.eventType);
             if (isMounted) {
-              silentFetchProposals();
-              silentFetchService();
-              refetchServiceReview();
+              silentFetchProposalsRef.current();
+              silentFetchServiceRef.current();
             }
           } catch (e) {
             console.warn('[Client Tracking WS] Erro ao processar mensagem do socket:', e);
@@ -237,6 +242,10 @@ export default function ServiceTracking() {
           if (isMounted) {
             reconnectTimeout = setTimeout(connect, 4000);
           }
+        };
+
+        ws.onerror = (e) => {
+          console.warn('[Client Tracking WS] Erro socket:', e);
         };
       } catch (e) {
         console.warn('[Client Tracking WS] Erro ao conectar socket:', e);
@@ -251,10 +260,11 @@ export default function ServiceTracking() {
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (ws) {
         ws.onclose = null;
+        ws.onerror = null;
         ws.close();
       }
     };
-  }, [id, silentFetchProposals, silentFetchService, refetchServiceReview]);
+  }, [id]);
 
   const formatEstimatedTime = (time: string | undefined | null) => {
     if (!time) return '';
