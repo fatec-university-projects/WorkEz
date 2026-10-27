@@ -19,6 +19,28 @@ export default function Payment() {
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
+  const [qrLoadError, setQrLoadError] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+
+  useEffect(() => {
+    setQrLoadError(false);
+  }, [checkoutData]);
+
+  const qrCodeUri = useMemo(() => {
+    if (!checkoutData) return null;
+    const raw = checkoutData.qrCodeBase64?.trim();
+    if (raw) {
+      if (raw.startsWith('data:') || raw.startsWith('http://') || raw.startsWith('https://')) {
+        return raw;
+      }
+      return `data:image/png;base64,${raw}`;
+    }
+    const code = checkoutData.pixCopiaECola?.trim();
+    if (code) {
+      return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=8&data=${encodeURIComponent(code)}`;
+    }
+    return null;
+  }, [checkoutData]);
 
   const showFeedback = (title: string, message?: string) => {
     const fullMsg = message ? `${title}: ${message}` : title;
@@ -131,6 +153,40 @@ export default function Payment() {
       showFeedback('Aviso', 'Não foi possível consultar a rede bancária no momento. Tente novamente em instantes.');
     } finally {
       setCheckingStatus(false);
+    }
+  };
+
+  const handleSimulatePayment = async () => {
+    if (!id) return;
+    setSimulating(true);
+    try {
+      const webhookRes = await apiRequest('/api/Wallet/webhook/delfinance', {
+        method: 'POST',
+        body: JSON.stringify({
+          eventType: 'PIX_RECEIVED',
+          correlationId: id,
+          amount: checkoutData?.totalAmount || priceVal,
+        }),
+      });
+
+      if (webhookRes.error) {
+        const confirmRes = await apiRequest(`/api/Services/${id}/confirm-payment`, {
+          method: 'POST',
+        });
+        if (confirmRes.error) {
+          showFeedback('Erro', confirmRes.error);
+          return;
+        }
+      }
+
+      showFeedback('PIX Confirmado!', 'Pagamento identificado no DelFinance Sandbox. Liberando custódia...');
+      setTimeout(() => {
+        router.replace(`/client/completed/${id}` as any);
+      }, 800);
+    } catch (err: any) {
+      showFeedback('Erro', err?.message || 'Falha ao processar simulação do pagamento.');
+    } finally {
+      setSimulating(false);
     }
   };
 
@@ -423,6 +479,22 @@ export default function Payment() {
         padding: 24,
         borderTopWidth: 1,
         borderTopColor: colors.border,
+        gap: 12,
+      },
+      simulateBtn: {
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF',
+        borderWidth: 1,
+        borderColor: isDark ? 'rgba(96, 165, 250, 0.35)' : '#BFDBFE',
+      },
+      simulateBtnText: {
+        color: isDark ? '#93C5FD' : '#2563EB',
+        fontSize: 14,
+        fontWeight: '600',
       },
       vistoriaSubtitle: {
         fontSize: 12,
@@ -640,11 +712,12 @@ export default function Payment() {
               <View style={dynamicStyles.pixContainer}>
                 {/* QR Code Container */}
                 <View style={dynamicStyles.qrContainer}>
-                  {checkoutData.qrCodeBase64 ? (
+                  {qrCodeUri && !qrLoadError ? (
                     <Image
-                      source={{ uri: `data:image/png;base64,${checkoutData.qrCodeBase64}` }}
+                      source={{ uri: qrCodeUri }}
                       style={dynamicStyles.qrImage}
                       resizeMode="contain"
+                      onError={() => setQrLoadError(true)}
                     />
                   ) : (
                     <View style={dynamicStyles.qrPlaceholder}>
@@ -737,7 +810,7 @@ export default function Payment() {
           <Button
             fullWidth
             onPress={checkoutData ? handleManualCheck : loadCheckout}
-            disabled={generating || checkingStatus}
+            disabled={generating || checkingStatus || simulating}
           >
             {generating || checkingStatus ? (
               <ActivityIndicator color="#FFF" />
@@ -747,6 +820,23 @@ export default function Payment() {
               `Gerar Cobrança PIX DelFinance (R$ ${priceVal.toFixed(2).replace('.', ',')})`
             )}
           </Button>
+
+          {checkoutData && (
+            <TouchableOpacity
+              style={dynamicStyles.simulateBtn}
+              onPress={handleSimulatePayment}
+              disabled={simulating || checkingStatus || generating}
+              activeOpacity={0.8}
+            >
+              {simulating ? (
+                <ActivityIndicator color={isDark ? '#60A5FA' : '#2563EB'} size="small" />
+              ) : (
+                <Text style={dynamicStyles.simulateBtnText}>
+                  Simular Confirmação PIX (DelFinance Sandbox)
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
