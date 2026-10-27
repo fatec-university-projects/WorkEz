@@ -1,12 +1,25 @@
-import React, { Children } from 'react';
-import { Pressable, PressableProps, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { WorkEzTheme } from '../constants/theme';
+import React, { Children, isValidElement } from 'react';
+import { TouchableOpacity, TouchableOpacityProps, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { useAppTheme } from '../contexts/ThemeContext';
 
-interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
+interface ButtonProps extends Omit<TouchableOpacityProps, 'style' | 'children'> {
   variant?: 'primary' | 'secondary' | 'ghost';
   fullWidth?: boolean;
   style?: ViewStyle | ViewStyle[];
   children?: React.ReactNode;
+}
+
+function renderChildren(children: React.ReactNode, textStyle: TextStyle): React.ReactNode {
+  return Children.map(children, (child) => {
+    if (child === null || child === undefined || typeof child === 'boolean') return null;
+    if (typeof child === 'string' || typeof child === 'number') {
+      return <Text style={textStyle}>{child}</Text>;
+    }
+    if (isValidElement(child) && child.type === React.Fragment) {
+      return renderChildren((child.props as any).children, textStyle);
+    }
+    return child;
+  });
 }
 
 export function Button({
@@ -14,97 +27,94 @@ export function Button({
   fullWidth = false,
   children,
   style,
+  disabled,
   ...props
 }: ButtonProps) {
+  const { isDark } = useAppTheme();
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isGhost = variant === 'ghost';
 
+  const secondaryColor = isDark ? '#93C5FD' : '#2563EB';
+
+  const defaultTextStyle: TextStyle = isPrimary
+    ? styles.primaryText
+    : isSecondary
+    ? { ...styles.secondaryText, color: secondaryColor }
+    : { ...styles.ghostText, color: secondaryColor };
+
   return (
-    <Pressable
-      style={({ pressed }) => StyleSheet.flatten([
+    <TouchableOpacity
+      accessibilityRole="button"
+      activeOpacity={0.8}
+      disabled={disabled}
+      style={[
         styles.baseButton,
         isPrimary && styles.primaryButton,
-        isSecondary && styles.secondaryButton,
+        isSecondary && [
+          styles.secondaryButton,
+          isDark && { backgroundColor: 'rgba(37, 99, 235, 0.16)', borderColor: 'rgba(96, 165, 250, 0.35)' },
+        ],
         isGhost && styles.ghostButton,
         fullWidth && styles.fullWidth,
-        pressed && styles.pressed,
-        props.disabled && styles.disabled,
-        style,
-      ])}
+        disabled && styles.disabled,
+        style as any,
+      ]}
       {...props}
     >
-      {Children.map(children, (child) => {
-        if (child === null || child === undefined || typeof child === 'boolean') return null;
-        if (typeof child === 'string' || typeof child === 'number') {
-          return (
-            <Text
-              style={StyleSheet.flatten([
-                styles.baseText,
-                isPrimary && styles.primaryText,
-                isSecondary && styles.secondaryText,
-                isGhost && styles.ghostText,
-              ])}
-            >
-              {child}
-            </Text>
-          );
-        }
-        return child;
-      })}
-    </Pressable>
+      {renderChildren(children, defaultTextStyle)}
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   baseButton: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 14,
-    borderRadius: WorkEzTheme.borderRadius.lg,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: WorkEzTheme.spacing.sm,
+    gap: 8,
   },
   fullWidth: {
     width: '100%',
-  },
-  pressed: {
-    transform: [{ scale: 0.95 }],
-    opacity: 0.8,
   },
   disabled: {
     opacity: 0.5,
   },
   primaryButton: {
     backgroundColor: '#2563EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   secondaryButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
   },
   ghostButton: {
     backgroundColor: 'transparent',
   },
-  baseText: {
-    textAlign: 'center',
-    ...WorkEzTheme.typography.base,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: '#2563EB',
-  },
   primaryText: {
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   secondaryText: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#2563EB',
   },
   ghostText: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#2563EB',
   },
 });

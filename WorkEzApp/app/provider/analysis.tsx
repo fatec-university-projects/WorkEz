@@ -1,10 +1,12 @@
 import { useRouter } from 'expo-router';
 import { CheckCircle, Clock, Circle } from 'lucide-react-native';
 import { Button } from '../../components/Button';
-import { View, Text } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function RegistrationAnalysis() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const steps = [
     { label: 'Dados enviados', completed: true },
@@ -15,52 +17,70 @@ export default function RegistrationAnalysis() {
   ];
 
   return (
-    <View className="min-h-screen bg-[#F8FAFC]">
-      <View className="bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] px-6 pt-12 pb-8 rounded-b-3xl text-white text-center">
-        <View className="w-16 h-16 bg-white/20 rounded-full flex-row items-center justify-center mx-auto mb-4">
-          <Clock className="w-8 h-8" />
+    <View style={styles.container}>
+      <View
+        style={[
+          styles.headerBanner,
+          { paddingTop: insets.top > 0 ? insets.top + 16 : 48 }
+        ]}
+      >
+        <View style={styles.clockCircle}>
+          <Clock size={32} color="#FFFFFF" />
         </View>
-        <Text className="text-2xl font-bold mb-2">Cadastro em análise</Text>
-        <Text className="text-white/90">
+        <Text style={styles.bannerTitle}>Cadastro em análise</Text>
+        <Text style={styles.bannerSubtitle}>
           Estamos verificando suas informações
         </Text>
       </View>
 
-      <View className="p-6 space-y-6">
-        <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-          <Text className="font-semibold text-[#0F172A] mb-4">
+      <ScrollView 
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom > 0 ? insets.bottom + 24 : 32 }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
             Status do cadastro
           </Text>
 
-          <View className="space-y-4">
+          <View style={styles.stepsList}>
             {steps.map((step, index) => (
-              <View key={index} className="flex-row items-start gap-3">
-                <View className="flex flex-col items-center">
+              <View key={index} style={styles.stepRow}>
+                <View style={styles.stepIndicatorCol}>
                   {step.completed ? (
-                    <View className="w-6 h-6 bg-[#26FFF5] rounded-full flex-row items-center justify-center">
-                      <CheckCircle className="w-4 h-4 text-white" />
+                    <View style={styles.stepDotCompleted}>
+                      <CheckCircle size={14} color="#FFFFFF" />
                     </View>
                   ) : index === 2 ? (
-                    <View className="w-6 h-6 bg-[#2563EB] rounded-full flex-row items-center justify-center">
-                      <Clock className="w-4 h-4 text-white" />
+                    <View style={styles.stepDotActive}>
+                      <Clock size={14} color="#FFFFFF" />
                     </View>
                   ) : (
-                    <Circle className="w-6 h-6 text-[#E2E8F0]" />
+                    <Circle size={20} color="#CBD5E1" />
                   )}
                   {index < steps.length - 1 && (
                     <View
-                      className={`w-0.5 h-8 ${ step.completed ? 'bg-[#26FFF5]' : 'bg-[#E2E8F0]' }`}
+                      style={[
+                        styles.stepLine,
+                        step.completed ? styles.stepLineCompleted : styles.stepLinePending
+                      ]}
                     />
                   )}
                 </View>
-                <View className="flex-1 pt-0.5">
+                <View style={styles.stepContentCol}>
                   <Text
-                    className={`font-medium ${ step.completed ? 'text-[#0F172A]' : index === 2 ? 'text-[#2563EB]' : 'text-[#64748B]' }`}
+                    style={[
+                      styles.stepLabel,
+                      step.completed && styles.stepLabelCompleted,
+                      index === 2 && styles.stepLabelActive
+                    ]}
                   >
                     {step.label}
                   </Text>
                   {index === 2 && (
-                    <Text className="text-sm text-[#64748B] mt-1">Em andamento</Text>
+                    <Text style={styles.stepSubtext}>Em andamento</Text>
                   )}
                 </View>
               </View>
@@ -68,39 +88,204 @@ export default function RegistrationAnalysis() {
           </View>
         </View>
 
-        <View className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-4">
-          <Text className="font-medium text-[#1d4ed8] mb-2">
+        <View style={styles.tipBox}>
+          <Text style={styles.tipTitle}>
             Tempo estimado
           </Text>
-          <Text className="text-sm text-[#1e40af]">
+          <Text style={styles.tipText}>
             O processo de verificação leva em média 3-5 dias úteis. Você receberá atualizações por e-mail.
           </Text>
         </View>
 
-        <View className="bg-white rounded-2xl p-5 shadow-sm border border-[#E2E8F0]">
-          <Text className="font-semibold text-[#0F172A] mb-3">
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
             Enquanto isso...
           </Text>
-          <ul className="space-y-2 text-sm text-[#64748B]">
-            <li className="flex-row items-start gap-2">
-              <Text className="text-[#26FFF5]">✓</Text>
-              <Text>Baixe o app e configure suas notificações</Text>
-            </li>
-            <li className="flex-row items-start gap-2">
-              <Text className="text-[#26FFF5]">✓</Text>
-              <Text>Prepare fotos dos seus melhores trabalhos</Text>
-            </li>
-            <li className="flex-row items-start gap-2">
-              <Text className="text-[#26FFF5]">✓</Text>
-              <Text>Revise suas ferramentas e equipamentos</Text>
-            </li>
-          </ul>
+          <View style={styles.tipsList}>
+            <View style={styles.tipRow}>
+              <Text style={styles.checkIcon}>✓</Text>
+              <Text style={styles.tipRowText}>Baixe o app e configure suas notificações</Text>
+            </View>
+            <View style={styles.tipRow}>
+              <Text style={styles.checkIcon}>✓</Text>
+              <Text style={styles.tipRowText}>Prepare fotos dos seus melhores trabalhos</Text>
+            </View>
+            <View style={styles.tipRow}>
+              <Text style={styles.checkIcon}>✓</Text>
+              <Text style={styles.tipRowText}>Revise suas ferramentas e equipamentos</Text>
+            </View>
+          </View>
         </View>
 
-        <Button fullWidth onPress={() => router.push('/')}>
+        <Button fullWidth onPress={() => router.replace('/provider' as any)}>
           Voltar ao início
         </Button>
-      </View>
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  headerBanner: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 24,
+    paddingBottom: 28,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    alignItems: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  clockCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  bannerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  bannerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+  },
+  scrollContent: {
+    padding: 20,
+    gap: 16,
+    maxWidth: 720,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+  stepsList: {
+    gap: 0,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  stepIndicatorCol: {
+    alignItems: 'center',
+    width: 24,
+  },
+  stepDotCompleted: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotActive: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepLine: {
+    width: 2,
+    height: 28,
+    marginVertical: 2,
+  },
+  stepLineCompleted: {
+    backgroundColor: '#16A34A',
+  },
+  stepLinePending: {
+    backgroundColor: '#E2E8F0',
+  },
+  stepContentCol: {
+    flex: 1,
+    paddingTop: 1,
+    paddingBottom: 16,
+  },
+  stepLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  stepLabelCompleted: {
+    color: '#0F172A',
+    fontWeight: '600',
+  },
+  stepLabelActive: {
+    color: '#2563EB',
+    fontWeight: '700',
+  },
+  stepSubtext: {
+    fontSize: 12,
+    color: '#2563EB',
+    marginTop: 2,
+  },
+  tipBox: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 14,
+    padding: 16,
+  },
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1D4ED8',
+    marginBottom: 4,
+  },
+  tipText: {
+    fontSize: 13,
+    color: '#1E40AF',
+    lineHeight: 18,
+  },
+  tipsList: {
+    gap: 10,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  checkIcon: {
+    color: '#16A34A',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  tipRowText: {
+    fontSize: 13,
+    color: '#64748B',
+    flex: 1,
+    lineHeight: 18,
+  },
+});

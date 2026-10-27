@@ -1,6 +1,8 @@
 import { Href, usePathname, useRouter } from 'expo-router';
-import { Briefcase, Heart, Home, User, Wallet } from 'lucide-react-native';
+import { Briefcase, Home, User, Wallet } from 'lucide-react-native';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppTheme } from '../contexts/ThemeContext';
 
 interface NavItem {
   icon: typeof Home;
@@ -15,6 +17,8 @@ interface BottomNavProps {
 export function BottomNav({ type }: BottomNavProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+  const { isDark, colors } = useAppTheme();
 
   const clientNav: NavItem[] = [
     { icon: Home, label: 'Início', path: '/client' },
@@ -30,10 +34,21 @@ export function BottomNav({ type }: BottomNavProps) {
   ];
 
   const items = type === 'client' ? clientNav : providerNav;
+  const paddingBottom = insets.bottom > 0 ? insets.bottom + 4 : 16;
+  const activeColor = isDark ? '#60A5FA' : '#2563EB';
+  const inactiveColor = colors.textMuted;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.navContent}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.backgroundCard,
+          borderTopColor: colors.border,
+        },
+      ]}
+    >
+      <View style={[styles.navContent, { paddingBottom }]}>
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === (item.path as string);
@@ -46,13 +61,13 @@ export function BottomNav({ type }: BottomNavProps) {
             >
               <Icon
                 size={24}
-                color={isActive ? '#2563EB' : '#94A3B8'}
+                color={isActive ? activeColor : inactiveColor}
                 strokeWidth={isActive ? 2.5 : 1.8}
               />
               <Text
                 style={[
                   styles.navText,
-                  { color: isActive ? '#2563EB' : '#94A3B8' }
+                  { color: isActive ? activeColor : inactiveColor },
                 ]}
               >
                 {item.label}
@@ -67,9 +82,7 @@ export function BottomNav({ type }: BottomNavProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
     zIndex: 50,
   },
   navContent: {

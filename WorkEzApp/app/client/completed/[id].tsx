@@ -1,31 +1,49 @@
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useCallback } from 'react';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { CheckCircle, ShieldCheck, Star, User } from 'lucide-react-native';
 import { Button } from '../../../components/Button';
 import { Badge } from '../../../components/Badge';
 import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
-import { WorkEzTheme } from '../../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppTheme } from '../../../contexts/ThemeContext';
+import { resolveImageUrl } from '../../../services/api';
 
 export default function ServiceCompleted() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams();
+  const { colors, isDark } = useAppTheme();
 
-  const { data: service, loading, error } = useFetch<any>(
+  const { data: service, loading, error, refetch: refetchService } = useFetch<any>(
     id ? `/api/Services/${id}` : null
+  );
+
+  const { data: serviceReview, refetch: refetchReview } = useFetch<any>(
+    id ? `/api/Reviews/by-service/${id}` : null
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        refetchService();
+        refetchReview();
+      }
+    }, [id, refetchService, refetchReview])
   );
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+      <View style={[styles.centerContainer, { backgroundColor: colors.backgroundAlt }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   if (error || !service) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={{ color: WorkEzTheme.colors.danger, textAlign: 'center', marginBottom: 16 }}>
+      <View style={[styles.centerContainer, { backgroundColor: colors.backgroundAlt }]}>
+        <Text style={{ color: colors.danger, textAlign: 'center', marginBottom: 16 }}>
           {error || 'Não foi possível carregar o serviço.'}
         </Text>
         <Button onPress={() => router.push('/client' as any)}>Ir para o início</Button>
@@ -33,81 +51,119 @@ export default function ServiceCompleted() {
     );
   }
 
-  const priceVal = service.price || 150.00;
+  const priceVal = service.price || 150.0;
 
   return (
-    <ScrollView style={{ backgroundColor: '#F8FAFC' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
-      <View className="flex flex-col items-center justify-center p-6">
-        <View className="w-full max-w-md">
-          <View className="text-center mb-8">
-            <View className="w-20 h-20 bg-[#26FFF5]/10 rounded-full flex-row items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-10 h-10 text-[#26FFF5]" />
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.backgroundAlt }}
+      contentContainerStyle={{
+        flexGrow: 1,
+        justifyContent: 'center',
+        paddingTop: insets.top > 0 ? insets.top + 20 : 24,
+        paddingBottom: 24,
+        paddingHorizontal: 24,
+      }}
+    >
+      <View style={{ width: '100%', maxWidth: 440, alignSelf: 'center' }}>
+        <View style={{ alignItems: 'center', marginBottom: 32 }}>
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: isDark ? 'rgba(45, 212, 191, 0.16)' : 'rgba(15, 118, 110, 0.12)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 16,
+            }}
+          >
+            <CheckCircle size={40} color={colors.primaryText} />
+          </View>
+          <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text, marginBottom: 6, textAlign: 'center' }}>
+            Serviço concluído!
+          </Text>
+          <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center' }}>
+            Pagamento realizado com sucesso
+          </Text>
+        </View>
+
+        <View
+          style={{
+            backgroundColor: colors.backgroundCard,
+            borderRadius: 16,
+            padding: 20,
+            borderWidth: 1,
+            borderColor: colors.border,
+            marginBottom: 20,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            {service.professional?.photo ? (
+              <Image
+                source={{ uri: resolveImageUrl(service.professional.photo) || service.professional.photo }}
+                style={{ width: 64, height: 64, borderRadius: 32 }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: colors.backgroundAlt,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <User size={32} color={colors.textSecondary} />
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>
+                {service.professional?.name || 'Profissional'}
+              </Text>
+              <Text style={{ fontSize: 14, color: colors.textSecondary }}>{service.category}</Text>
             </View>
-            <Text className="text-3xl font-bold text-[#0F172A] mb-2 text-center">
-              Serviço concluído!
+          </View>
+
+          <View style={{ paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontSize: 14, color: colors.textSecondary }}>Valor pago</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>R$ {priceVal.toFixed(2)}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={{
+            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+            borderColor: isDark ? 'rgba(251, 191, 36, 0.35)' : '#FDE047',
+            borderWidth: 1,
+            borderRadius: 14,
+            padding: 16,
+            marginBottom: 24,
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: 12,
+          }}
+        >
+          <ShieldCheck size={20} color={isDark ? '#FCD34D' : '#854D0E'} style={{ marginTop: 2 }} />
+          <View style={{ flex: 1 }}>
+            <Badge variant="active-guarantee" size="sm" />
+            <Text style={{ fontSize: 13, color: isDark ? '#FDE68A' : '#92400E', marginTop: 8, lineHeight: 19 }}>
+              Você tem 7 dias de garantia. Se houver algum problema, acione o suporte.
             </Text>
-            <Text className="text-[#64748B] text-center">
-              Pagamento realizado com sucesso
-            </Text>
           </View>
+        </View>
 
-          <View className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0] mb-6">
-            <View className="flex-row items-center gap-3 mb-4">
-              {service.professional?.photo ? (
-                <Image
-                  source={{ uri: service.professional.photo }}
-                  className="w-16 h-16 rounded-full object-cover"
-                />
-              ) : (
-                <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }}>
-                  <User size={32} color={WorkEzTheme.colors.textSecondary} />
-                </View>
-              )}
-              <View className="flex-1">
-                <Text className="font-semibold text-[#0F172A] text-left">
-                  {service.professional?.name || 'Profissional'}
-                </Text>
-                <Text className="text-sm text-[#64748B] text-left">{service.category}</Text>
-              </View>
-            </View>
+        <View style={{ gap: 12 }}>
+          <Button fullWidth onPress={() => router.push(`/client/rating/${id}` as any)}>
+            <Star size={18} color="#FFFFFF" />
+            {serviceReview ? 'Editar avaliação' : 'Avaliar profissional'}
+          </Button>
 
-            <View className="space-y-3 pt-4 border-t border-[#E2E8F0]">
-              <View className="flex-row justify-between text-sm">
-                <Text className="text-[#64748B]">Valor pago</Text>
-                <Text className="font-semibold text-[#0F172A]">R$ {priceVal.toFixed(2)}</Text>
-              </View>
-            </View>
-          </View>
-
-          <View className="bg-[#FEF3C7] border border-[#FDE047] rounded-xl p-4 mb-6">
-            <View className="flex-row items-start gap-3">
-              <ShieldCheck className="w-5 h-5 text-[#854D0E] flex-shrink-0 mt-0.5" />
-              <View className="flex-1">
-                <Badge variant="active-guarantee" size="sm" />
-                <Text className="text-sm text-[#92400E] mt-2 text-left">
-                  Você tem 7 dias de garantia. Se houver algum problema, acione o suporte.
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <View className="space-y-3">
-            <Button
-              fullWidth
-              onPress={() => router.push(`/client/rating/${id}` as any)}
-            >
-              <Star className="w-5 h-5 inline mr-2" />
-              Avaliar profissional
-            </Button>
-
-            <Button
-              variant="secondary"
-              fullWidth
-              onPress={() => router.push('/client' as any)}
-            >
-              Voltar ao início
-            </Button>
-          </View>
+          <Button variant="secondary" fullWidth onPress={() => router.push('/client' as any)}>
+            Voltar ao início
+          </Button>
         </View>
       </View>
     </ScrollView>
@@ -117,7 +173,6 @@ export default function ServiceCompleted() {
 const styles = StyleSheet.create({
   centerContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,

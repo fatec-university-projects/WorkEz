@@ -3,27 +3,45 @@ services:
     name: workez-api
     plan: free
     runtime: docker
-    rootDir: api
+    rootDir: WorkEzApi
     dockerfilePath: ./Dockerfile
     dockerContext: .
+    healthCheckPath: /health
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      # Segredos: defina os valores no painel do Render (sync: false não os versiona).
       - key: ConnectionStrings__DefaultConnection
-        value: "Host=ep-billowing-night-ac7hfoy7-pooler.sa-east-1.aws.neon.tech;Database=WorkEz;Username=neondb_owner;Password=npg_ftATc3z7BEMG;SslMode=Require;Channel Binding=require;"
+        sync: false
+      - key: Jwt__SecretKey
+        sync: false
+      - key: DelFinance__ApiKey
+        sync: false
+      - key: DelFinance__AccountId
+        sync: false
+      - key: DelFinance__WebhookSecret
+        sync: false
       - key: Jwt__Issuer
         value: WorkEz
       - key: Jwt__Audience
         value: WorkEzClient
-      - key: Jwt__SecretKey
-        value: "ad73a326-5687-4684-8d45-2b9641e0715e-b75c5aab-2dc5-4906-8dc4-3253d3e6dd89"
       - key: Jwt__AccessTokenExpirationMinutes
         value: "15"
       - key: Jwt__RefreshTokenExpirationDays
         value: "7"
-      - key: AbacatePay__ApiKey
-        value: "abc_dev_qBNN4qbr3e2dNtZdzEbfRBpW"
-      - key: AbacatePay__BaseUrl
-        value: "https://api.abacatepay.com/v1"
-      - key: AbacatePay__WebhookSecret
-        value: "wez_whsec_2026_WorkEz!"
+      - key: DelFinance__BaseUrl
+        value: "https://apisandbox.delbank.com.br"
+      - key: Smtp__Host
+        value: "smtp-relay.brevo.com"
+      - key: Smtp__Port
+        value: "587"
+      - key: Smtp__Username
+        sync: false
+      - key: Smtp__Password
+        sync: false
+      - key: Smtp__FromEmail
+        value: "no.reply.workez@gmail.com"
+      - key: Smtp__FromName
+        value: "WorkEz Plataforma"
+      - key: Smtp__EnableSsl
+        value: "true"

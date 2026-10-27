@@ -1,14 +1,39 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, User, Mail, Lock, Phone } from 'lucide-react-native';
+import {
+  User,
+  Mail,
+  Lock,
+  Phone,
+  FileText,
+  Upload,
+  CheckCircle,
+  AlertCircle,
+} from 'lucide-react-native';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { ScreenHeader } from '../components/ScreenHeader';
 import {
-  View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, ScrollView, ActivityIndicator,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
-import { WorkEzTheme } from '../constants/theme';
+import { WorkEzTheme, LightColors } from '../constants/theme';
 import { authService } from '../services/authService';
+import {
+  documentService,
+  applyCPFMask,
+  applyCNPJMask,
+  isValidCPF,
+  isValidCNPJ,
+  DocumentValidationResultDto,
+  PickedPdfFile,
+} from '../services/documentService';
 import { useAuth } from '../contexts/AuthContext';
 
 // ─── Validações & Máscaras ────────────────────────────────────────────────────
@@ -21,24 +46,16 @@ function isValidEmail(email: string): boolean {
 function applyPhoneMask(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11);
   if (digits.length <= 10) {
-    // Fixo: (00) 0000-0000
     return digits
       .replace(/^(\d{2})(\d)/, '($1) $2')
       .replace(/(\d{4})(\d)/, '$1-$2');
   }
-  // Celular: (00) 00000-0000
   return digits
     .replace(/^(\d{2})(\d)/, '($1) $2')
     .replace(/(\d{5})(\d)/, '$1-$2');
 }
 
 // ─── SignUp Screen ─────────────────────────────────────────────────────────────
-// AUDITORIA FIX:
-// - Lê o role selecionado na tela de profile-choice
-// - Se role não definido → redireciona para /profile-choice
-// - Chama o endpoint correto (customer ou provider)
-// - Valida todos os campos antes de enviar
-// - Máscaras em telefone
 
 export default function SignUp() {
   const router = useRouter();
@@ -47,6 +64,7 @@ export default function SignUp() {
   const [selectedRole, setSelectedRole] = useState<'client' | 'provider' | null>(null);
   const [formData, setFormData] = useState({
     name: '',
+    documentNumber: '',
     email: '',
     phone: '',
     password: '',
@@ -56,11 +74,16 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Carrega o papel escolhido
+  // Estados de verificação do PDF
+  const [pickedPdfFile, setPickedPdfFile] = useState<PickedPdfFile | null>(null);
+  const [pdfStatus, setPdfStatus] = useState<'idle' | 'validating' | 'verified' | 'error'>('idle');
+  const [pdfFileName, setPdfFileName] = useState<string | null>(null);
+  const [pdfValidationResult, setPdfValidationResult] = useState<DocumentValidationResultDto | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
   useEffect(() => {
     authService.getSelectedRole().then((role) => {
       if (!role) {
-        // Sem papel definido: força escolha
         router.replace('/profile-choice');
       } else {
         setSelectedRole(role);
@@ -68,14 +91,94 @@ export default function SignUp() {
     });
   }, []);
 
+  const isProvider = selectedRole === 'provider';
+
   const updateField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: '' }));
     setApiError(null);
   };
 
+  const runPdfVerification = async (fileToVerify: PickedPdfFile, docDigits: string) => {
+    setPdfFileName(fileToVerify.name);
+    setPdfStatus('validating');
+    setPdfError(null);
+
+    const verification = await documentService.verifyDocumentPdf(
+      fileToVerify,
+      docDigits,
+      isProvider ? 'provider' : 'client'
+    );
+
+    if (verification.error || !verification.data || !verification.data.isValid) {
+      setPdfStatus('error');
+      setPdfValidationResult(verification.data);
+      setPdfError(
+        verification.data?.message ||
+          verification.error ||
+          'O documento PDF enviado não corresponde ao número informado.'
+      );
+      return;
+    }
+
+    setPdfValidationResult(verification.data);
+    setPdfStatus('verified');
+  };
+
+  const handleDocumentChange = (value: string) => {
+    const masked = isProvider ? applyCNPJMask(value) : applyCPFMask(value);
+    updateField('documentNumber', masked);
+    const digits = masked.replace(/\D/g, '');
+    const validNow = isProvider ? isValidCNPJ(digits) : isValidCPF(digits);
+
+    if (pickedPdfFile && validNow) {
+      void runPdfVerification(pickedPdfFile, digits);
+    } else if (pdfStatus !== 'idle') {
+      setPdfStatus('idle');
+      setPdfValidationResult(null);
+      setPdfError(null);
+    }
+  };
+
   const handlePhoneChange = (value: string) => {
     updateField('phone', applyPhoneMask(value));
+  };
+
+  const handlePickAndVerifyPdf = async () => {
+    setPdfError(null);
+
+    const picked = await documentService.pickPdfDocument();
+    if (picked.canceled) return;
+    if (picked.error || !picked.file) {
+      setPdfStatus('error');
+      setPdfError(picked.error || 'Erro ao selecionar o arquivo PDF.');
+      return;
+    }
+
+    setPickedPdfFile(picked.file);
+    setPdfFileName(picked.file.name);
+
+    const docDigits = formData.documentNumber.replace(/\D/g, '');
+    const isDocValid = isProvider
+      ? isValidCNPJ(docDigits)
+      : isValidCPF(docDigits);
+
+    if (!isDocValid) {
+      const msg = isProvider
+        ? 'PDF selecionado! Agora preencha um CNPJ válido no campo acima para validar o arquivo.'
+        : 'PDF selecionado! Agora preencha um CPF válido no campo acima para validar o arquivo.';
+      setErrors((prev) => ({
+        ...prev,
+        documentNumber: isProvider
+          ? 'Preencha um CNPJ válido para validar o PDF'
+          : 'Preencha um CPF válido para validar o PDF',
+      }));
+      setPdfStatus('error');
+      setPdfError(msg);
+      return;
+    }
+
+    await runPdfVerification(picked.file, docDigits);
   };
 
   const validate = (): boolean => {
@@ -83,6 +186,14 @@ export default function SignUp() {
 
     if (!formData.name.trim() || formData.name.trim().length < 3) {
       newErrors.name = 'Nome deve ter pelo menos 3 caracteres';
+    }
+
+    if (!formData.documentNumber) {
+      newErrors.documentNumber = isProvider ? 'CNPJ é obrigatório' : 'CPF é obrigatório';
+    } else if (isProvider && !isValidCNPJ(formData.documentNumber)) {
+      newErrors.documentNumber = 'CNPJ inválido';
+    } else if (!isProvider && !isValidCPF(formData.documentNumber)) {
+      newErrors.documentNumber = 'CPF inválido';
     }
 
     if (!formData.email.trim()) {
@@ -110,8 +221,16 @@ export default function SignUp() {
       newErrors.confirmPassword = 'As senhas não coincidem';
     }
 
+    if (pdfStatus !== 'verified') {
+      setPdfError(
+        isProvider
+          ? 'Envie e valide o PDF do seu Cartão CNPJ / CCMEI para concluir o cadastro.'
+          : 'Envie e valide um PDF contendo seu CPF para concluir o cadastro.'
+      );
+    }
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.keys(newErrors).length === 0 && pdfStatus === 'verified';
   };
 
   const handleSignUp = async () => {
@@ -127,6 +246,8 @@ export default function SignUp() {
           formData.email,
           formData.password,
           formData.phone,
+          formData.documentNumber,
+          true
         );
       } else {
         result = await authService.registerCustomer(
@@ -134,6 +255,8 @@ export default function SignUp() {
           formData.email,
           formData.password,
           formData.phone,
+          formData.documentNumber,
+          true
         );
       }
 
@@ -142,10 +265,8 @@ export default function SignUp() {
         return;
       }
 
-      // Registro bem-sucedido: faz login automático
       const loginResult = await authService.login(formData.email, formData.password);
       if (loginResult.error) {
-        // Registro OK mas login falhou: vai para tela de login
         router.replace('/login');
         return;
       }
@@ -154,7 +275,7 @@ export default function SignUp() {
       if (user) signIn(user);
 
       if (selectedRole === 'provider') {
-        router.replace('/provider/work-area' as any);
+        router.replace('/provider/work-area?onboarding=1' as any);
       } else {
         router.replace('/client' as any);
       }
@@ -168,27 +289,16 @@ export default function SignUp() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
+      <ScreenHeader
+        title={isProvider ? 'Seja um prestador' : 'Criar conta'}
+        subtitle="Preencha seus dados e valide seu documento"
+        showBack
+      />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-
-          <Text style={styles.title}>
-            {selectedRole === 'provider' ? 'Seja um prestador' : 'Criar conta'}
-          </Text>
-          <Text style={styles.subtitle}>
-            Preencha seus dados para começar
-          </Text>
-        </View>
-
         <View style={styles.formContainer}>
           {/* Nome */}
           <View style={styles.inputWrapper}>
-            <User size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <User size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               placeholder="Nome completo"
               value={formData.name}
@@ -200,9 +310,110 @@ export default function SignUp() {
             />
           </View>
 
+          {/* CPF ou CNPJ */}
+          <View style={styles.inputWrapper}>
+            <FileText size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Input
+              placeholder={isProvider ? 'CNPJ (00.000.000/0000-00)' : 'CPF (000.000.000-00)'}
+              value={formData.documentNumber}
+              onChangeText={handleDocumentChange}
+              keyboardType="numeric"
+              maxLength={isProvider ? 18 : 14}
+              error={errors.documentNumber}
+              style={styles.inputWithIcon}
+            />
+          </View>
+
+          {/* Card de Verificação Documental (PDF) */}
+          <View style={styles.pdfSection}>
+            <Text style={styles.pdfSectionTitle}>
+              {isProvider
+                ? 'Verificação Documental (Cartão CNPJ / CCMEI em PDF)'
+                : 'Verificação Documental (Comprovante de CPF em PDF)'}
+            </Text>
+            <Text style={styles.pdfSectionDescription}>
+              {isProvider
+                ? 'Envie o PDF do seu Cartão CNPJ ou Certificado MEI (CCMEI). O CNPJ do arquivo será analisado automaticamente e deve coincidir com o CNPJ informado no cadastro.'
+                : 'Envie um PDF contendo seu CPF (ex: CNH Digital, RG Digital ou Comprovante de CPF da Receita Federal). O CPF no documento deve ser idêntico ao informado acima.'}
+            </Text>
+
+            {pdfStatus === 'validating' ? (
+              <View style={styles.pdfCardValidating}>
+                <ActivityIndicator size="small" color="#2563EB" />
+                <Text style={styles.pdfValidatingText}>
+                  Lendo PDF e verificando metadados...
+                </Text>
+              </View>
+            ) : pdfStatus === 'verified' && pdfValidationResult ? (
+              <View style={styles.pdfCardVerified}>
+                <View style={styles.pdfVerifiedHeader}>
+                  <CheckCircle size={20} color={WorkEzTheme.colors.success} />
+                  <Text style={styles.pdfVerifiedTitle}>
+                    Documento verificado com sucesso!
+                  </Text>
+                </View>
+                <Text style={styles.pdfMetaText}>
+                  Arquivo: {pdfFileName} • {pdfValidationResult.metadata?.pageCount ?? 1} pág(s)
+                  {pdfValidationResult.metadata?.producer
+                    ? ` • ${pdfValidationResult.metadata.producer}`
+                    : ''}
+                </Text>
+                <TouchableOpacity onPress={handlePickAndVerifyPdf} style={styles.reuploadLink}>
+                  <Text style={styles.reuploadLinkText}>Trocar arquivo PDF</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[
+                  styles.pdfUploadButton,
+                  pdfStatus === 'error' && styles.pdfUploadButtonError,
+                ]}
+                onPress={handlePickAndVerifyPdf}
+                activeOpacity={0.8}
+              >
+                <Upload size={20} color="#2563EB" />
+                <Text style={styles.pdfUploadButtonText}>
+                  {pdfStatus === 'error'
+                    ? 'Enviar outro arquivo PDF (máx. 5MB)'
+                    : 'Selecionar documento PDF (máx. 5MB)'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {pdfStatus === 'error' && pdfError ? (
+              <View style={styles.pdfErrorCard}>
+                <AlertCircle size={18} color={WorkEzTheme.colors.danger} />
+                <Text style={styles.pdfErrorText}>{pdfError}</Text>
+              </View>
+            ) : null}
+
+            {pdfValidationResult?.metadata ? (
+              <View style={{ marginTop: 10, padding: 10, backgroundColor: '#F8FAFC', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#334155', marginBottom: 4 }}>
+                  Diagnóstico de Metadados do PDF:
+                </Text>
+                <Text style={{ fontSize: 11, color: '#475569', lineHeight: 16 }}>
+                  • Esperado (limpo): {pdfValidationResult.metadata.customMetadata?.ExpectedCleanDigits || pdfValidationResult.expectedDocumentNumber.replace(/\D/g, '')}{'\n'}
+                  • Extraído do PDF (limpo): {pdfValidationResult.metadata.customMetadata?.FoundCleanCandidates || pdfValidationResult.extractedDocumentNumber?.replace(/\D/g, '') || '(nenhum)'}{'\n'}
+                  • Páginas: {pdfValidationResult.metadata.pageCount ?? 1}{'\n'}
+                  • Título: {pdfValidationResult.metadata.title || '(vazio)'}{'\n'}
+                  • Autor: {pdfValidationResult.metadata.author || '(vazio)'}{'\n'}
+                  • Assunto: {pdfValidationResult.metadata.subject || '(vazio)'}{'\n'}
+                  • Palavras-chave: {pdfValidationResult.metadata.keywords || '(vazio)'}{'\n'}
+                  • Criador: {pdfValidationResult.metadata.creator || '(vazio)'}{'\n'}
+                  • Produtor: {pdfValidationResult.metadata.producer || '(vazio)'}{'\n'}
+                  • Caracteres extraídos: {pdfValidationResult.metadata.extractedTextLength ?? 0}
+                  {pdfValidationResult.metadata.extractedTextPreview
+                    ? `\n• Prévia: "${pdfValidationResult.metadata.extractedTextPreview.slice(0, 140)}"`
+                    : '\n• Prévia: (nenhum texto selecionável encontrado no PDF)'}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
           {/* E-mail */}
           <View style={styles.inputWrapper}>
-            <Mail size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Mail size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               placeholder="E-mail"
               value={formData.email}
@@ -217,7 +428,7 @@ export default function SignUp() {
 
           {/* Telefone com máscara */}
           <View style={styles.inputWrapper}>
-            <Phone size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Phone size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               placeholder="Telefone (00) 00000-0000"
               value={formData.phone}
@@ -232,7 +443,7 @@ export default function SignUp() {
 
           {/* Senha */}
           <View style={styles.inputWrapper}>
-            <Lock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Lock size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               secureTextEntry
               placeholder="Criar senha (mín. 8 caracteres)"
@@ -246,7 +457,7 @@ export default function SignUp() {
 
           {/* Confirmar Senha */}
           <View style={styles.inputWrapper}>
-            <Lock size={20} color={WorkEzTheme.colors.textSecondary} style={styles.inputIcon} />
+            <Lock size={20} color={LightColors.textSecondary} style={styles.inputIcon} />
             <Input
               secureTextEntry
               placeholder="Confirmar senha"
@@ -260,14 +471,19 @@ export default function SignUp() {
         </View>
 
         {/* Erro da API */}
-        {apiError && (
+        {apiError ? (
           <View style={styles.apiErrorContainer}>
             <Text style={styles.apiErrorText}>{apiError}</Text>
           </View>
-        )}
+        ) : null}
 
         <View style={styles.footerContainer}>
-          <Button variant="secondary" fullWidth onPress={handleSignUp} disabled={loading}>
+          <Button
+            variant="secondary"
+            fullWidth
+            onPress={handleSignUp}
+            disabled={loading || pdfStatus !== 'verified'}
+          >
             {loading ? <ActivityIndicator color="#2563EB" size="small" /> : 'Criar conta'}
           </Button>
 
@@ -290,31 +506,12 @@ export default function SignUp() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: WorkEzTheme.colors.background,
+    backgroundColor: LightColors.background,
   },
   scrollContent: {
     flexGrow: 1,
     padding: 24,
-    justifyContent: 'center',
-  },
-  header: {
-    marginBottom: 32,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginBottom: 32,
-  },
-  title: {
-    ...WorkEzTheme.typography.xl,
-    fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
+    paddingTop: 16,
   },
   formContainer: {
     gap: 16,
@@ -332,6 +529,110 @@ const styles = StyleSheet.create({
   inputWithIcon: {
     paddingLeft: 48,
   },
+  pdfSection: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    padding: 16,
+    gap: 10,
+  },
+  pdfSectionTitle: {
+    ...WorkEzTheme.typography.sm,
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
+    color: WorkEzTheme.colors.text,
+  },
+  pdfSectionDescription: {
+    ...WorkEzTheme.typography.xs,
+    color: WorkEzTheme.colors.textSecondary,
+    lineHeight: 18,
+  },
+  pdfUploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#93C5FD',
+    borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    marginTop: 4,
+  },
+  pdfUploadButtonError: {
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
+  },
+  pdfUploadButtonText: {
+    ...WorkEzTheme.typography.sm,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: '#2563EB',
+  },
+  pdfCardValidating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  pdfValidatingText: {
+    ...WorkEzTheme.typography.sm,
+    color: '#1E3A8A',
+    fontWeight: WorkEzTheme.typography.fontWeight.medium,
+  },
+  pdfCardVerified: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    borderRadius: 12,
+    padding: 14,
+    gap: 6,
+  },
+  pdfVerifiedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pdfVerifiedTitle: {
+    ...WorkEzTheme.typography.sm,
+    fontWeight: WorkEzTheme.typography.fontWeight.bold,
+    color: '#15803D',
+  },
+  pdfMetaText: {
+    ...WorkEzTheme.typography.xs,
+    color: '#166534',
+  },
+  reuploadLink: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  reuploadLinkText: {
+    ...WorkEzTheme.typography.xs,
+    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
+    color: '#2563EB',
+  },
+  pdfErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    padding: 12,
+  },
+  pdfErrorText: {
+    ...WorkEzTheme.typography.xs,
+    color: WorkEzTheme.colors.danger,
+    flex: 1,
+  },
   apiErrorContainer: {
     backgroundColor: '#FEF2F2',
     borderRadius: 8,
@@ -342,7 +643,7 @@ const styles = StyleSheet.create({
   },
   apiErrorText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.danger,
+    color: LightColors.danger,
     textAlign: 'center',
   },
   footerContainer: {
@@ -356,7 +657,7 @@ const styles = StyleSheet.create({
   },
   loginText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
+    color: LightColors.textSecondary,
   },
   loginLinkText: {
     ...WorkEzTheme.typography.sm,

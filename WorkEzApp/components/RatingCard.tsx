@@ -1,6 +1,9 @@
 import { Star, User } from 'lucide-react-native';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { WorkEzTheme } from '../constants/theme';
+import { useAppTheme } from '../contexts/ThemeContext';
+import { resolveImageUrl } from '../services/api';
+import { formatDate } from '../utils/date';
 
 interface RatingCardProps {
   clientName: string;
@@ -19,50 +22,96 @@ export function RatingCard({
   date,
   tags = [],
 }: RatingCardProps) {
+  const { isDark, colors } = useAppTheme();
+  let displayTags = tags && tags.length > 0 ? [...tags] : [];
+  let displayComment = (comment || '').trim();
+
+  const bracketMatch = displayComment.match(/^\[(.*?)\]\s*(.*)$/s);
+  if (bracketMatch) {
+    const extractedTags = bracketMatch[1]
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    if (displayTags.length === 0) {
+      displayTags = extractedTags;
+    }
+    displayComment = bracketMatch[2].trim();
+  }
+
+  displayComment = displayComment.replace(/^["'“”«»]+|["'“”«»]+$/g, '').trim();
+
+  if (
+    displayComment === 'Serviço avaliado pelo cliente.' ||
+    displayComment === 'Nenhum comentário deixado.' ||
+    displayComment.toLowerCase() === 'sem comentário' ||
+    displayComment.toLowerCase() === 'sem comentario'
+  ) {
+    displayComment = '';
+  }
+
+  const hasExtraContent = Boolean(displayComment || displayTags.length > 0);
+
   return (
-    <View style={styles.cardContainer}>
+    <View
+      style={[
+        styles.cardContainer,
+        {
+          backgroundColor: colors.backgroundCard,
+          borderColor: colors.border,
+        },
+      ]}
+    >
       <View style={styles.contentRow}>
         {clientPhoto ? (
           <Image
-            source={{ uri: clientPhoto }}
+            source={{ uri: resolveImageUrl(clientPhoto) || clientPhoto }}
             style={styles.avatar}
           />
         ) : (
-          <View style={[styles.avatar, { backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' }]}>
-            <User size={24} color={WorkEzTheme.colors.textSecondary} />
+          <View style={[styles.avatar, { backgroundColor: colors.backgroundAlt, alignItems: 'center', justifyContent: 'center' }]}>
+            <User size={24} color={colors.textSecondary} />
           </View>
         )}
 
         <View style={styles.infoContainer}>
           <View style={styles.headerRow}>
-            <Text style={styles.clientName}>{clientName}</Text>
-            <Text style={styles.dateText}>{date}</Text>
+            <Text style={[styles.clientName, { color: colors.text }]}>{clientName}</Text>
+            <Text style={[styles.dateText, { color: colors.textSecondary }]}>{formatDate(date)}</Text>
           </View>
 
-          <View style={styles.ratingRow}>
+          <View style={[styles.ratingRow, !hasExtraContent && { marginBottom: 0 }]}>
             {[1, 2, 3, 4, 5].map((star) => (
               <Star
                 key={star}
                 size={16}
-                color={star <= rating ? WorkEzTheme.colors.warning : WorkEzTheme.colors.border}
-                fill={star <= rating ? WorkEzTheme.colors.warning : 'transparent'}
+                color={star <= rating ? colors.warning : colors.border}
+                fill={star <= rating ? colors.warning : 'transparent'}
               />
             ))}
           </View>
 
-          <Text style={styles.commentText}>{comment}</Text>
-
-          {tags.length > 0 && (
+          {displayTags.length > 0 && (
             <View style={styles.tagsContainer}>
-              {tags.map((tag, index) => (
-                <View key={index} style={styles.tagBadge}>
-                  <Text style={styles.tagText}>
+              {displayTags.map((tag, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.tagBadge,
+                    isDark && { backgroundColor: 'rgba(37, 99, 235, 0.16)', borderColor: 'rgba(96, 165, 250, 0.35)' },
+                  ]}
+                >
+                  <Text style={[styles.tagText, isDark && { color: '#93C5FD' }]}>
                     {tag}
                   </Text>
                 </View>
               ))}
             </View>
           )}
+
+          {displayComment ? (
+            <Text style={[styles.commentText, { color: colors.textSecondary }]}>{displayComment}</Text>
+          ) : null}
         </View>
       </View>
     </View>
@@ -71,11 +120,9 @@ export function RatingCard({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
     borderRadius: WorkEzTheme.borderRadius.xl,
     padding: WorkEzTheme.spacing.md,
     borderWidth: 1,
-    borderColor: WorkEzTheme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -105,11 +152,12 @@ const styles = StyleSheet.create({
   clientName: {
     ...WorkEzTheme.typography.base,
     fontWeight: WorkEzTheme.typography.fontWeight.medium,
-    color: WorkEzTheme.colors.text,
+    flex: 1,
+    marginRight: 8,
   },
   dateText: {
     ...WorkEzTheme.typography.xs,
-    color: WorkEzTheme.colors.textSecondary,
+    flexShrink: 0,
   },
   ratingRow: {
     flexDirection: 'row',
@@ -119,22 +167,26 @@ const styles = StyleSheet.create({
   },
   commentText: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
-    marginBottom: 12,
+    lineHeight: 20,
+    marginTop: 4,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
+    marginBottom: 8,
   },
   tagBadge: {
-    backgroundColor: 'rgba(38, 255, 245, 0.1)', // Primary with opacity
-    borderRadius: WorkEzTheme.borderRadius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   tagText: {
-    ...WorkEzTheme.typography.xs,
-    color: WorkEzTheme.colors.primary,
+    fontSize: 12,
+    color: '#1D4ED8',
+    fontWeight: '600',
   },
 });

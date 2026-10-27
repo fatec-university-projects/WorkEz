@@ -1,8 +1,24 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Wrench, Brush, Zap, Paintbrush, Hammer, Settings } from 'lucide-react-native';
+import {
+  Wrench,
+  Zap,
+  Paintbrush,
+  Hammer,
+  Settings,
+  Droplet,
+  Sparkles,
+  Wind,
+  Key,
+  Trees,
+  Cpu,
+  ShieldCheck,
+} from 'lucide-react-native';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
+import { DEFAULT_CATEGORIES } from '../../constants/defaultCategories';
 import { useFetch } from '../../hooks/useFetch';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { useAppTheme } from '../../contexts/ThemeContext';
 
 interface Category {
   id: string;
@@ -10,58 +26,152 @@ interface Category {
   description?: string;
 }
 
-const CATEGORY_UI_MAP: Record<string, any> = {
-  'Encanador': { icon: Wrench, bgColor: '#EFF6FF', borderColor: '#BFDBFE', iconColor: '#3B82F6' },
-  'Eletricista': { icon: Zap, bgColor: '#FEFCE8', borderColor: '#FEF08A', iconColor: '#EAB308' },
-  'Diarista': { icon: Brush, bgColor: '#FAF5FF', borderColor: '#E9D5FF', iconColor: '#A855F7' },
-  'Pintor': { icon: Paintbrush, bgColor: '#F0FDF4', borderColor: '#BBF7D0', iconColor: '#22C55E' },
-  'Montador': { icon: Hammer, bgColor: '#FFF7ED', borderColor: '#FED7AA', iconColor: '#F97316' },
-  'Técnico geral': { icon: Settings, bgColor: '#FEF2F2', borderColor: '#FECACA', iconColor: '#EF4444' },
-};
+function getCategoryConfig(name: string, isDark: boolean) {
+  const norm = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  if (norm.includes('jard') || norm.includes('grama') || norm.includes('poda') || norm.includes('paisag')) {
+    return {
+      icon: Trees,
+      bgColor: isDark ? 'rgba(5, 150, 105, 0.16)' : '#ECFDF5',
+      borderColor: isDark ? 'rgba(52, 211, 153, 0.3)' : '#A7F3D0',
+      iconColor: isDark ? '#34D399' : '#059669',
+    };
+  }
+  if (norm.includes('encan') || norm.includes('hidraul') || norm.includes('vazam') || norm.includes('cano') || norm.includes('torneira')) {
+    return {
+      icon: Droplet,
+      bgColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF',
+      borderColor: isDark ? 'rgba(96, 165, 250, 0.3)' : '#BFDBFE',
+      iconColor: isDark ? '#60A5FA' : '#2563EB',
+    };
+  }
+  if (norm.includes('eletri') || norm.includes('luz') || norm.includes('fiac') || norm.includes('disjunt') || norm.includes('tomada')) {
+    return {
+      icon: Zap,
+      bgColor: isDark ? 'rgba(202, 138, 4, 0.16)' : '#FEFCE8',
+      borderColor: isDark ? 'rgba(250, 204, 21, 0.3)' : '#FEF08A',
+      iconColor: isDark ? '#FACC15' : '#CA8A04',
+    };
+  }
+  if (norm.includes('diar') || norm.includes('limp') || norm.includes('faxin') || norm.includes('passad')) {
+    return {
+      icon: Sparkles,
+      bgColor: isDark ? 'rgba(147, 51, 234, 0.16)' : '#FAF5FF',
+      borderColor: isDark ? 'rgba(192, 132, 252, 0.3)' : '#E9D5FF',
+      iconColor: isDark ? '#C084FC' : '#9333EA',
+    };
+  }
+  if (norm.includes('pint') || norm.includes('parede') || norm.includes('verniz')) {
+    return {
+      icon: Paintbrush,
+      bgColor: isDark ? 'rgba(22, 163, 74, 0.16)' : '#F0FDF4',
+      borderColor: isDark ? 'rgba(74, 222, 128, 0.3)' : '#BBF7D0',
+      iconColor: isDark ? '#4ADE80' : '#16A34A',
+    };
+  }
+  if (norm.includes('mont') || norm.includes('marcen') || norm.includes('move')) {
+    return {
+      icon: Hammer,
+      bgColor: isDark ? 'rgba(234, 88, 12, 0.16)' : '#FFF7ED',
+      borderColor: isDark ? 'rgba(251, 146, 60, 0.3)' : '#FED7AA',
+      iconColor: isDark ? '#FB923C' : '#EA580C',
+    };
+  }
+  if (norm.includes('pedreir') || norm.includes('alvenar') || norm.includes('obra') || norm.includes('reforma') || norm.includes('constru')) {
+    return {
+      icon: Hammer,
+      bgColor: isDark ? 'rgba(148, 163, 184, 0.15)' : '#F1F5F9',
+      borderColor: isDark ? 'rgba(148, 163, 184, 0.28)' : '#CBD5E1',
+      iconColor: isDark ? '#CBD5E1' : '#475569',
+    };
+  }
+  if (norm.includes('serralh') || norm.includes('solda') || norm.includes('portao') || norm.includes('grade')) {
+    return {
+      icon: Settings,
+      bgColor: isDark ? 'rgba(2, 132, 199, 0.16)' : '#F0F9FF',
+      borderColor: isDark ? 'rgba(56, 189, 248, 0.3)' : '#BAE6FD',
+      iconColor: isDark ? '#38BDF8' : '#0284C7',
+    };
+  }
+  if (norm.includes('dedetiz') || norm.includes('praga') || norm.includes('inset')) {
+    return {
+      icon: ShieldCheck,
+      bgColor: isDark ? 'rgba(13, 148, 136, 0.16)' : '#ECFDF5',
+      borderColor: isDark ? 'rgba(45, 212, 191, 0.3)' : '#A7F3D0',
+      iconColor: isDark ? '#2DD4BF' : '#0D9488',
+    };
+  }
+  if (norm.includes('ar-cond') || norm.includes('ar cond') || norm.includes('clima') || norm.includes('refrig') || norm.includes('split') || norm.includes('ventilador')) {
+    return {
+      icon: Wind,
+      bgColor: isDark ? 'rgba(2, 132, 199, 0.16)' : '#F0F9FF',
+      borderColor: isDark ? 'rgba(56, 189, 248, 0.3)' : '#BAE6FD',
+      iconColor: isDark ? '#38BDF8' : '#0284C7',
+    };
+  }
+  if (norm.includes('chave') || norm.includes('tranc') || norm.includes('fechad')) {
+    return {
+      icon: Key,
+      bgColor: isDark ? 'rgba(217, 119, 6, 0.16)' : '#FFFBEB',
+      borderColor: isDark ? 'rgba(251, 191, 36, 0.3)' : '#FDE68A',
+      iconColor: isDark ? '#FBBF24' : '#D97706',
+    };
+  }
+  if (norm.includes('tec') || norm.includes('comput') || norm.includes('celul') || norm.includes('eletron')) {
+    return {
+      icon: Cpu,
+      bgColor: isDark ? 'rgba(148, 163, 184, 0.15)' : '#F8FAFC',
+      borderColor: isDark ? 'rgba(148, 163, 184, 0.28)' : '#CBD5E1',
+      iconColor: isDark ? '#CBD5E1' : '#475569',
+    };
+  }
+  return {
+    icon: Wrench,
+    bgColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#F8FAFC',
+    borderColor: isDark ? 'rgba(96, 165, 250, 0.3)' : '#E2E8F0',
+    iconColor: isDark ? '#60A5FA' : '#2563EB',
+  };
+}
 
 export default function SelectCategory() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
 
   const { data: categories, loading, error } = useFetch<Category[]>('/api/Categories');
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Selecione o serviço
-          </Text>
-        </View>
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
+      <ScreenHeader title="Selecione o serviço" showBack />
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
-            <Text style={styles.loadingText}>Carregando categorias...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Carregando categorias...</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
           </View>
         ) : (
-          categories?.map((category) => {
-            const uiConfig = CATEGORY_UI_MAP[category.name] || { icon: Settings, bgColor: '#F1F5F9', borderColor: '#E2E8F0', iconColor: '#64748B' };
+          (categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES).map((category) => {
+            const uiConfig = getCategoryConfig(category.name, isDark);
             const Icon = uiConfig.icon;
             return (
               <TouchableOpacity
                 key={category.id}
-                onPress={() => router.push({ pathname: '/client/describe', params: { category: category.name, categoryId: category.id } } as any)}
+                onPress={() =>
+                  router.push({
+                    pathname: '/client/describe',
+                    params: { category: category.name, categoryId: category.id },
+                  } as any)
+                }
                 style={[
                   styles.categoryCard,
-                  { backgroundColor: uiConfig.bgColor, borderColor: uiConfig.borderColor }
+                  { backgroundColor: uiConfig.bgColor, borderColor: uiConfig.borderColor },
                 ]}
                 activeOpacity={0.8}
               >
@@ -70,10 +180,8 @@ export default function SelectCategory() {
                     <Icon size={32} color={uiConfig.iconColor} />
                   </View>
                   <View style={styles.textWrapper}>
-                    <Text style={styles.categoryName}>
-                      {category.name}
-                    </Text>
-                    <Text style={styles.categoryDesc}>
+                    <Text style={[styles.categoryName, { color: colors.text }]}>{category.name}</Text>
+                    <Text style={[styles.categoryDesc, { color: colors.textSecondary }]}>
                       {category.description || 'Descrição indisponível'}
                     </Text>
                   </View>
@@ -90,29 +198,6 @@ export default function SelectCategory() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
-  },
-  header: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    paddingHorizontal: WorkEzTheme.spacing.lg,
-    paddingVertical: WorkEzTheme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    padding: WorkEzTheme.spacing.sm,
-    backgroundColor: WorkEzTheme.colors.backgroundAlt,
-    borderRadius: WorkEzTheme.borderRadius.lg,
-  },
-  headerTitle: {
-    ...WorkEzTheme.typography.xl,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: WorkEzTheme.colors.text,
   },
   content: {
     padding: WorkEzTheme.spacing.lg,
@@ -142,11 +227,9 @@ const styles = StyleSheet.create({
   categoryName: {
     ...WorkEzTheme.typography.lg,
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: WorkEzTheme.colors.text,
   },
   categoryDesc: {
     ...WorkEzTheme.typography.sm,
-    color: WorkEzTheme.colors.textSecondary,
     marginTop: 2,
   },
   centerContainer: {
@@ -155,10 +238,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: WorkEzTheme.colors.textSecondary,
   },
   errorText: {
-    color: WorkEzTheme.colors.danger,
     textAlign: 'center',
   },
 });

@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { ShieldCheck, Zap, CreditCard, ChevronRight } from 'lucide-react-native';
 import { Button } from '../components/Button';
 import { View, Text, StyleSheet } from 'react-native';
-import { WorkEzTheme } from '../constants/theme';
+import { WorkEzTheme, LightColors } from '../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const slides = [
@@ -41,10 +41,10 @@ export default function Onboarding() {
   const Icon = slide.icon;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Icon size={48} color={WorkEzTheme.colors.primary} />
+          <Icon size={48} color={LightColors.primary} />
         </View>
 
         <Text style={styles.title}>
@@ -91,7 +91,7 @@ export default function Onboarding() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: WorkEzTheme.colors.background,
+    backgroundColor: LightColors.background,
   },
   content: {
     flex: 1,
@@ -111,13 +111,13 @@ const styles = StyleSheet.create({
   title: {
     ...WorkEzTheme.typography['2xl'],
     fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
+    color: LightColors.text,
     textAlign: 'center',
     marginBottom: 16,
   },
   description: {
     ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
+    color: LightColors.textSecondary,
     textAlign: 'center',
     maxWidth: 300,
     lineHeight: 24,
@@ -133,11 +133,11 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     width: 32,
-    backgroundColor: WorkEzTheme.colors.primary,
+    backgroundColor: LightColors.primary,
   },
   dotInactive: {
     width: 8,
-    backgroundColor: WorkEzTheme.colors.border,
+    backgroundColor: LightColors.border,
   },
   footer: {
     padding: 24,

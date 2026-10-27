@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
-import { Slot, usePathname, useRouter } from 'expo-router';
+import { Redirect, Slot, usePathname, useRouter } from 'expo-router';
 import { BottomNav } from '../../components/BottomNav';
 import { View, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { WorkEzTheme } from '../../constants/theme';
+import { useAppTheme } from '../../contexts/ThemeContext';
 
-// AUDITORIA FIX: Rotas sem BottomNav
 const ROUTES_WITHOUT_NAV = [
   '/client/searching',
   '/client/found',
@@ -13,24 +12,19 @@ const ROUTES_WITHOUT_NAV = [
   '/client/payment',
   '/client/completed',
   '/client/rating',
+  '/client/chat',
 ];
-
-// ─── Route Guard — Área do Cliente ───────────────────────────────────────────
-// AUDITORIA FIX:
-// - Implementado Route Guard para proteger todas as rotas do cliente
-// - Valida autenticação e papel (Customer)
-// - Redireciona para /login se não autenticado
-// - Aguarda carregamento do estado de auth antes de renderizar
 
 export default function ClientLayout() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoading, isAuthenticated, signIn } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
+  const { colors } = useAppTheme();
 
   const showNav = !ROUTES_WITHOUT_NAV.some(route => pathname.startsWith(route));
 
   useEffect(() => {
-    if (isLoading) return; // Aguarda carregamento
+    if (isLoading) return;
 
     if (!isAuthenticated || !user) {
       router.replace('/login');
@@ -42,23 +36,25 @@ export default function ClientLayout() {
     }
   }, [isLoading, isAuthenticated, user]);
 
-  // Tela de loading enquanto verifica autenticação
   if (isLoading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.backgroundAlt }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
-  // Não renderiza conteúdo protegido se não autenticado
-  if (!isAuthenticated || user?.role !== 'Customer') {
-    return null;
+  if (!isAuthenticated || !user) {
+    return <Redirect href="/login" />;
+  }
+
+  if (user.role !== 'Customer') {
+    return <Redirect href="/provider" />;
   }
 
   return (
-    <View className="flex-1 bg-[#F8FAFC]">
-      <View className="flex-1">
+    <View style={{ flex: 1, backgroundColor: colors.backgroundAlt }}>
+      <View style={{ flex: 1 }}>
         <Slot />
       </View>
       {showNav && <BottomNav type="client" />}

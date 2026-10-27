@@ -1,10 +1,12 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ServiceCard } from '../../components/ServiceCard';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 interface Service {
   id: string;
@@ -18,6 +20,7 @@ interface Service {
 export default function MyServices() {
   const router = useRouter();
   const { user } = useAuth();
+  const { isDark, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<'in-progress' | 'completed' | 'cancelled'>('in-progress');
 
   const { data: customer } = useFetch<any>(
@@ -36,11 +39,19 @@ export default function MyServices() {
     }, [customer, refetch])
   );
 
+  useEffect(() => {
+    if (!customer) return;
+    const timer = setInterval(() => {
+      refetch();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [customer, refetch]);
+
   const services = useMemo(() => {
     const defaultGrouping: Record<'in-progress' | 'completed' | 'cancelled', Service[]> = {
       'in-progress': [],
-      'completed': [],
-      'cancelled': [],
+      completed: [],
+      cancelled: [],
     };
     if (!fetchedServices) return defaultGrouping;
 
@@ -62,13 +73,18 @@ export default function MyServices() {
     }, defaultGrouping);
   }, [fetchedServices]);
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Meus serviços</Text>
-      </View>
+  const activeColor = isDark ? '#60A5FA' : '#2563EB';
 
-      <View style={styles.tabsContainer}>
+  return (
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
+      <ScreenHeader title="Meus serviços" />
+
+      <View
+        style={[
+          styles.tabsContainer,
+          { backgroundColor: colors.backgroundCard, borderBottomColor: colors.border },
+        ]}
+      >
         <View style={styles.tabsRow}>
           {[
             { key: 'in-progress', label: 'Em andamento' },
@@ -82,10 +98,16 @@ export default function MyServices() {
                 onPress={() => setActiveTab(tab.key as typeof activeTab)}
                 style={styles.tabButton}
               >
-                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    { color: colors.textSecondary },
+                    isActive && [styles.tabTextActive, { color: activeColor }],
+                  ]}
+                >
                   {tab.label}
                 </Text>
-                {isActive && <View style={styles.activeIndicator} />}
+                {isActive && <View style={[styles.activeIndicator, { backgroundColor: activeColor }]} />}
               </TouchableOpacity>
             );
           })}
@@ -95,12 +117,12 @@ export default function MyServices() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {loading ? (
           <View style={{ padding: 48, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={WorkEzTheme.colors.primary} />
-            <Text style={{ marginTop: 16, color: WorkEzTheme.colors.textSecondary }}>Carregando serviços...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={{ marginTop: 16, color: colors.textSecondary }}>Carregando serviços...</Text>
           </View>
         ) : error ? (
           <View style={{ padding: 48, alignItems: 'center' }}>
-            <Text style={{ color: WorkEzTheme.colors.danger }}>{error}</Text>
+            <Text style={{ color: colors.danger }}>{error}</Text>
           </View>
         ) : (
           <View style={styles.servicesList}>
@@ -112,13 +134,15 @@ export default function MyServices() {
                 status={activeTab as any}
                 date={service.date}
                 professional={service.professional}
-                onClick={() => router.push(`/client/tracking/${service.id}`)}
+                onClick={() => router.push(`/client/tracking/${service.id}?from=services` as any)}
               />
             ))}
 
             {services[activeTab].length === 0 && (
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Nenhum serviço encontrado</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Nenhum serviço encontrado
+                </Text>
               </View>
             )}
           </View>
@@ -131,24 +155,9 @@ export default function MyServices() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
-  },
-  headerTitle: {
-    ...WorkEzTheme.typography.xl,
-    fontWeight: WorkEzTheme.typography.fontWeight.bold,
-    color: WorkEzTheme.colors.text,
   },
   tabsContainer: {
-    backgroundColor: WorkEzTheme.colors.backgroundCard,
     borderBottomWidth: 1,
-    borderBottomColor: WorkEzTheme.colors.border,
     paddingHorizontal: 24,
   },
   tabsRow: {
@@ -162,10 +171,8 @@ const styles = StyleSheet.create({
   },
   tabText: {
     ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
   },
   tabTextActive: {
-    color: '#2563EB',
     fontWeight: WorkEzTheme.typography.fontWeight.semibold,
   },
   activeIndicator: {
@@ -174,7 +181,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: '#2563EB',
   },
   scrollContent: {
     flexGrow: 1,
@@ -189,6 +195,5 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...WorkEzTheme.typography.base,
-    color: WorkEzTheme.colors.textSecondary,
   },
 });

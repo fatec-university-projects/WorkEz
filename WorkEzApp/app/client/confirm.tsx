@@ -1,13 +1,16 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, MapPin, FileText, Image as ImageIcon, Wrench } from 'lucide-react-native';
+import { MapPin, FileText, Image as ImageIcon, Wrench } from 'lucide-react-native';
 import { Button } from '../../components/Button';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WorkEzTheme } from '../../constants/theme';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { useAppTheme } from '../../contexts/ThemeContext';
+import { resolveImageUrl } from '../../services/api';
 
 export default function ConfirmCall() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
   
   const {
     category,
@@ -20,6 +23,8 @@ export default function ConfirmCall() {
     neighborhood,
     city,
     state,
+    latitude,
+    longitude,
     images
   } = useLocalSearchParams<{
     category: string;
@@ -32,54 +37,52 @@ export default function ConfirmCall() {
     neighborhood: string;
     city: string;
     state: string;
+    latitude?: string;
+    longitude?: string;
     images: string;
   }>();
 
-  const parsedImages: string[] = images ? JSON.parse(images) : [];
+  const parsedImages: string[] = (() => {
+    if (!images) return [];
+    if (Array.isArray(images)) return images;
+    try {
+      const p = JSON.parse(images);
+      return Array.isArray(p) ? p : [p];
+    } catch {
+      return [images];
+    }
+  })();
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={24} color={WorkEzTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Confirmar chamado
-          </Text>
-        </View>
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.backgroundAlt }]}>
+      <ScreenHeader title="Confirmar chamado" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.cardTitle}>
+        <View style={[styles.summaryCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>
             Resumo do serviço
           </Text>
 
           <View style={styles.rowsWrapper}>
             {/* Categoria */}
             <View style={styles.rowItem}>
-              <View style={[styles.iconWrapper, { backgroundColor: '#EFF6FF' }]}>
-                <Wrench size={20} color="#3B82F6" />
+              <View style={[styles.iconWrapper, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF' }]}>
+                <Wrench size={20} color={isDark ? '#60A5FA' : '#3B82F6'} />
               </View>
               <View style={styles.textWrapper}>
-                <Text style={styles.rowLabel}>Categoria</Text>
-                <Text style={styles.rowValue}>{category || 'Encanador'}</Text>
+                <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>Categoria</Text>
+                <Text style={[styles.rowValue, { color: colors.text }]}>{category || 'Encanador'}</Text>
               </View>
             </View>
 
             {/* Descrição */}
             <View style={styles.rowItem}>
-              <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
-                <FileText size={20} color="#64748B" />
+              <View style={[styles.iconWrapper, { backgroundColor: colors.backgroundAlt }]}>
+                <FileText size={20} color={colors.textSecondary} />
               </View>
               <View style={styles.textWrapper}>
-                <Text style={styles.rowLabel}>Descrição</Text>
-                <Text style={styles.rowValue}>
+                <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>Descrição</Text>
+                <Text style={[styles.rowValue, { color: colors.text }]}>
                   {description || 'Sem descrição fornecida.'}
                 </Text>
               </View>
@@ -87,12 +90,12 @@ export default function ConfirmCall() {
 
             {/* Endereço */}
             <View style={styles.rowItem}>
-              <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
-                <MapPin size={20} color="#64748B" />
+              <View style={[styles.iconWrapper, { backgroundColor: colors.backgroundAlt }]}>
+                <MapPin size={20} color={colors.textSecondary} />
               </View>
               <View style={styles.textWrapper}>
-                <Text style={styles.rowLabel}>Endereço</Text>
-                <Text style={styles.rowValue}>
+                <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>Endereço</Text>
+                <Text style={[styles.rowValue, { color: colors.text }]}>
                   {street ? `${street}, nº ${number}${complement ? ` - ${complement}` : ''}\n${neighborhood} - ${city}/${state} (CEP: ${cep})` : 'Sem endereço fornecido.'}
                 </Text>
               </View>
@@ -101,15 +104,15 @@ export default function ConfirmCall() {
             {/* Imagens */}
             {parsedImages.length > 0 && (
               <View style={styles.rowItem}>
-                <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
-                  <ImageIcon size={20} color="#64748B" />
+                <View style={[styles.iconWrapper, { backgroundColor: colors.backgroundAlt }]}>
+                  <ImageIcon size={20} color={colors.textSecondary} />
                 </View>
                 <View style={styles.textWrapper}>
-                  <Text style={styles.rowLabel}>Fotos anexadas</Text>
+                  <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>Fotos anexadas</Text>
                   <View style={styles.imagesGrid}>
                     {parsedImages.map((imgUrl, idx) => (
-                      <View key={idx} style={styles.imageThumbContainer}>
-                        <Image source={{ uri: imgUrl }} style={styles.imageThumb} />
+                      <View key={idx} style={[styles.imageThumbContainer, { backgroundColor: colors.backgroundAlt }]}>
+                        <Image source={{ uri: resolveImageUrl(imgUrl) || imgUrl }} style={styles.imageThumb} />
                       </View>
                     ))}
                   </View>
@@ -119,18 +122,26 @@ export default function ConfirmCall() {
           </View>
         </View>
 
-        <View style={styles.infoBanner}>
-          <Text style={styles.infoText}>
-            💡 <Text style={styles.infoTextBold}>Como funciona:</Text> Ao confirmar, buscaremos profissionais disponíveis próximos a você. O pagamento só será liberado após a conclusão do serviço.
+        <View
+          style={[
+            styles.infoBanner,
+            {
+              backgroundColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF',
+              borderColor: isDark ? 'rgba(96, 165, 250, 0.35)' : '#BFDBFE',
+            },
+          ]}
+        >
+          <Text style={[styles.infoText, { color: isDark ? '#93C5FD' : '#1D4ED8' }]}>
+            💡 <Text style={{ fontWeight: 'bold' }}>Como funciona:</Text> Ao confirmar, buscaremos profissionais disponíveis próximos a você. O pagamento só será liberado após a conclusão do serviço.
           </Text>
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
+      <View style={[styles.footer, { backgroundColor: colors.backgroundCard, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
         <View style={styles.actionsWrapper}>
           <Button
             fullWidth
-            onPress={() => router.push({
+            onPress={() => router.replace({
               pathname: '/client/searching',
               params: {
                 category,
@@ -143,6 +154,8 @@ export default function ConfirmCall() {
                 neighborhood,
                 city,
                 state,
+                latitude,
+                longitude,
                 images
               }
             } as any)}
@@ -165,29 +178,6 @@ export default function ConfirmCall() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  headerTitle: {
-    ...WorkEzTheme.typography.lg,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: '#0F172A',
   },
   scrollContent: {
     padding: 24,
@@ -195,11 +185,9 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   summaryCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -207,9 +195,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardTitle: {
-    ...WorkEzTheme.typography.lg,
-    fontWeight: WorkEzTheme.typography.fontWeight.semibold,
-    color: '#0F172A',
+    fontSize: 18,
+    fontWeight: '600',
     marginBottom: 20,
   },
   rowsWrapper: {
@@ -231,14 +218,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowLabel: {
-    ...WorkEzTheme.typography.xs,
-    color: '#64748B',
+    fontSize: 12,
     marginBottom: 2,
   },
   rowValue: {
-    ...WorkEzTheme.typography.base,
-    fontWeight: WorkEzTheme.typography.fontWeight.medium,
-    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '500',
   },
   imagesGrid: {
     flexDirection: 'row',
@@ -251,7 +236,6 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#E2E8F0',
   },
   imageThumb: {
     width: '100%',
@@ -259,29 +243,21 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   infoBanner: {
-    backgroundColor: '#EFF6FF',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
     borderRadius: 16,
     padding: 16,
   },
   infoText: {
-    ...WorkEzTheme.typography.sm,
-    color: '#1D4ED8',
+    fontSize: 14,
     lineHeight: 20,
-  },
-  infoTextBold: {
-    fontWeight: 'bold',
   },
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
     padding: 24,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
   },
   actionsWrapper: {
     gap: 12,
