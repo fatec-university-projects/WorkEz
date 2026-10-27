@@ -117,7 +117,7 @@ export default function RegistrationAnalysis() {
           </View>
         </View>
 
-        <Button fullWidth onPress={() => router.push('/')}>
+        <Button fullWidth onPress={() => router.replace('/provider' as any)}>
           Voltar ao início
         </Button>
       </ScrollView>

@@ -29,7 +29,8 @@ public record ServiceProviderProfileDto(
     ReviewStatsDto ReviewStats,
     double? Latitude = null,
     double? Longitude = null,
-    double ServiceRadiusKm = 15.0
+    double ServiceRadiusKm = 15.0,
+    string? DocumentNumber = null
 );
 
 public record ProviderCategoryDto(Guid Id, string Name);
@@ -348,7 +349,7 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
             ProfessionalDescription: provider.ProfessionalDescription,
             AverageRating: provider.AverageRating,
             CompletedServicesCount: completedCount,
-            DocumentVerified: user?.DocumentNumber != null,
+            DocumentVerified: user?.DocumentNumber != null || provider.DocumentVerified,
             Portfolio: provider.Portfolio,
             Specialties: specialties ?? [],
             ReviewStats: new ReviewStatsDto(
@@ -358,7 +359,8 @@ public class PortfolioApplicationService(IServiceProviderRepository providerRepo
             ),
             Latitude: provider.Latitude,
             Longitude: provider.Longitude,
-            ServiceRadiusKm: provider.ServiceRadiusKm
+            ServiceRadiusKm: provider.ServiceRadiusKm,
+            DocumentNumber: user?.DocumentNumber
         );
     }
 }

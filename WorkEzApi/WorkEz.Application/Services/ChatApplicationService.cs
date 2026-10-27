@@ -75,7 +75,7 @@ public class ChatApplicationService(
 
         var messageDto = sendResult.Value;
         await NotifyRealtimeMessageAsync(messageDto);
-        DispatchPushNotificationInBackground(messageDto, secureCommand.Content, callerUserId, secureCommand.IsFromProvider);
+        await DispatchPushNotificationInBackgroundAsync(messageDto, secureCommand.Content, callerUserId, secureCommand.IsFromProvider);
 
         return sendResult;
     }
@@ -190,7 +190,7 @@ public class ChatApplicationService(
         }
     }
 
-    private void DispatchPushNotificationInBackground(
+    private async Task DispatchPushNotificationInBackgroundAsync(
         ChatMessageResponseDto msg,
         string content,
         Guid callerUserId,
@@ -198,7 +198,7 @@ public class ChatApplicationService(
     {
         if (_pushNotification == null) return;
 
-        _ = Task.Run(async () =>
+        await Task.Run(async () =>
         {
             try
             {

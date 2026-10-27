@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using WorkEz.Application.Interfaces;
 using WorkEz.Application.Services;
 using WorkEz.Domain.Entities;
 using WorkEz.Domain.Interfaces;
@@ -60,6 +61,7 @@ public static class DependencyInjection
             return new DelFinanceClient(client, logger, settings);
         });
 
+        services.AddScoped<IPdfDocumentValidatorService, PdfDocumentValidatorService>();
         services.AddScoped<IProposalDomainService, ProposalDomainService>();
         services.AddScoped<IProposalApplicationService, ProposalApplicationService>();
         services.AddScoped<IPortfolioApplicationService, PortfolioApplicationService>();

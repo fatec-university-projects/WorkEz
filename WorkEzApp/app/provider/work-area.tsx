@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MapPin, Navigation, Compass, ShieldCheck, Zap, Crosshair, Building, Home, Map as MapIcon, Infinity as InfinityIcon } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
 import { Button } from '../../components/Button';
@@ -15,6 +15,7 @@ import { RadiusMapPreview } from '../../components/RadiusMapPreview';
 
 export default function WorkArea() {
   const router = useRouter();
+  const { onboarding } = useLocalSearchParams<{ onboarding?: string }>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { coordinates: gpsCoords, address: gpsAddress, refreshLocation, loading: gpsLoading } = useLocation();
@@ -108,10 +109,10 @@ export default function WorkArea() {
         Alert.alert('Sucesso!', 'Raio e área de atendimento atualizados com sucesso!');
       }
 
-      if (router.canGoBack()) {
+      if (onboarding !== '1' && router.canGoBack()) {
         router.back();
       } else {
-        router.push('/provider' as any);
+        router.replace('/provider' as any);
       }
     } catch (err) {
       console.error(err);

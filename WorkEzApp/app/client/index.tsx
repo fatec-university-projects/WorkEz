@@ -32,6 +32,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WorkEzTheme } from '../../constants/theme';
+import { DEFAULT_CATEGORIES } from '../../constants/defaultCategories';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
@@ -183,10 +185,11 @@ export default function ClientHome() {
   const { data: categories, loading, error } = useFetch<Category[]>('/api/Categories');
 
   const filteredCategories = useMemo(() => {
-    if (!categories) return [];
-    if (!searchQuery.trim()) return categories;
+    const list = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+    if (!searchQuery.trim()) return list;
+
     const query = searchQuery.toLowerCase().trim();
-    return categories.filter(
+    return list.filter(
       (c) =>
         c.name.toLowerCase().includes(query) ||
         (c.description && c.description.toLowerCase().includes(query))

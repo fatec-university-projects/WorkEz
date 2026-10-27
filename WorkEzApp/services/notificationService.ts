@@ -1,5 +1,5 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { isRunningInExpoGo, requireOptionalNativeModule } from 'expo';
 import Constants from 'expo-constants';
 import { apiRequest } from './api';
 import { authService } from './authService';
@@ -7,17 +7,75 @@ import { safeStorage as AsyncStorage } from './storage';
 
 const STORAGE_KEY_PUSH_TOKEN = '@workez_push_token';
 
-// Configura o comportamento das notificações em primeiro plano (foreground)
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-  }),
-});
+function isNativeNotificationsAvailable(): boolean {
+  if (Platform.OS === 'web') {
+    return false;
+  }
+
+  try {
+    // No Expo Go para Android (SDK 53+), push notifications e ExpoTopicSubscriptionModule não estão disponíveis
+    if (
+      Platform.OS === 'android' &&
+      (isRunningInExpoGo() ||
+        Constants.executionEnvironment === 'storeClient' ||
+        (Constants as any).appOwnership === 'expo')
+    ) {
+      return false;
+    }
+
+    // Verifica se o módulo nativo exigido pelo expo-notifications existe no binário atual antes do require()
+    if (Platform.OS === 'android' && !requireOptionalNativeModule('ExpoTopicSubscriptionModule')) {
+      return false;
+    }
+
+    if (!requireOptionalNativeModule('ExpoNotificationPresenter')) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+let cachedNotificationsModule: typeof import('expo-notifications') | null | undefined;
+
+function getNotificationsModule(): typeof import('expo-notifications') | null {
+  if (cachedNotificationsModule !== undefined) {
+    return cachedNotificationsModule;
+  }
+
+  if (!isNativeNotificationsAvailable()) {
+    cachedNotificationsModule = null;
+    return null;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('expo-notifications') as typeof import('expo-notifications');
+    if (typeof mod?.setNotificationHandler !== 'function') {
+      cachedNotificationsModule = null;
+      return null;
+    }
+
+    mod.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        priority: mod.AndroidNotificationPriority.HIGH,
+      }),
+    });
+    cachedNotificationsModule = mod;
+    return mod;
+  } catch (err) {
+    console.warn('[NotificationService] Módulo nativo expo-notifications indisponível neste ambiente:', err);
+    cachedNotificationsModule = null;
+    return null;
+  }
+}
 
 export interface NotificationPayloadData {
   type?: 'new_opportunity' | 'new_proposal' | 'provider_on_the_way' | 'chat_message' | 'test' | string;
@@ -29,23 +87,24 @@ export interface NotificationPayloadData {
 
 class NotificationService {
   private pushToken: string | null = null;
-  private responseListenerSubscription: Notifications.Subscription | null = null;
-  private receivedListenerSubscription: Notifications.Subscription | null = null;
+  private responseListenerSubscription: { remove: () => void } | null = null;
+  private receivedListenerSubscription: { remove: () => void } | null = null;
 
   /**
    * Obtém o token de notificação Expo e solicita permissões se necessário.
    */
   async registerForPushNotificationsAsync(): Promise<string | null> {
     try {
-      if (Platform.OS === 'web') {
-        // Ambiente Web: gerar um mock token persistente para testes no navegador
-        let webToken = await AsyncStorage.getItem(STORAGE_KEY_PUSH_TOKEN);
-        if (!webToken) {
-          webToken = `ExponentPushToken[web-${Math.random().toString(36).substring(2, 12)}]`;
-          await AsyncStorage.setItem(STORAGE_KEY_PUSH_TOKEN, webToken);
+      const Notifications = getNotificationsModule();
+      if (Platform.OS === 'web' || !Notifications) {
+        // Ambiente Web ou Expo Go no Android: gerar um mock token persistente para testes
+        let fallbackToken = await AsyncStorage.getItem(STORAGE_KEY_PUSH_TOKEN);
+        if (!fallbackToken) {
+          fallbackToken = `ExponentPushToken[${Platform.OS}-${Math.random().toString(36).substring(2, 12)}]`;
+          await AsyncStorage.setItem(STORAGE_KEY_PUSH_TOKEN, fallbackToken);
         }
-        this.pushToken = webToken;
-        return webToken;
+        this.pushToken = fallbackToken;
+        return fallbackToken;
       }
 
       // Android: Canal de notificação obrigatório no Android 8.0+
@@ -146,6 +205,9 @@ class NotificationService {
    */
   setupNotificationListeners(onNavigate: (route: string) => void) {
     if (Platform.OS === 'web') return;
+
+    const Notifications = getNotificationsModule();
+    if (!Notifications) return;
 
     // Limpa ouvintes anteriores se existirem
     this.removeNotificationListeners();

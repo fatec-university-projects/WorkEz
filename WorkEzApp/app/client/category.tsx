@@ -15,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { WorkEzTheme } from '../../constants/theme';
+import { DEFAULT_CATEGORIES } from '../../constants/defaultCategories';
 import { useFetch } from '../../hooks/useFetch';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useAppTheme } from '../../contexts/ThemeContext';
@@ -156,7 +157,7 @@ export default function SelectCategory() {
             <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
           </View>
         ) : (
-          categories?.map((category) => {
+          (categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES).map((category) => {
             const uiConfig = getCategoryConfig(category.name, isDark);
             const Icon = uiConfig.icon;
             return (

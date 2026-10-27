@@ -24,7 +24,7 @@ export default function DescribeService() {
   const { user } = useAuth();
   const { category, categoryId } = useLocalSearchParams<{ category: string; categoryId: string }>();
   const categoryName = category || 'Encanador';
-  const defaultCategoryId = '11111111-1111-1111-1111-111111111111';
+  const defaultCategoryId = '11111111-1111-1111-1111-111111111102'; // Hidráulica / Encanador Guid
   const selectedCategoryId = categoryId || defaultCategoryId;
 
   const [description, setDescription] = useState('');

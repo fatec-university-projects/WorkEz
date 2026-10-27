@@ -63,7 +63,7 @@ export async function apiRequest<T>(
 ): Promise<{ data: T | null; error: string | null; status: number }> {
   try {
     const headers: Record<string, string> = {
-      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(options.body instanceof FormData || Boolean((options.body as any)?._parts) ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers as Record<string, string>),
     };
 
@@ -120,7 +120,7 @@ export async function apiRequest<T>(
         : 'Sessão expirada. Faça login novamente.';
 
       return {
-        data: null,
+        data: (errorBody as T) || null,
         error: errorBody?.message || defaultMsg,
         status: 401,
       };
@@ -129,7 +129,7 @@ export async function apiRequest<T>(
     if (response) {
       const errorBody = await response.json().catch(() => null);
       return {
-        data: null,
+        data: (errorBody as T) || null,
         error: errorBody?.message || `Erro ${response.status}`,
         status: response.status,
       };
