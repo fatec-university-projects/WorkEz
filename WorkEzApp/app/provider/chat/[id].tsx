@@ -534,8 +534,8 @@ export default function ProviderChat() {
       },
       statusText: {
         ...WorkEzTheme.typography.sm,
-        color: colors.primary,
-        fontWeight: '500',
+        color: isDark ? '#60A5FA' : '#2563EB',
+        fontWeight: '600',
       },
       counterBanner: {
         backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
@@ -612,7 +612,7 @@ export default function ProviderChat() {
         paddingVertical: 10,
       },
       messageBubbleMe: {
-        backgroundColor: colors.primary,
+        backgroundColor: '#2563EB',
       },
       messageBubbleOther: {
         backgroundColor: colors.card,
@@ -663,7 +663,7 @@ export default function ProviderChat() {
       sendButton: {
         width: 46,
         height: 46,
-        backgroundColor: colors.primary,
+        backgroundColor: '#2563EB',
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
@@ -704,7 +704,7 @@ export default function ProviderChat() {
               isRejected && { color: colors.danger, fontWeight: '600' },
               isCompleted && { color: colors.secondary, fontWeight: '600' },
               isCancelled && { color: colors.danger, fontWeight: '600' },
-              isInProgress && { color: colors.primary, fontWeight: '600' },
+              isInProgress && { color: isDark ? '#60A5FA' : '#2563EB', fontWeight: '600' },
             ]}>
               {getHeaderStatusText()}
             </Text>
@@ -781,7 +781,7 @@ export default function ProviderChat() {
       ) : isAccepted ? (
         <View style={[dynamicStyles.alertBanner, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF', borderBottomColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#BFDBFE' }]}>
           <View style={dynamicStyles.alertRow}>
-            <MessageCircle size={16} color={colors.primary} style={dynamicStyles.alertIcon} />
+            <MessageCircle size={16} color={isDark ? '#60A5FA' : '#2563EB'} style={dynamicStyles.alertIcon} />
             <Text style={[dynamicStyles.alertText, { color: isDark ? '#93C5FD' : '#1E40AF' }]}>
               <Text style={{ fontWeight: '700' }}>Chat do Chamado:</Text> Converse diretamente com o cliente em tempo real até a conclusão do serviço.
             </Text>
@@ -790,7 +790,7 @@ export default function ProviderChat() {
       ) : (
         <View style={dynamicStyles.alertBanner}>
           <View style={dynamicStyles.alertRow}>
-            <AlertCircle size={16} color={colors.primary} style={dynamicStyles.alertIcon} />
+            <AlertCircle size={16} color={isDark ? '#60A5FA' : '#2563EB'} style={dynamicStyles.alertIcon} />
             <Text style={dynamicStyles.alertText}>
               <Text style={{ fontWeight: '600' }}>Negociação no Leilão:</Text> Negocie detalhes e valores diretamente com o cliente.
             </Text>
@@ -806,7 +806,7 @@ export default function ProviderChat() {
       >
         {chatLoading && (!messages || messages.length === 0) ? (
           <View key="chat-loading" style={dynamicStyles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={isDark ? "#60A5FA" : "#2563EB"} />
             <Text style={dynamicStyles.loadingText}>Carregando mensagens...</Text>
           </View>
         ) : chatError ? (
