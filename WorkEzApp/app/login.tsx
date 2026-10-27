@@ -6,7 +6,7 @@ import { Input } from '../components/Input';
 import { ScreenHeader } from '../components/ScreenHeader';
 import {
   View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, ScrollView, ActivityIndicator, Alert,
+  Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { WorkEzTheme, LightColors } from '../constants/theme';
 import { authService } from '../services/authService';
@@ -133,7 +133,7 @@ export default function Login() {
               />
             </View>
 
-            <TouchableOpacity onPress={() => Alert.alert('Em breve', 'Recuperação de senha disponível em breve.')}>
+            <TouchableOpacity onPress={() => router.push('/forgot-password' as any)}>
               <Text style={styles.forgotPasswordText}>
                 Esqueci minha senha
               </Text>

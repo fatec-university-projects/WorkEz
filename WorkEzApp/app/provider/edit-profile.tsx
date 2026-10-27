@@ -8,6 +8,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { WorkEzTheme } from '../../constants/theme';
 import { useAppTheme } from '../../contexts/ThemeContext';
+import { DEFAULT_CATEGORIES } from '../../constants/defaultCategories';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
 import { apiRequest } from '../../services/api';
@@ -528,7 +529,7 @@ export default function ProviderEditProfile() {
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <View style={dynamicStyles.categoriesContainer}>
-                  {allCategories?.map((cat) => {
+                  {(allCategories && allCategories.length > 0 ? allCategories : DEFAULT_CATEGORIES).map((cat) => {
                     const isSelected = selectedCategories.some(
                       (id) => id && cat?.id && id.toLowerCase() === cat.id.toLowerCase()
                     );

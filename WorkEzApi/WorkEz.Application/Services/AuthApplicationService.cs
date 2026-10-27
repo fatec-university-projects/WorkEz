@@ -1,5 +1,6 @@
 using System.Net.Mail;
 using WorkEz.Application.DTOs;
+using WorkEz.Application.Interfaces;
 using WorkEz.Domain.Common;
 using WorkEz.Domain.Entities;
 using WorkEz.Domain.Enums;
@@ -15,6 +16,7 @@ public interface IAuthApplicationService
     Task<Result<TokenResponse>> LoginAsync(LoginRequest request);
     Task<Result<TokenResponse>> RefreshAsync(RefreshRequest request);
     Task<Result<bool>> LogoutAsync(RefreshRequest request);
+    Task<Result<ResetPasswordResponse>> ResetPasswordByEmailAsync(ResetPasswordByEmailRequest request);
 }
 
 public class AuthApplicationService(
@@ -24,9 +26,11 @@ public class AuthApplicationService(
     IRefreshTokenRepository refreshTokenRepository,
     ITokenService tokenService,
     IPasswordHasher passwordHasher,
-    IEmailService? emailService = null
+    IEmailService? emailService = null,
+    IPdfDocumentValidatorService? pdfValidatorService = null
 ) : IAuthApplicationService
 {
+    public const string DefaultResetPassword = "@Work1234";
     private const int MinPasswordLength = 6;
     private readonly IUserRepository _userRepository = userRepository;
     private readonly IBaseRepository<Customer> _customerRepository = customerRepository;
@@ -35,6 +39,7 @@ public class AuthApplicationService(
     private readonly ITokenService _tokenService = tokenService;
     private readonly IPasswordHasher _passwordHasher = passwordHasher;
     private readonly IEmailService? _emailService = emailService;
+    private readonly IPdfDocumentValidatorService? _pdfValidatorService = pdfValidatorService;
 
     private async Task SendWelcomeEmailAsync(User user)
     {
@@ -48,13 +53,19 @@ public class AuthApplicationService(
         if (!validation.IsSuccess)
             return Result<RegisterResponse>.Failure(validation.Error!, validation.ErrorCode!);
 
-        var user = NewUser(request.Name!, request.Email!, request.Password!, request.Phone, null, UserRole.Customer);
+        if (!string.IsNullOrWhiteSpace(request.DocumentNumber) && _pdfValidatorService != null)
+        {
+            if (!_pdfValidatorService.IsValidCpf(request.DocumentNumber))
+                return Result<RegisterResponse>.Failure("O CPF informado é inválido.", "BAD_REQUEST");
+        }
+
+        var user = NewUser(request.Name!, request.Email!, request.Password!, request.Phone, request.DocumentNumber, UserRole.Customer);
         await _userRepository.AddAsync(user);
         await _customerRepository.AddAsync(new Customer { UserId = user.Id });
         await _userRepository.SaveChangesAsync();
         await SendWelcomeEmailAsync(user);
 
-        return Result<RegisterResponse>.Success(new RegisterResponse(user.Id, user.Name, user.Email, user.Role.ToString()));
+        return Result<RegisterResponse>.Success(new RegisterResponse(user.Id, user.Name, user.Email, user.Role.ToString(), request.DocumentVerified));
     }
 
     public async Task<Result<RegisterResponse>> RegisterProviderAsync(RegisterProviderRequest request)
@@ -63,13 +74,28 @@ public class AuthApplicationService(
         if (!validation.IsSuccess)
             return Result<RegisterResponse>.Failure(validation.Error!, validation.ErrorCode!);
 
+        if (!string.IsNullOrWhiteSpace(request.DocumentNumber) && _pdfValidatorService != null)
+        {
+            var digits = new string(request.DocumentNumber.Where(char.IsDigit).ToArray());
+            var isValidDoc = digits.Length == 14
+                ? _pdfValidatorService.IsValidCnpj(digits)
+                : _pdfValidatorService.IsValidCpf(digits);
+
+            if (!isValidDoc)
+                return Result<RegisterResponse>.Failure("O documento informado (CNPJ/CPF) é inválido.", "BAD_REQUEST");
+        }
+
         var user = NewUser(request.Name!, request.Email!, request.Password!, request.Phone, request.DocumentNumber, UserRole.ServiceProvider);
         await _userRepository.AddAsync(user);
-        await _providerRepository.AddAsync(new ServiceProviderEntity { UserId = user.Id });
+        await _providerRepository.AddAsync(new ServiceProviderEntity
+        {
+            UserId = user.Id,
+            DocumentVerified = request.DocumentVerified
+        });
         await _userRepository.SaveChangesAsync();
         await SendWelcomeEmailAsync(user);
 
-        return Result<RegisterResponse>.Success(new RegisterResponse(user.Id, user.Name, user.Email, user.Role.ToString()));
+        return Result<RegisterResponse>.Success(new RegisterResponse(user.Id, user.Name, user.Email, user.Role.ToString(), request.DocumentVerified));
     }
 
     public async Task<Result<TokenResponse>> LoginAsync(LoginRequest request)
@@ -118,6 +144,28 @@ public class AuthApplicationService(
             }
         }
         return Result<bool>.Success(true);
+    }
+
+    public async Task<Result<ResetPasswordResponse>> ResetPasswordByEmailAsync(ResetPasswordByEmailRequest request)
+    {
+        var normalized = NormalizeEmail(request.Email);
+        if (normalized is null || !IsValidEmail(normalized))
+            return Result<ResetPasswordResponse>.Failure("Informe um e-mail válido.", "BAD_REQUEST");
+
+        var user = await _userRepository.GetByEmailAsync(normalized);
+        if (user is null)
+            return Result<ResetPasswordResponse>.Failure("Nenhuma conta encontrada com este e-mail.", "NOT_FOUND");
+
+        user.PasswordHash = _passwordHasher.HashPassword(DefaultResetPassword);
+        user.Touch();
+        _userRepository.Update(user);
+        await _userRepository.SaveChangesAsync();
+
+        return Result<ResetPasswordResponse>.Success(new ResetPasswordResponse(
+            user.Email,
+            DefaultResetPassword,
+            $"Sua senha foi redefinida com sucesso para a senha padrão: {DefaultResetPassword}"
+        ));
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

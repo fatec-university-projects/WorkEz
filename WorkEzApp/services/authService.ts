@@ -17,6 +17,13 @@ export interface RegisterResponse {
   name: string;
   email: string;
   role: string;
+  documentVerified?: boolean;
+}
+
+export interface ResetPasswordResponse {
+  email: string;
+  defaultPassword: string;
+  message: string;
 }
 
 export interface DecodedToken {
@@ -106,7 +113,14 @@ export const authService = {
   },
 
   // ── Registro Cliente ───────────────────────────────────────────────────────
-  async registerCustomer(name: string, email: string, password: string, phone?: string) {
+  async registerCustomer(
+    name: string,
+    email: string,
+    password: string,
+    phone?: string,
+    cpf?: string,
+    documentVerified = false
+  ) {
     return apiRequest<RegisterResponse>('/api/Auth/register/customer', {
       method: 'POST',
       body: JSON.stringify({
@@ -114,13 +128,22 @@ export const authService = {
         email: email.trim().toLowerCase(),
         password,
         phone: phone?.trim(),
+        documentNumber: cpf?.replace(/\D/g, ''),
+        documentVerified,
       }),
     });
   },
 
   // ── Registro Prestador ─────────────────────────────────────────────────────
   // AUDITORIA FIX: Adicionado suporte a registro de Prestador
-  async registerProvider(name: string, email: string, password: string, phone?: string, cpf?: string) {
+  async registerProvider(
+    name: string,
+    email: string,
+    password: string,
+    phone?: string,
+    documentNumber?: string,
+    documentVerified = false
+  ) {
     return apiRequest<RegisterResponse>('/api/Auth/register/provider', {
       method: 'POST',
       body: JSON.stringify({
@@ -128,8 +151,17 @@ export const authService = {
         email: email.trim().toLowerCase(),
         password,
         phone: phone?.trim(),
-        documentNumber: cpf?.replace(/\D/g, ''),
+        documentNumber: documentNumber?.replace(/\D/g, ''),
+        documentVerified,
       }),
+    });
+  },
+
+  // ── Reset de Senha por E-mail ──────────────────────────────────────────────
+  async resetPasswordByEmail(email: string) {
+    return apiRequest<ResetPasswordResponse>('/api/Auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
     });
   },
 

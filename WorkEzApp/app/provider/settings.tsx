@@ -12,8 +12,8 @@ export default function ProviderSettings() {
   const menuItems = [
     { icon: User,        label: 'Dados pessoais',         path: '/provider/edit-profile' },
     { icon: CreditCard,  label: 'Dados bancários',         path: '#' },
-    { icon: FileText,    label: 'Documentos',               path: '#' },
-    { icon: MapPin,      label: 'Regiões de atendimento',  path: '#' },
+    { icon: FileText,    label: 'Documentos',               path: '/provider/documents' },
+    { icon: MapPin,      label: 'Regiões de atendimento',  path: '/provider/work-area' },
     { icon: Bell,        label: 'Notificações',            path: '#' },
     { icon: HelpCircle,  label: 'Ajuda e suporte',         path: '/help' },
   ];
