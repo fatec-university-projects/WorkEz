@@ -142,15 +142,6 @@ export default function ServiceTracking() {
     id ? `/api/Reviews/by-service/${id}` : null
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      if (id) {
-        silentFetchService();
-        silentFetchProposals();
-      }
-    }, [id, silentFetchService, silentFetchProposals])
-  );
-
   const [service, setService] = useState<ServiceData | null>(null);
   const [proposals, setProposals] = useState<ProposalData[] | null>(null);
 
@@ -189,6 +180,15 @@ export default function ServiceTracking() {
       });
     }
   }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        silentFetchService();
+        silentFetchProposals();
+      }
+    }, [id, silentFetchService, silentFetchProposals])
+  );
 
   // Conexão WebSocket para atualizações em tempo real (push)
   const silentFetchProposalsRef = useRef(silentFetchProposals);
