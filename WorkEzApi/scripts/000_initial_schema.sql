@@ -165,3 +165,6 @@ ALTER TABLE "Proposals" ADD COLUMN IF NOT EXISTS "CounterDescription" text;
 ALTER TABLE "Proposals" ADD COLUMN IF NOT EXISTS "CounterOfferedAt" timestamptz;
 
 ALTER TABLE "Reviews" ADD COLUMN IF NOT EXISTS "QualityTagsJson" text;
+
+ALTER TABLE "Reviews" ADD COLUMN IF NOT EXISTS "CreatedAt" timestamptz NOT NULL DEFAULT now();
+ALTER TABLE "Reviews" ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamptz NOT NULL DEFAULT now();

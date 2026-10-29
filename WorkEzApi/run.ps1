@@ -17,4 +17,5 @@ Write-Host "2. Executando os testes de unidade..." -ForegroundColor Yellow
 dotnet test WorkEz.slnx --no-build
 
 Write-Host "3. Subindo a API WebUID em http://localhost:5065/swagger ..." -ForegroundColor Green
-dotnet run --project WorkEz.WebUID/WorkEz.WebUID.csproj
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+dotnet run --project WorkEz.WebUID/WorkEz.WebUID.csproj --launch-profile http
