@@ -761,7 +761,8 @@ public class ServiceApplicationService(
             Status: statusStr,
             Date: ToBrasiliaTime(a.ScheduledDate).ToString("dd'/'MM'/'yyyy"),
             ClientName: a.Customer?.User?.Name ?? "Cliente",
-            SuggestedPrice: a.FinalPrice
+            SuggestedPrice: a.FinalPrice,
+            UrgencyLevel: a.Service?.UrgencyLevel ?? "Medium"
         );
     }
 

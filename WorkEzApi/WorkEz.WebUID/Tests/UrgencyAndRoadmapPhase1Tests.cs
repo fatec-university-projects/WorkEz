@@ -251,4 +251,63 @@ public class UrgencyAndRoadmapPhase1Tests
 
         Assert.Equal("Emergency", detailDto.UrgencyLevel);
     }
+
+    [Fact]
+    public async Task GetAcceptedByProviderUser_MapsUrgencyLevelInOpportunityCallDto()
+    {
+        using var db = CreateInMemoryDbContext();
+        var serviceRepo = new ServiceRepository(db);
+        var apptRepo = new AppointmentRepository(db);
+        var providerRepo = new ServiceProviderRepository(db);
+        var customerRepo = new BaseRepository<Customer>(db);
+        var addressRepo = new BaseRepository<Address>(db);
+        var userRepo = new BaseRepository<User>(db);
+
+        var serviceAppService = new ServiceApplicationService(
+            serviceRepo,
+            apptRepo,
+            providerRepo,
+            customerRepo,
+            addressRepo,
+            userRepo,
+            null
+        );
+
+        var providerUser = new User { Id = Guid.NewGuid(), Name = "Prestador SOS", Role = UserRole.ServiceProvider };
+        var provider = new WorkEz.Domain.Entities.ServiceProvider { Id = Guid.NewGuid(), UserId = providerUser.Id, User = providerUser };
+        var customerUser = new User { Id = Guid.NewGuid(), Name = "Cliente Teste", Role = UserRole.Customer };
+        var customer = new Customer { Id = Guid.NewGuid(), UserId = customerUser.Id, User = customerUser };
+        var service = new Service
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            Customer = customer,
+            Title = "Serviço Urgente",
+            UrgencyLevel = "Emergency",
+            ServiceStatus = ServiceStatus.Accepted
+        };
+        var appt = new Appointment
+        {
+            Id = Guid.NewGuid(),
+            ServiceId = service.Id,
+            Service = service,
+            ProviderId = provider.Id,
+            Provider = provider,
+            Customer = customer,
+            ScheduledDate = DateTime.UtcNow,
+            FinalPrice = 200m
+        };
+
+        db.Users.AddRange(providerUser, customerUser);
+        db.Providers.Add(provider);
+        db.Customers.Add(customer);
+        db.Services.Add(service);
+        db.Appointments.Add(appt);
+        await db.SaveChangesAsync();
+
+        var result = await serviceAppService.GetAcceptedByProviderUserAsync(providerUser.Id, providerUser.Id, false);
+        Assert.True(result.IsSuccess);
+        var dto = Assert.Single(result.Value);
+        Assert.Equal("Emergency", dto.UrgencyLevel);
+    }
 }

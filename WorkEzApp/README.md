@@ -62,7 +62,7 @@ WorkEzApp/
 │   └── ScreenHeader.tsx          # Cabeçalho padronizado com safe-area e botão voltar
 ├── contexts/                     # Contextos Globais
 │   └── AuthContext.tsx           # Gerenciamento de autenticação, login, logout e sessão
-├── e2e/                          # Testes automatizados End-to-End com Playwright (7 suítes)
+├── e2e/                          # Testes automatizados End-to-End com Playwright (18 suítes)
 ├── services/                     # Integrações e APIs
 │   ├── api.ts                    # Cliente HTTP Fetch com interceptador, auto-refresh de JWT e DelFinance BaaS
 │   ├── authService.ts            # Métodos de autenticação, registro e logout

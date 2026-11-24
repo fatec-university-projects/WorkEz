@@ -6,8 +6,8 @@
   <img src="https://img.shields.io/badge/React_Native-0.88-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React Native" />
   <img src="https://img.shields.io/badge/Expo-58.0-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo" />
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Playwright-17_E2E_Tests-45ba4b?style=for-the-badge&logo=playwright&logoColor=white" alt="Playwright" />
-  <img src="https://img.shields.io/badge/xUnit-164_Unit_Tests-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt="xUnit" />
+  <img src="https://img.shields.io/badge/Playwright-18_E2E_Tests-45ba4b?style=for-the-badge&logo=playwright&logoColor=white" alt="Playwright" />
+  <img src="https://img.shields.io/badge/xUnit-176_Unit_Tests-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt="xUnit" />
   <img src="https://img.shields.io/badge/PostgreSQL-Neon_DB-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/TailwindCSS-NativeWind_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="NativeWind" />
   <img src="https://img.shields.io/badge/Vercel-Web_Deploy-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" />
@@ -37,8 +37,8 @@
   - [Opção 3: Scripts Rápidos PowerShell](#opção-3-scripts-rápidos-powershell)
   - [Opção 4: Manualmente pelo Terminal](#opção-4-manualmente-pelo-terminal)
 - [🧪 Testes Automatizados (Unitários e E2E)](#-testes-automatizados-unitários-e-e2e)
-  - [Testes Unitários (.NET — 164 testes)](#1-testes-unitários-backend-net-10)
-  - [Testes End-to-End (Playwright — 16 suítes)](#2-testes-end-to-end-playwright-workezapp)
+  - [Testes Unitários (.NET — 176 testes)](#1-testes-unitários-backend-net-10)
+  - [Testes End-to-End (Playwright — 18 suítes)](#2-testes-end-to-end-playwright-workezapp)
 - [Configuração de Variáveis de Ambiente](#-configuração-de-variáveis-de-ambiente)
 - [Deploy e Infraestrutura](#-deploy-e-infraestrutura)
 - [Integrantes e Autoria](#-integrantes-e-autoria)
@@ -76,10 +76,10 @@ O **WorkEz** é uma plataforma completa e moderna para intermediação e contrat
 
 ### 🛠️ Para o Prestador de Serviços (ServiceProvider)
 - **Onboarding e Perfil Profissional**: Cadastro com foto de perfil, anos de experiência, biografia, especialidades, galeria de portfólio e envio de documentos.
-- **Mural de Oportunidades com Filtro Geográfico**: Visualização inteligente de chamados abertos, ocultando automaticamente oportunidades fora do raio de atendimento do prestador.
+- **Mural de Oportunidades com Filtro Geográfico e Modo SOS**: Visualização inteligente de chamados abertos filtrados por raio geográfico, selo destacado 🚨 SOS para serviços de alta urgência e filtro rápido de 1 clique para chamados emergenciais.
 - **Configuração de Raio de Atuação**: Definição do raio em km (5km a 100km) com preview interativo em mapa e geocodificação de endereço.
-- **Galeria de Fotos do Chamado**: Visualização das imagens anexadas pelo cliente antes e depois do aceite.
-- **Envio de Propostas e Leilão**: Formulação de propostas discriminando Mão de Obra e Materiais, com cálculo em tempo real do ganho líquido e da taxa da plataforma.
+- **Galeria de Fotos e Banner SOS do Chamado**: Visualização das imagens anexadas pelo cliente e banner explicativo de atendimento prioritário em 2h para chamados SOS.
+- **Envio de Propostas e Negociação Direta**: Formulação de propostas discriminando Mão de Obra e Materiais, cálculo em tempo real do ganho líquido/taxa da plataforma e aceite/recusa direta de contra-propostas enviadas pelo cliente.
 - **Controle Unificado de Atendimento**: Gestão direta do ciclo de atendimento (*Iniciar Deslocamento* ➔ *Iniciar Serviço* ➔ *Concluir Serviço*).
 - **Carteira Digital Completa (Wallet)**: Consulta de saldo disponível, saldo retido em custódia (escrow), extrato detalhado e solicitação de transferência/saque PIX.
 - **Gestão de Reputação**: Painel de avaliações recebidas com notas médias e depoimentos de clientes.
@@ -94,7 +94,7 @@ graph TB
         UI["React Native Web & Mobile<br/>Expo Router + NativeWind v4"]
         AuthCtx["AuthContext (AsyncStorage + Auto-Refresh JWT)"]
         WSClient["WebSocket Client<br/>(Tracking & Chat)"]
-        E2E["Playwright E2E Suite<br/>(16 suítes ponta a ponta)"]
+        E2E["Playwright E2E Suite<br/>(18 suítes ponta a ponta)"]
     end
 
     subgraph Hosting["Camada de Hospedagem & CDN"]
@@ -525,7 +525,7 @@ Cobre as regras de negócio de propostas, cálculos de taxa justa, carteira digi
 dotnet test WorkEzApi/WorkEz.WebUID/WorkEz.WebUID.csproj
 ```
 
-> **Resultado**: **164 testes unitários automatizados** distribuídos em 17 suítes xUnit passando com 100% de sucesso.
+> **Resultado**: **176 testes unitários automatizados** distribuídos em suítes xUnit passando com 100% de sucesso.
 
 ### 2. Testes End-to-End (Playwright — WorkEzApp)
 A suíte E2E em [`WorkEzApp/e2e/`](file:///d:/projetos/workEz/WorkEzApp/e2e) valida os fluxos completos do usuário de ponta a ponta:
@@ -548,7 +548,8 @@ A suíte E2E em [`WorkEzApp/e2e/`](file:///d:/projetos/workEz/WorkEzApp/e2e) val
 | `14-route-guards-and-profile-management.spec.ts` | Proteção contra acessos não autorizados entre perfis e edição cadastral |
 | `15-service-cancellation-and-edge-cases.spec.ts` | Fluxo de cancelamento de chamado antes e durante a execução e casos de borda |
 | `16-customer-addresses-management.spec.ts` | Gestão de múltiplos endereços do cliente, busca por CEP e geolocalização |
-| `17-roadmap-features-stepper-and-urgency.spec.ts` | Inovações do Roadmap PO: Urgência SOS, Smart Scoping, Stepper de 5 etapas e comparativo de lances |
+| `17-roadmap-features-stepper-and-urgency.spec.ts` | Inovações do Roadmap PO Fase 1: Urgência SOS, Smart Scoping, Stepper de 5 etapas e comparativo de lances |
+| `18-roadmap-phase2-provider-sos-and-counter-proposal.spec.ts` | Inovações do Roadmap PO Fase 2: Mural com filtro rápido 🚨 SOS, badge de urgência, banner de atendimento emergencial em 2h e aceite de contra-propostas pelo prestador |
 
 Para executar:
 ```bash

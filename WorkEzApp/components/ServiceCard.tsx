@@ -12,6 +12,7 @@ interface ServiceCardProps {
   professional?: string;
   distanceKm?: number;
   estimatedDurationMinutes?: number;
+  urgencyLevel?: string;
   onClick?: () => void;
 }
 
@@ -23,6 +24,7 @@ export function ServiceCard({
   professional,
   distanceKm,
   estimatedDurationMinutes,
+  urgencyLevel,
   onClick,
 }: ServiceCardProps) {
   const { isDark, colors } = useAppTheme();
@@ -92,10 +94,17 @@ export function ServiceCard({
             {description}
           </Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
-          <Text style={[styles.statusText, { color: config.color }]}>
-            {config.label}
-          </Text>
+        <View style={{ alignItems: 'flex-end', gap: 6, marginLeft: WorkEzTheme.spacing.sm }}>
+          {urgencyLevel?.toLowerCase() === 'emergency' && (
+            <View style={[styles.sosPill, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.22)' : '#FEF2F2', borderColor: '#EF4444' }]}>
+              <Text style={styles.sosPillText}>🚨 SOS</Text>
+            </View>
+          )}
+          <View style={[styles.statusBadge, { backgroundColor: config.bg, marginLeft: 0 }]}>
+            <Text style={[styles.statusText, { color: config.color }]}>
+              {config.label}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -170,6 +179,18 @@ const styles = StyleSheet.create({
   descriptionText: {
     ...WorkEzTheme.typography.sm,
     marginTop: 4,
+  },
+  sosPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: WorkEzTheme.borderRadius.full,
+    borderWidth: 1,
+    alignSelf: 'flex-end',
+  },
+  sosPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#DC2626',
   },
   statusBadge: {
     paddingHorizontal: 10,
