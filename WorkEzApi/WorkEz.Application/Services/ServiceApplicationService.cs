@@ -146,6 +146,11 @@ public class ServiceApplicationService(
         await _serviceRepository.AddAsync(service);
         await _serviceRepository.SaveChangesAsync();
 
+        if (service.UrgencyLevel?.Equals("Emergency", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            await DispatchSosCallAlertPushAsync(service);
+        }
+
         return await GetByIdAsync(service.Id, callerUserId, isAdmin);
     }
 
@@ -737,6 +742,33 @@ public class ServiceApplicationService(
                 "🚗 Prestador a caminho!",
                 "O profissional iniciou o deslocamento até o seu endereço.",
                 new { type = "provider_on_the_way", serviceId = targetServiceId }
+            );
+        }
+        catch { }
+    }
+
+    private async Task DispatchSosCallAlertPushAsync(Service service)
+    {
+        if (_pushNotification == null || _providerRepository == null) return;
+
+        try
+        {
+            var providers = await _providerRepository.GetAllAsync();
+            var targetUserIds = providers
+                .Select(p => p.UserId)
+                .Where(id => id != Guid.Empty)
+                .Distinct()
+                .ToList();
+
+            if (targetUserIds.Count == 0) return;
+
+            var serviceTitle = string.IsNullOrWhiteSpace(service.Title) ? "Serviço Residencial" : service.Title;
+
+            await _pushNotification.SendToUsersAsync(
+                targetUserIds,
+                "🚨 ALERTA SOS: Novo chamado emergencial!",
+                $"Atendimento urgente nas próximas 2h aberto para: {serviceTitle}. Envie seu lance!",
+                new { type = "sos_call_created", serviceId = service.Id }
             );
         }
         catch { }
