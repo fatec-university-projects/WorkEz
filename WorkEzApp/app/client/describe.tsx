@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Camera, MapPin, Home, Briefcase, Plus, Check, CheckCircle2 } from 'lucide-react-native';
+import { Camera, MapPin, Home, Briefcase, Plus, Check, CheckCircle2, Zap, Navigation, Sparkles, Clock, AlertTriangle } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import {
   View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView,
-  ActivityIndicator, Image, Switch
+  ActivityIndicator, Image, Switch, Platform
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { imageService } from '../../services/imageService';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { geocodeAddress } from '../../hooks/useLocation';
+import { geocodeAddress, reverseGeocodeCoords } from '../../hooks/useLocation';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchUserAddresses, createAddress, AddressItem } from '../../services/api';
@@ -27,6 +28,8 @@ export default function DescribeService() {
   const defaultCategoryId = '11111111-1111-1111-1111-111111111102'; // Hidráulica / Encanador Guid
   const selectedCategoryId = categoryId || defaultCategoryId;
 
+  const [urgencyLevel, setUrgencyLevel] = useState<'Normal' | 'Emergency'>('Normal');
+  const [locatingCurrent, setLocatingCurrent] = useState(false);
   const [description, setDescription] = useState('');
   const [cep, setCep] = useState('');
   const [street, setStreet] = useState('');
@@ -72,14 +75,35 @@ export default function DescribeService() {
       try {
         const res = await fetchUserAddresses();
         if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-          list = res.data;
+          const seen = new Set<string>();
+          list = res.data.filter((item: AddressItem) => {
+            const key = `${(item.zipCode || '').replace(/\D/g, '')}_${(item.street || '').trim().toLowerCase()}_${(item.number || '').trim().toLowerCase()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
         }
       } catch {}
 
       if (list.length === 0) {
         try {
           const cached = await safeStorage.getItem(storageKey);
-          if (cached) list = JSON.parse(cached);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed)) {
+              const seen = new Set<string>();
+              list = parsed.filter((item: AddressItem) => {
+                const key = `${(item.zipCode || '').replace(/\D/g, '')}_${(item.street || '').trim().toLowerCase()}_${(item.number || '').trim().toLowerCase()}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+            }
+          }
+        } catch {}
+      } else {
+        try {
+          await safeStorage.setItem(storageKey, JSON.stringify(list));
         } catch {}
       }
 
@@ -208,55 +232,141 @@ export default function DescribeService() {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  
+  const handleUseCurrentLocation = async () => {
+    setLocatingCurrent(true);
+    try {
+      if (Platform.OS !== 'web') {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          alert('Permissão de localização é necessária para obter o endereço atual.');
+          return;
+        }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const addr = await reverseGeocodeCoords(loc.coords.latitude, loc.coords.longitude);
+        setSelectedAddressId('new');
+        setStreet(addr.street || '');
+        setNumber(addr.number || '');
+        setNeighborhood(addr.neighborhood || '');
+        setCity(addr.city || '');
+        setState(addr.state || '');
+        if (addr.postalCode) {
+          const cleanCep = addr.postalCode.replace(/\D/g, '');
+          setCep(cleanCep.length === 8 ? `${cleanCep.slice(0, 5)}-${cleanCep.slice(5)}` : addr.postalCode);
+        }
+        setCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      } else {
+        if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(async (pos) => {
+            const addr = await reverseGeocodeCoords(pos.coords.latitude, pos.coords.longitude);
+            setSelectedAddressId('new');
+            setStreet(addr.street || '');
+            setNumber(addr.number || '');
+            setNeighborhood(addr.neighborhood || '');
+            setCity(addr.city || '');
+            setState(addr.state || '');
+            if (addr.postalCode) {
+              const cleanCep = addr.postalCode.replace(/\D/g, '');
+              setCep(cleanCep.length === 8 ? `${cleanCep.slice(0, 5)}-${cleanCep.slice(5)}` : addr.postalCode);
+            }
+            setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+            setLocatingCurrent(false);
+          }, () => {
+            alert('Não foi possível obter sua localização no navegador.');
+            setLocatingCurrent(false);
+          });
+          return;
+        }
+      }
+    } catch (err: any) {
+      alert('Erro ao buscar localização: ' + (err?.message || 'Tente novamente.'));
+    } finally {
+      if (Platform.OS !== 'web') {
+        setLocatingCurrent(false);
+      }
+    }
+  };
+
+  const categoryQuickChips = useMemo(() => {
+    const norm = categoryName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (norm.includes('eletri') || norm.includes('luz')) {
+      return ['Chuveiro não esquenta', 'Instalar tomada', 'Troca de disjuntor', 'Instalar luminária', 'Curto-circuito', '110V', '220V'];
+    }
+    if (norm.includes('encan') || norm.includes('hidraul')) {
+      return ['Vazamento em pia', 'Vaso entupido', 'Torneira pingando', 'Limpeza de caixa d’água', 'Vazamento em parede', 'Troca de sifão'];
+    }
+    if (norm.includes('pint')) {
+      return ['Pintar 1 cômodo', 'Imóvel completo', 'Portas e rodapés', 'Retoque de manchas', 'Massa corrida'];
+    }
+    if (norm.includes('limp') || norm.includes('diar')) {
+      return ['Faxina padrão', 'Faxina pós-obra', 'Limpeza pesada', 'Passar roupas'];
+    }
+    if (norm.includes('mont') || norm.includes('marcen')) {
+      return ['Montar guarda-roupa', 'Painel de TV', 'Instalar prateleira', 'Ajuste de dobradiças'];
+    }
+    if (norm.includes('clima') || norm.includes('ar')) {
+      return ['Instalação completa', 'Limpeza/Higienização', 'Ar não gela', 'Carga de gás'];
+    }
+    return ['Orçamento geral', 'Conserto rápido', 'Instalação nova', 'Manutenção preventiva'];
+  }, [categoryName]);
+
+  const handleToggleChip = (chip: string) => {
+    setDescription(prev => {
+      if (prev.includes(chip)) {
+        return prev.replace(chip, '').replace(/,\s*,/g, ',').replace(/^\s*,\s*/, '').trim();
+      }
+      return prev ? `${prev}, ${chip}` : chip;
+    });
+  };
+
   // Ao continuar, se for novo endereço e a opção de salvar estiver ativa, salva automaticamente
   const handleContinue = async () => {
     if (selectedAddressId === 'new' && (saveNewAddress || savedAddresses.length === 0)) {
-      const storageKey = user ? `@workez_addresses_${user.id}` : '@workez_addresses_guest';
-      const defaultStorageKey = user ? `@workez_default_address_${user.id}` : '@workez_default_address_guest';
+      const cleanZip = (cep || '').replace(/\D/g, '');
+      const cleanStreet = (street || '').trim().toLowerCase();
+      const cleanNumber = (number || '').trim().toLowerCase();
 
-      const newPayload = {
-        street: street.trim(),
-        number: number.trim(),
-        complement: complement.trim() || undefined,
-        neighborhood: neighborhood.trim(),
-        city: city.trim(),
-        state: state.trim().toUpperCase(),
-        zipCode: cep.trim(),
-        addressType: newAddressType,
-        latitude: coords?.latitude,
-        longitude: coords?.longitude,
-      };
+      // Valida duplicidade desconsiderando o complemento
+      const existingAddress = savedAddresses.find((a) => {
+        const aZip = (a.zipCode || '').replace(/\D/g, '');
+        const aStreet = (a.street || '').trim().toLowerCase();
+        const aNumber = (a.number || '').trim().toLowerCase();
+        return aZip === cleanZip && aStreet === cleanStreet && aNumber === cleanNumber;
+      });
 
-      try {
-        const res = await createAddress(newPayload);
-        const newItem: AddressItem = res.data || {
-          ...newPayload,
-          id: `addr_${Date.now()}`,
-          userId: user?.id || 'guest',
+      if (!existingAddress) {
+        const storageKey = user ? `@workez_addresses_${user.id}` : '@workez_addresses_guest';
+        const defaultStorageKey = user ? `@workez_default_address_${user.id}` : '@workez_default_address_guest';
+
+        const newPayload = {
+          street: street.trim(),
+          number: number.trim(),
+          complement: complement.trim() || undefined,
+          neighborhood: neighborhood.trim(),
+          city: city.trim(),
+          state: state.trim().toUpperCase(),
+          zipCode: cep.trim(),
           addressType: newAddressType,
+          latitude: coords?.latitude,
+          longitude: coords?.longitude,
         };
-        const updatedList = [newItem, ...savedAddresses];
-        await safeStorage.setItem(storageKey, JSON.stringify(updatedList));
 
-        // Se for o primeiro, define como padrão
-        if (savedAddresses.length === 0) {
-          await safeStorage.setItem(defaultStorageKey, newItem.id);
-        }
-      } catch {
-        // Se a API falhar, garante no storage local
         try {
-          const fallbackItem: AddressItem = {
+          const res = await createAddress(newPayload);
+          const newItem: AddressItem = res.data || {
             ...newPayload,
             id: `addr_${Date.now()}`,
             userId: user?.id || 'guest',
             addressType: newAddressType,
           };
-          const updatedList = [fallbackItem, ...savedAddresses];
+          const updatedList = [newItem, ...savedAddresses.filter(a => a.id !== newItem.id)];
           await safeStorage.setItem(storageKey, JSON.stringify(updatedList));
           if (savedAddresses.length === 0) {
-            await safeStorage.setItem(defaultStorageKey, fallbackItem.id);
+            await safeStorage.setItem(defaultStorageKey, newItem.id);
           }
-        } catch {}
+        } catch {
+          // Não bloqueia avanço
+        }
       }
     }
 
@@ -276,6 +386,7 @@ export default function DescribeService() {
         latitude: coords?.latitude?.toString() || '',
         longitude: coords?.longitude?.toString() || '',
         images: JSON.stringify(images),
+        urgencyLevel,
       },
     } as any);
   };
@@ -312,9 +423,88 @@ export default function DescribeService() {
           </View>
         </View>
 
+        
+        {/* Seletor de Urgência do Chamado */}
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: colors.text }]}>Urgência do Atendimento</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => setUrgencyLevel('Normal')}
+              activeOpacity={0.8}
+              style={[
+                styles.urgencyCard,
+                {
+                  flex: 1,
+                  backgroundColor: urgencyLevel === 'Normal' ? (isDark ? 'rgba(5, 150, 105, 0.18)' : '#ECFDF5') : colors.backgroundCard,
+                  borderColor: urgencyLevel === 'Normal' ? '#10B981' : colors.border,
+                }
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Clock size={16} color={urgencyLevel === 'Normal' ? '#059669' : colors.textSecondary} />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: urgencyLevel === 'Normal' ? '#059669' : colors.text }}>
+                  Normal
+                </Text>
+              </View>
+              <Text style={{ fontSize: 11, color: colors.textSecondary }}>Próximos dias ou fim de semana</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setUrgencyLevel('Emergency')}
+              activeOpacity={0.8}
+              style={[
+                styles.urgencyCard,
+                {
+                  flex: 1,
+                  backgroundColor: urgencyLevel === 'Emergency' ? (isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEF2F2') : colors.backgroundCard,
+                  borderColor: urgencyLevel === 'Emergency' ? '#EF4444' : colors.border,
+                }
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Zap size={16} color={urgencyLevel === 'Emergency' ? '#DC2626' : colors.textSecondary} />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: urgencyLevel === 'Emergency' ? '#DC2626' : colors.text }}>
+                  🚨 SOS (Hoje)
+                </Text>
+              </View>
+              <Text style={{ fontSize: 11, color: colors.textSecondary }}>Urgente nas próximas 2 horas</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Descrição */}
         <View style={styles.section}>
           <Text style={[styles.label, { color: colors.text }]}>O que você precisa?</Text>
+
+          {/* Chips Rápidos de Escopo */}
+          <View style={{ marginBottom: 10 }}>
+            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>
+              💡 Sugestões rápidas (toque para adicionar):
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
+              {categoryQuickChips.map((chip, idx) => {
+                const isSelected = description.includes(chip);
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => handleToggleChip(chip)}
+                    style={[
+                      styles.chipItem,
+                      {
+                        backgroundColor: isSelected ? (isDark ? '#2563EB' : '#EFF6FF') : (isDark ? '#1E293B' : '#F8FAFC'),
+                        borderColor: isSelected ? '#3B82F6' : colors.border,
+                      }
+                    ]}
+                  >
+                    <Text style={{ fontSize: 12, color: isSelected ? (isDark ? '#FFFFFF' : '#1D4ED8') : colors.text, fontWeight: isSelected ? '600' : '400' }}>
+                      {chip}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
           <TextInput
             value={description}
             onChangeText={setDescription}
@@ -367,11 +557,29 @@ export default function DescribeService() {
         <View style={styles.section}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={[styles.label, { color: colors.text }]}>Local de Atendimento</Text>
+            
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <TouchableOpacity
+                onPress={handleUseCurrentLocation}
+                disabled={locatingCurrent}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                {locatingCurrent ? (
+                  <ActivityIndicator size="small" color="#059669" />
+                ) : (
+                  <>
+                    <Navigation size={13} color="#059669" />
+                    <Text style={{ fontSize: 13, color: '#059669', fontWeight: '700' }}>Usar atual</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
             {savedAddresses.length > 0 && selectedAddressId !== 'new' && (
               <TouchableOpacity onPress={handleSelectNewAddress}>
                 <Text style={{ fontSize: 13, color: '#2563EB', fontWeight: '700' }}>+ Outro endereço</Text>
               </TouchableOpacity>
             )}
+            </View>
           </View>
 
           {/* Se tem endereços salvos, exibe seletor rápido */}
@@ -613,6 +821,17 @@ export default function DescribeService() {
 }
 
 const styles = StyleSheet.create({
+  urgencyCard: {
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  chipItem: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
   container: {
     flex: 1,
   },

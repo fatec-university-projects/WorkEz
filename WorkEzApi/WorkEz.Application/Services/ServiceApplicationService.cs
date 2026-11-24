@@ -138,6 +138,7 @@ public class ServiceApplicationService(
             ImageUrl = request.ImageUrl,
             Latitude = lat,
             Longitude = lon,
+            UrgencyLevel = !string.IsNullOrWhiteSpace(request.UrgencyLevel) ? request.UrgencyLevel : "Medium",
             ServiceStatus = ServiceStatus.Open,
             CreatedAt = DateTime.UtcNow
         };
@@ -229,7 +230,8 @@ public class ServiceApplicationService(
             StartCheckInCode: visibleCheckInCode,
             BeforePhotos: beforePhotos,
             AfterPhotos: afterPhotos,
-            CompletedClientSignatureUrl: service.CompletedClientSignatureUrl
+            CompletedClientSignatureUrl: service.CompletedClientSignatureUrl,
+            UrgencyLevel: service.UrgencyLevel ?? "Medium"
         );
 
         return Result<ServiceDetailDto>.Success(dto);
@@ -644,6 +646,22 @@ public class ServiceApplicationService(
     {
         if (req == null || string.IsNullOrWhiteSpace(req.Street))
             return (null, null, null);
+
+        var cleanZip = (req.ZipCode ?? "").Replace("-", "").Trim();
+        var cleanStreet = (req.Street ?? "").Trim().ToLowerInvariant();
+        var cleanNumber = (req.Number ?? "S/N").Trim().ToLowerInvariant();
+
+        var existingAddresses = await _addressRepository.FindAsync(a => a.UserId == customerUserId);
+        var match = existingAddresses.FirstOrDefault(a =>
+            (a.ZipCode ?? "").Replace("-", "").Trim() == cleanZip &&
+            (a.Street ?? "").Trim().ToLowerInvariant() == cleanStreet &&
+            (a.Number ?? "S/N").Trim().ToLowerInvariant() == cleanNumber
+        );
+
+        if (match != null)
+        {
+            return (match.Id, match.Latitude, match.Longitude);
+        }
 
         var address = new Address
         {

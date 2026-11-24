@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/React_Native-0.88-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React Native" />
   <img src="https://img.shields.io/badge/Expo-58.0-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo" />
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Playwright-16_E2E_Tests-45ba4b?style=for-the-badge&logo=playwright&logoColor=white" alt="Playwright" />
+  <img src="https://img.shields.io/badge/Playwright-17_E2E_Tests-45ba4b?style=for-the-badge&logo=playwright&logoColor=white" alt="Playwright" />
   <img src="https://img.shields.io/badge/xUnit-164_Unit_Tests-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt="xUnit" />
   <img src="https://img.shields.io/badge/PostgreSQL-Neon_DB-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/TailwindCSS-NativeWind_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="NativeWind" />
@@ -66,10 +66,10 @@ O **WorkEz** é uma plataforma completa e moderna para intermediação e contrat
 ### 👤 Para o Cliente (Customer)
 - **Autenticação Segura**: Criação de conta, login unificado com JWT, persistência com auto-refresh token e recuperação de senha.
 - **Catálogo de Categorias**: Busca de serviços por segmento profissional e listagem de prestadores recomendados.
-- **Abertura de Chamados ("Chamar Agora")**: Descrição detalhada do problema, upload de múltiplas fotos (servidor local ou ImgBB) e busca de endereço por CEP (ViaCEP).
-- **Gerenciamento de Endereços**: Cadastro de múltiplos endereços (casa, trabalho, outros) com geocodificação e seleção rápida.
-- **Comparação e Aceite de Propostas**: Análise de propostas de múltiplos prestadores discriminando valores de serviço e peças, além da foto e avaliação de cada profissional.
-- **Acompanhamento ao Vivo (Tracking)**: Notificação e mapa em tempo real via WebSocket (`Pendente` → `Aceito` → `A Caminho` → `Em Execução` → `Aguardando Pagamento` → `Concluído`).
+- **Abertura de Chamados ("Chamar Agora")**: Descrição detalhada com Smart Scoping (sugestões rápidas da categoria), seleção de Modo Urgência SOS (atendimento prioritário), upload de fotos e busca de endereço por CEP ou geolocalização atual.
+- **Gerenciamento de Endereços**: Cadastro e deduplicação inteligente de múltiplos endereços (casa, trabalho, outros) com geocodificação e seleção rápida.
+- **Comparação e Aceite de Propostas no Leilão**: Análise de propostas de múltiplos prestadores com barra comparativa inteligente (menor proposta e lances ativos), badges de destaque ("Melhor Preço" e "Mais Bem Avaliado") e discriminação de Mão de Obra vs. Materiais.
+- **Acompanhamento ao Vivo (Tracking & Stepper)**: Visualização em tempo real com Stepper de 5 Etapas (Criado ➔ Aguardando ➔ A Caminho ➔ Execução ➔ Concluído), notificação e mapa via WebSocket.
 - **Chat em Tempo Real**: Troca instantânea de mensagens com o profissional, com fechamento e bloqueio automático quando uma proposta é recusada.
 - **Checkout com PIX**: Geração de QR Code e código Copia-e-Cola direto no app com reenvio opcional por e-mail, confirmação via webhook e polling.
 - **Avaliações Reais e Flexíveis**: Envio de notas de 1 a 5 estrelas com comentários opcionais e tags de recomendação.
@@ -548,6 +548,7 @@ A suíte E2E em [`WorkEzApp/e2e/`](file:///d:/projetos/workEz/WorkEzApp/e2e) val
 | `14-route-guards-and-profile-management.spec.ts` | Proteção contra acessos não autorizados entre perfis e edição cadastral |
 | `15-service-cancellation-and-edge-cases.spec.ts` | Fluxo de cancelamento de chamado antes e durante a execução e casos de borda |
 | `16-customer-addresses-management.spec.ts` | Gestão de múltiplos endereços do cliente, busca por CEP e geolocalização |
+| `17-roadmap-features-stepper-and-urgency.spec.ts` | Inovações do Roadmap PO: Urgência SOS, Smart Scoping, Stepper de 5 etapas e comparativo de lances |
 
 Para executar:
 ```bash

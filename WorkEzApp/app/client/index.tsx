@@ -331,7 +331,7 @@ export default function ClientHome() {
                   </Text>
                   <View style={[styles.categoryPill, { backgroundColor: uiConfig.bgColor }]}>
                     <Text style={[styles.categoryPillText, { color: uiConfig.iconColor }]}>
-                      {uiConfig.badge}
+                      {uiConfig.badge.toLowerCase().trim() === category.name.toLowerCase().trim() ? (category.name.toLowerCase().includes('clima') ? 'Ar & Split' : category.name.toLowerCase().includes('pint') ? 'Geral' : category.name.toLowerCase().includes('eletri') ? 'Reparos' : category.name.toLowerCase().includes('mont') ? 'Móveis' : category.name.toLowerCase().includes('limp') ? 'Faxinas' : category.name.toLowerCase().includes('hidraul') ? 'Canos & Pias' : 'Especialista') : uiConfig.badge}
                     </Text>
                   </View>
                 </TouchableOpacity>

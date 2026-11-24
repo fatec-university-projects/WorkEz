@@ -113,6 +113,7 @@ public class Service : BaseEntity
     public string? ImageUrl { get; set; }
     public DateTime? DesiredDate { get; set; }
     public ServiceStatus ServiceStatus { get; set; } = ServiceStatus.Open;
+    public string? UrgencyLevel { get; set; } = "Medium";
 
     // ── Segurança Operacional & Vistorias (Branch 5) ──────────────────────────
     public string? StartCheckInCode { get; set; }

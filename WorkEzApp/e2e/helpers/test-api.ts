@@ -67,6 +67,17 @@ export async function createTestCustomer(): Promise<TestAuthAccount> {
   };
 }
 
+function generateValidCPF(): string {
+  const n = Array.from({ length: 9 }, () => Math.floor(Math.random() * 9));
+  const d1 = n.reduce((total, num, i) => total + num * (10 - i), 0);
+  const dig1 = (d1 * 10) % 11 % 10;
+  n.push(dig1);
+  const d2 = n.reduce((total, num, i) => total + num * (11 - i), 0);
+  const dig2 = (d2 * 10) % 11 % 10;
+  n.push(dig2);
+  return n.join("");
+}
+
 export async function createTestProvider(): Promise<TestAuthAccount> {
   const rand = Math.floor(Math.random() * 900000) + 100000;
   const email = `prestador.teste.${rand}@workez.com`;
@@ -81,7 +92,7 @@ export async function createTestProvider(): Promise<TestAuthAccount> {
       email,
       password: pass,
       phone: '(11) 98888-7777',
-      documentNumber: `${rand}00`,
+      documentNumber: generateValidCPF(),
     }),
   });
 

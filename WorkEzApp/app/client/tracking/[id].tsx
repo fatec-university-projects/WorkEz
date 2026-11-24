@@ -48,6 +48,7 @@ import { apiRequest, getWebSocketUrl, resolveImageUrl } from '../../../services/
 import { useAuth } from '../../../contexts/AuthContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { LiveTrackingMap } from '../../../components/LiveTrackingMap';
+import { TrackingTimelineStepper, ServiceStep } from '../../../components/TrackingTimelineStepper';
 
 interface Professional {
   id: string;
@@ -139,7 +140,7 @@ export default function ServiceTracking() {
   );
 
   const { data: serviceReview, refetch: refetchServiceReview } = useFetch<any>(
-    id ? `/api/Reviews/by-service/${id}` : null
+    id && ((initialService?.status || '').toLowerCase() === 'completed') ? `/api/Reviews/by-service/${id}` : null
   );
 
   const [service, setService] = useState<ServiceData | null>(null);
@@ -544,6 +545,25 @@ export default function ServiceTracking() {
   const isAccepted = currentStatus === 'accepted';
   const isOpenOrAuction = currentStatus === 'open' || currentStatus === 'undernegotiation';
 
+  // Roadmap PO: Cálculo do Stepper de 5 Etapas
+  const stepperStep: ServiceStep = isCompleted
+    ? 'completed'
+    : isInProgress || isWaitingPayment
+    ? 'in_progress'
+    : isOnTheWay
+    ? 'on_way'
+    : isAccepted
+    ? 'proposals'
+    : (proposals && proposals.length > 0)
+    ? 'proposals'
+    : 'created';
+
+  // Roadmap PO: Comparativo de lances e badges (cálculo puro sem violar regras de hooks)
+  const activeProposals = proposals ? proposals.filter(p => p.status?.toLowerCase() !== 'rejected') : [];
+  const minProposalPrice = activeProposals.length > 0 ? Math.min(...activeProposals.map(p => p.proposedPrice)) : null;
+  const proposalRatings = activeProposals.map(p => p.providerRating || 0).filter(r => r > 0);
+  const maxProposalRating = proposalRatings.length > 0 ? Math.max(...proposalRatings) : null;
+
   // Proposta aceita ativa
   const acceptedProposal = proposals?.find(p => p.status?.toLowerCase() === 'accepted');
   const targetChatProposalId = acceptedProposal ? acceptedProposal.id : (proposals?.[0]?.id || id);
@@ -645,6 +665,14 @@ export default function ServiceTracking() {
         ]} 
         showsVerticalScrollIndicator={false}
       >
+        {/* Stepper Visual de 5 Etapas (Roadmap PO) */}
+        {!isCancelled && (
+          <TrackingTimelineStepper 
+            currentStep={stepperStep} 
+            hasProposals={Boolean(proposals && proposals.length > 0)} 
+          />
+        )}
+
         {/* Banner de status contextual padronizado */}
         {isCancelled ? (
           <View style={[styles.statusBanner, styles.bannerDanger]}>
@@ -714,6 +742,16 @@ export default function ServiceTracking() {
               <Text style={[styles.statusBannerText, { color: '#1D4ED8' }]}>
                 Profissionais qualificados estão enviando lances. Analise os valores abaixo e aceite o melhor orçamento!
               </Text>
+              <TouchableOpacity
+                onPress={handleCancelService}
+                disabled={cancelling}
+                activeOpacity={0.7}
+                style={{ alignSelf: 'flex-start', marginTop: 8, paddingVertical: 5, paddingHorizontal: 12, backgroundColor: 'rgba(239, 68, 68, 0.12)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#DC2626' }}>
+                  {cancelling ? 'Cancelando...' : 'Cancelar este chamado'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -912,6 +950,25 @@ export default function ServiceTracking() {
               </View>
             </View>
 
+            {/* Barra Comparativa de Lances (Roadmap PO) */}
+            {activeProposals.length > 1 && minProposalPrice !== null && (
+              <View style={[styles.comparisonBar, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.12)' : '#EFF6FF', borderColor: isDark ? '#1E3A8A' : '#BFDBFE' }]}>
+                <View style={styles.comparisonItem}>
+                  <Text style={[styles.comparisonLabel, { color: isDark ? '#93C5FD' : '#1D4ED8' }]}>Menor Proposta</Text>
+                  <Text style={[styles.comparisonValue, { color: isDark ? '#34D399' : '#15803D' }]}>
+                    R$ {minProposalPrice.toFixed(2).replace('.', ',')}
+                  </Text>
+                </View>
+                <View style={[styles.comparisonDivider, { backgroundColor: isDark ? '#1E3A8A' : '#BFDBFE' }]} />
+                <View style={styles.comparisonItem}>
+                  <Text style={[styles.comparisonLabel, { color: isDark ? '#93C5FD' : '#1D4ED8' }]}>Lances Ativos</Text>
+                  <Text style={[styles.comparisonValue, { color: isDark ? '#60A5FA' : '#2563EB' }]}>
+                    {activeProposals.length}
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {proposals.map((proposal) => {
               const isPending = proposal.status?.toLowerCase() === 'pending';
               const isCountered = proposal.status?.toLowerCase() === 'counteroffered';
@@ -971,6 +1028,24 @@ export default function ServiceTracking() {
                       <Text style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', fontWeight: '500' }}>
                         Lance proposto
                       </Text>
+                      {activeProposals.length > 1 && (
+                        <View style={{ flexDirection: 'row', gap: 4, marginTop: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {proposal.proposedPrice === minProposalPrice && (
+                            <View style={[styles.roadmapBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#DCFCE7', borderColor: isDark ? '#059669' : '#86EFAC' }]}>
+                              <Text style={[styles.roadmapBadgeText, { color: isDark ? '#34D399' : '#15803D' }]}>
+                                Melhor Preço
+                              </Text>
+                            </View>
+                          )}
+                          {maxProposalRating !== null && proposal.providerRating === maxProposalRating && (
+                            <View style={[styles.roadmapBadge, { backgroundColor: isDark ? 'rgba(234, 179, 8, 0.2)' : '#FEF9C3', borderColor: isDark ? '#CA8A04' : '#FDE047' }]}>
+                              <Text style={[styles.roadmapBadgeText, { color: isDark ? '#FACC15' : '#854D0E' }]}>
+                                Mais Bem Avaliado
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
                     </View>
                   </View>
 
@@ -2424,6 +2499,43 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     width: '100%',
     maxWidth: 520,
     maxHeight: '85%',
+  },
+  comparisonBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  comparisonItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  comparisonLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  comparisonValue: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  comparisonDivider: {
+    width: 1,
+    height: 28,
+  },
+  roadmapBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  roadmapBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   previewModalImg: {
     width: '100%',

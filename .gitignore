@@ -167,6 +167,8 @@ WorkEzApp/.env
 **/test-results/
 **/blob-report/
 **/playwright/.cache/
+**/.playwright-mcp
+**/screenshot*
 
 # ────────────────────────────────────────────────────────────────
 # Uploads de Usuários (Não comitar imagens no Git)
@@ -192,4 +194,3 @@ dist/
 web-build/
 *.log
 tsc-errors.txt
-

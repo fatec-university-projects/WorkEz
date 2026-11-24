@@ -78,7 +78,7 @@ test.describe('Fluxo 4: Execução do Serviço, Conclusão e Avaliação Real', 
     }
 
     // Clica em Enviar avaliação
-    const submitBtn = page.getByRole('button', { name: 'Enviar avaliação' });
+    const submitBtn = page.getByRole('button', { name: /Salvar avaliação|Enviar avaliação/i });
     await expect(submitBtn).toBeVisible();
     await Promise.all([
       page.waitForResponse((resp) => resp.url().includes('/api/Reviews/by-customer') && resp.status() === 200, {

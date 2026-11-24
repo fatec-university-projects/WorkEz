@@ -21,6 +21,7 @@ public class CreateServiceRequest
     public Guid? CategoryId { get; set; }
     public string? ImageUrl { get; set; }
     public CreateAddressDto? Address { get; set; }
+    public string? UrgencyLevel { get; set; }
 }
 
 public record CustomerServiceSummaryDto(
@@ -60,7 +61,8 @@ public record ServiceDetailDto(
     string? StartCheckInCode = null,
     string[]? BeforePhotos = null,
     string[]? AfterPhotos = null,
-    string? CompletedClientSignatureUrl = null
+    string? CompletedClientSignatureUrl = null,
+    string? UrgencyLevel = "Medium"
 );
 
 public record ServiceStatusResultDto(

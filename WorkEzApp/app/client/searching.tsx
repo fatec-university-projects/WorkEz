@@ -28,7 +28,8 @@ export default function SearchingProfessional() {
     state,
     latitude,
     longitude,
-    images
+    images,
+    urgencyLevel
   } = useLocalSearchParams<{
     category: string;
     categoryId: string;
@@ -43,6 +44,7 @@ export default function SearchingProfessional() {
     latitude?: string;
     longitude?: string;
     images: string;
+    urgencyLevel?: string;
   }>();
 
   const parsedImages: string[] = (() => {
@@ -94,6 +96,7 @@ export default function SearchingProfessional() {
 
         const payload = {
           title: `Chamado para ${category || 'Serviço'}`,
+          urgencyLevel: urgencyLevel || 'Medium',
           description: description || '',
           categoryId: categoryId,
           imageUrl: parsedImages.length > 0 ? (parsedImages.length === 1 ? parsedImages[0] : JSON.stringify(parsedImages)) : null,

@@ -25,7 +25,8 @@ export default function ConfirmCall() {
     state,
     latitude,
     longitude,
-    images
+    images,
+    urgencyLevel
   } = useLocalSearchParams<{
     category: string;
     categoryId: string;
@@ -40,6 +41,7 @@ export default function ConfirmCall() {
     latitude?: string;
     longitude?: string;
     images: string;
+    urgencyLevel?: string;
   }>();
 
   const parsedImages: string[] = (() => {
@@ -64,6 +66,19 @@ export default function ConfirmCall() {
           </Text>
 
           <View style={styles.rowsWrapper}>
+            
+            {/* Urgência */}
+            {urgencyLevel === 'Emergency' ? (
+              <View style={[styles.rowItem, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#EF4444' }]}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#DC2626' }}>
+                  🚨 Modo Urgência SOS Ativo
+                </Text>
+                <Text style={{ fontSize: 12, color: isDark ? '#FCA5A5' : '#B91C1C', marginTop: 2 }}>
+                  Profissionais próximos receberão notificação prioritária imediata.
+                </Text>
+              </View>
+            ) : null}
+
             {/* Categoria */}
             <View style={styles.rowItem}>
               <View style={[styles.iconWrapper, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF' }]}>

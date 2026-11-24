@@ -96,7 +96,7 @@ export default function NewCall() {
         }
       } else {
         if (Platform.OS === 'web') {
-          alert('Proposta enviada com sucesso! Seu lance está ativo no leilão.');
+          // Toast / in-app feedback handled on arrival
           router.replace('/provider/calls' as any);
         } else {
           Alert.alert(

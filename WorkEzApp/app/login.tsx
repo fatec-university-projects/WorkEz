@@ -127,7 +127,7 @@ export default function Login() {
                   setErrors((e) => ({ ...e, password: undefined }));
                   setApiError(null);
                 }}
-                autoComplete="password"
+                autoComplete="current-password"
                 error={errors.password}
                 style={styles.inputWithIcon}
               />
