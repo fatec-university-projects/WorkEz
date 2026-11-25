@@ -234,6 +234,7 @@ public class ProposalApplicationService(
         {
             await NotifyTrackingAsync(result.Value.ServiceId, "proposal_countered", result.Value);
             await NotifyProposalChatAsync(result.Value.Id, result.Value.ServiceId, "proposal_updated", result.Value);
+            await DispatchCounterProposalPushNotificationAsync(result.Value.ServiceId, result.Value.Id, result.Value.CounterPrice ?? 0m);
         }
         return result;
     }
@@ -258,6 +259,7 @@ public class ProposalApplicationService(
             await NotifyTrackingAsync(result.Value.ServiceId, "counter_accepted", result.Value);
             await SendProposalEmailAsync(result.Value.ServiceId, result.Value.Id, ProposalEmailKind.Accepted, null);
             await NotifyProposalChatAsync(result.Value.Id, result.Value.ServiceId, "proposal_updated", result.Value);
+            await DispatchCounterAcceptedPushNotificationAsync(result.Value.ServiceId, result.Value.Id, result.Value.ProposedPrice, result.Value.ProviderName);
         }
         return result;
     }
@@ -277,6 +279,7 @@ public class ProposalApplicationService(
         {
             await NotifyTrackingAsync(result.Value.ServiceId, "counter_rejected", result.Value);
             await NotifyProposalChatAsync(result.Value.Id, result.Value.ServiceId, "proposal_updated", result.Value);
+            await DispatchCounterRejectedPushNotificationAsync(result.Value.ServiceId, result.Value.Id, result.Value.ProviderName);
         }
         return result;
     }
@@ -590,6 +593,97 @@ public class ProposalApplicationService(
                     type = "new_proposal",
                     serviceId = targetServiceId,
                     proposalId = proposal.Id
+                }
+            );
+        }
+        catch { }
+    }
+
+    private async Task DispatchCounterProposalPushNotificationAsync(Guid serviceId, Guid proposalId, decimal counterPrice)
+    {
+        if (_pushNotification == null || _proposalDomainService == null) return;
+
+        try
+        {
+            var proposal = await _proposalDomainService.GetByIdAsync(proposalId);
+            var providerUserId = proposal?.Provider?.UserId;
+            if (providerUserId == null || providerUserId == Guid.Empty)
+            {
+                if (_providerRepository != null && proposal != null)
+                {
+                    var prov = await _providerRepository.GetByIdAsync(proposal.ProviderId);
+                    providerUserId = prov?.UserId;
+                }
+            }
+
+            if (providerUserId == null || providerUserId == Guid.Empty) return;
+
+            var priceFormatted = counterPrice.ToString("C", new System.Globalization.CultureInfo("pt-BR"));
+
+            await _pushNotification.SendToUserAsync(
+                providerUserId.Value,
+                "💬 Nova contra-proposta recebida!",
+                $"O cliente enviou uma contra-proposta de {priceFormatted} para seu lance no leilão.",
+                new
+                {
+                    type = "proposal_countered",
+                    serviceId = serviceId,
+                    proposalId = proposalId
+                }
+            );
+        }
+        catch { }
+    }
+
+    private async Task DispatchCounterAcceptedPushNotificationAsync(Guid serviceId, Guid proposalId, decimal finalPrice, string? providerName)
+    {
+        if (_pushNotification == null || _serviceRepository == null) return;
+
+        try
+        {
+            var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId);
+            var customerUserId = service?.Customer?.UserId;
+            if (customerUserId == null || customerUserId == Guid.Empty) return;
+
+            var priceFormatted = finalPrice.ToString("C", new System.Globalization.CultureInfo("pt-BR"));
+            var name = string.IsNullOrWhiteSpace(providerName) ? "O profissional" : providerName;
+
+            await _pushNotification.SendToUserAsync(
+                customerUserId.Value,
+                "🎉 Contra-proposta aceita!",
+                $"{name} aceitou sua contra-proposta de {priceFormatted}! O chamado agora está confirmado.",
+                new
+                {
+                    type = "counter_accepted",
+                    serviceId = serviceId,
+                    proposalId = proposalId
+                }
+            );
+        }
+        catch { }
+    }
+
+    private async Task DispatchCounterRejectedPushNotificationAsync(Guid serviceId, Guid proposalId, string? providerName)
+    {
+        if (_pushNotification == null || _serviceRepository == null) return;
+
+        try
+        {
+            var service = await _serviceRepository.GetByIdWithDetailsAsync(serviceId);
+            var customerUserId = service?.Customer?.UserId;
+            if (customerUserId == null || customerUserId == Guid.Empty) return;
+
+            var name = string.IsNullOrWhiteSpace(providerName) ? "O profissional" : providerName;
+
+            await _pushNotification.SendToUserAsync(
+                customerUserId.Value,
+                "⚠️ Contra-proposta recusada",
+                $"{name} não pôde aceitar a contra-proposta. Você pode escolher outro profissional ou negociar um novo valor.",
+                new
+                {
+                    type = "counter_rejected",
+                    serviceId = serviceId,
+                    proposalId = proposalId
                 }
             );
         }

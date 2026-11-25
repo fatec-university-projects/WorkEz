@@ -11,5 +11,6 @@ public record OpportunityCallDto(
     double? DistanceKm = null,
     int? EstimatedDurationMinutes = null,
     double? Latitude = null,
-    double? Longitude = null
+    double? Longitude = null,
+    string? UrgencyLevel = "Medium"
 );

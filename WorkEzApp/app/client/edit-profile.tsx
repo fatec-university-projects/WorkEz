@@ -33,7 +33,7 @@ export default function EditProfile() {
   const { colors, isDark } = useAppTheme();
 
   const { data: profile, loading: loadingProfile, error: profileError } = useFetch<CustomerProfile>(
-    user ? `/api/Customers/by-user/${user.id}` : null
+    user ? `/api/Users/profile${user.id}` : null
   );
 
   const [name, setName] = useState('');
@@ -117,10 +117,11 @@ export default function EditProfile() {
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim() || null,
-        photo: photo || null
+        photo: photo || null,
+        profilePicture: photo || null
       };
 
-      const res = await apiRequest(`/api/Customers/by-user/${user.id}`, {
+      const res = await apiRequest(`/api/Users/profile`, {
         method: 'PUT',
         body: JSON.stringify(payload)
       });
@@ -182,6 +183,7 @@ export default function EditProfile() {
             </View>
 
             {/* Inputs */}
+            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 14 }}>Dados pessoais</Text>
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: colors.text }]}>Nome Completo</Text>
               <View style={styles.inputWrapper}>

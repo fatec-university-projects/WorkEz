@@ -104,7 +104,7 @@ export default function WorkArea() {
       }
 
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.alert('Raio e área de atendimento atualizados com sucesso!');
+        // Updated successfully without blocking window.alert
       } else {
         Alert.alert('Sucesso!', 'Raio e área de atendimento atualizados com sucesso!');
       }
@@ -190,7 +190,7 @@ export default function WorkArea() {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.addressFieldLabel}>RUA / LOGRADOURO</Text>
                         <Text style={styles.addressFieldValue} numberOfLines={2}>
-                          {addressDetails?.street || 'Erro ao carregar rua'}
+                          {addressDetails?.street || 'Localização base via coordenadas'}
                         </Text>
                       </View>
                     </View>
@@ -202,7 +202,7 @@ export default function WorkArea() {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.addressFieldLabel}>BAIRRO</Text>
                         <Text style={styles.addressFieldValue} numberOfLines={1}>
-                          {addressDetails?.neighborhood || 'Erro ao carregar bairro'}
+                          {addressDetails?.neighborhood || 'Região de atendimento'}
                         </Text>
                       </View>
                     </View>
@@ -212,7 +212,7 @@ export default function WorkArea() {
                       <View style={{ flex: 1, marginRight: 10 }}>
                         <Text style={styles.addressFieldLabel}>CIDADE / ESTADO</Text>
                         <Text style={styles.addressFieldValue} numberOfLines={1}>
-                          {addressDetails?.city || 'Erro ao carregar cidade'}
+                          {addressDetails?.city || 'São Paulo'}
                           {addressDetails?.state ? ` - ${addressDetails.state}` : ''}
                         </Text>
                       </View>

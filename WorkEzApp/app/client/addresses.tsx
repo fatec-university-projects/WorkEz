@@ -100,7 +100,13 @@ export default function MyAddresses() {
     try {
       const res = await fetchUserAddresses();
       if (res.data && Array.isArray(res.data)) {
-        loaded = res.data;
+        const seen = new Set<string>();
+        loaded = res.data.filter((item: AddressItem) => {
+          const key = `${(item.zipCode || '').replace(/\D/g, '')}_${(item.street || '').trim().toLowerCase()}_${(item.number || '').trim().toLowerCase()}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
       }
     } catch {
       // Falha de rede silenciosa, usará cache
@@ -235,6 +241,24 @@ export default function MyAddresses() {
       return;
     }
 
+    const cleanZip = form.zipCode.replace(/\D/g, '');
+    const cleanStreet = form.street.trim().toLowerCase();
+    const cleanNumber = form.number.trim().toLowerCase();
+
+    // Valida duplicidade desconsiderando o complemento (CEP, Rua e Número iguais)
+    const isDuplicate = addresses.some((a) => {
+      if (editingAddressId && a.id === editingAddressId) return false;
+      const aZip = (a.zipCode || '').replace(/\D/g, '');
+      const aStreet = (a.street || '').trim().toLowerCase();
+      const aNumber = (a.number || '').trim().toLowerCase();
+      return aZip === cleanZip && aStreet === cleanStreet && aNumber === cleanNumber;
+    });
+
+    if (isDuplicate) {
+      setFormError('Este endereço já está cadastrado na sua conta.');
+      return;
+    }
+
     setSubmitting(true);
     setFormError(null);
 
@@ -257,6 +281,10 @@ export default function MyAddresses() {
       if (editingAddressId) {
         // Atualiza
         const res = await updateAddress(editingAddressId, payload);
+        if (res.error) {
+          setFormError(res.error);
+          return;
+        }
         const updatedItem: AddressItem = res.data || {
           ...payload,
           id: editingAddressId,
@@ -267,6 +295,10 @@ export default function MyAddresses() {
       } else {
         // Cria novo
         const res = await createAddress(payload);
+        if (res.error) {
+          setFormError(res.error);
+          return;
+        }
         const newItem: AddressItem = res.data || {
           ...payload,
           id: `addr_${Date.now()}`,
@@ -510,8 +542,28 @@ export default function MyAddresses() {
               </TouchableOpacity>
             </View>
 
+            {/* Mensagem de Erro em Destaque no Topo do Modal */}
+            {formError ? (
+              <View style={styles.topErrorBanner}>
+                <View style={styles.topErrorIconCircle}>
+                  <AlertCircle size={20} color="#EF4444" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.topErrorTitle}>Atenção</Text>
+                  <Text style={styles.topErrorText}>{formError}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setFormError(null)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 4 }}
+                >
+                  <X size={16} color={isDark ? '#FCA5A5' : '#EF4444'} />
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
             <ScrollView
-              style={{ maxHeight: 460 }}
+              style={{ flex: 1 }}
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={false}
             >
@@ -656,13 +708,6 @@ export default function MyAddresses() {
                 </View>
               </View>
 
-              {/* Mensagem de Erro */}
-              {formError ? (
-                <View style={styles.errorBox}>
-                  <AlertCircle size={16} color="#EF4444" />
-                  <Text style={styles.errorText}>{formError}</Text>
-                </View>
-              ) : null}
             </ScrollView>
 
             {/* Modal Actions */}
@@ -914,13 +959,14 @@ const getStyles = (colors: any, isDark: boolean) =>
       backgroundColor: 'rgba(0, 0, 0, 0.6)',
       justifyContent: 'flex-end',
     },
-    modalContainer: {
+        modalContainer: {
       backgroundColor: colors.card,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       padding: 20,
       paddingBottom: 24,
-      gap: 16,
+      gap: 12,
+      height: 520,
       maxHeight: '90%',
     },
     modalHeader: {
@@ -1016,6 +1062,36 @@ const getStyles = (colors: any, isDark: boolean) =>
     typeChipTextSelected: {
       color: '#FFFFFF',
       fontWeight: '700',
+    },
+    topErrorBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEF2F2',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(239, 68, 68, 0.4)' : '#FCA5A5',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+    },
+    topErrorIconCircle: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    topErrorTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: isDark ? '#FCA5A5' : '#DC2626',
+    },
+    topErrorText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: isDark ? '#FEE2E2' : '#991B1B',
+      lineHeight: 16,
     },
     errorBox: {
       flexDirection: 'row',

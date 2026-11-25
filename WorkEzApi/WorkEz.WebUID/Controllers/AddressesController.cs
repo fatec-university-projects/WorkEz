@@ -72,7 +72,20 @@ public class AddressesController(
 
         var addresses = await _addressRepo.FindAsync(a => a.UserId == callerUserId.Value);
 
-        var dtos = addresses.Select(a => new AddressDto(
+        // Garante deduplicação consistente por (CEP + Rua + Número) para evitar duplicatas legadas
+        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var uniqueAddresses = new List<Address>();
+
+        foreach (var a in addresses)
+        {
+            var key = $"{(a.ZipCode ?? string.Empty).Replace("-", "").Trim()}_{(a.Street ?? string.Empty).Trim()}_{(a.Number ?? string.Empty).Trim()}";
+            if (seenKeys.Add(key))
+            {
+                uniqueAddresses.Add(a);
+            }
+        }
+
+        var dtos = uniqueAddresses.Select(a => new AddressDto(
             a.Id,
             a.UserId,
             a.Street,
@@ -145,6 +158,22 @@ public class AddressesController(
             return BadRequest(new { message = "Rua, número e CEP são obrigatórios." });
         }
 
+        var cleanZip = request.ZipCode.Replace("-", "").Trim();
+        var cleanStreet = request.Street.Trim();
+        var cleanNumber = request.Number.Trim();
+
+        var existingAddresses = await _addressRepo.FindAsync(a => a.UserId == callerUserId.Value);
+        var isDuplicate = existingAddresses.Any(a =>
+            string.Equals((a.ZipCode ?? "").Replace("-", "").Trim(), cleanZip, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals((a.Street ?? "").Trim(), cleanStreet, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals((a.Number ?? "").Trim(), cleanNumber, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (isDuplicate)
+        {
+            return BadRequest(new { message = "Este endereço já está cadastrado na sua conta." });
+        }
+
         var address = new Address
         {
             UserId = callerUserId.Value,
@@ -206,6 +235,22 @@ public class AddressesController(
         if (string.IsNullOrWhiteSpace(request.Street) || string.IsNullOrWhiteSpace(request.Number) || string.IsNullOrWhiteSpace(request.ZipCode))
         {
             return BadRequest(new { message = "Rua, número e CEP são obrigatórios." });
+        }
+
+        var cleanZip = request.ZipCode.Replace("-", "").Trim();
+        var cleanStreet = request.Street.Trim();
+        var cleanNumber = request.Number.Trim();
+
+        var existingOtherAddresses = await _addressRepo.FindAsync(a => a.UserId == callerUserId.Value && a.Id != id);
+        var isDuplicate = existingOtherAddresses.Any(a =>
+            string.Equals((a.ZipCode ?? "").Replace("-", "").Trim(), cleanZip, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals((a.Street ?? "").Trim(), cleanStreet, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals((a.Number ?? "").Trim(), cleanNumber, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (isDuplicate)
+        {
+            return BadRequest(new { message = "Este endereço já está cadastrado na sua conta." });
         }
 
         address.Street = request.Street.Trim();

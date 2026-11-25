@@ -29,6 +29,7 @@ interface Call {
   clientName: string;
   distanceKm?: number;
   estimatedDurationMinutes?: number;
+  urgencyLevel?: string;
 }
 
 interface ProposalItem {
@@ -53,6 +54,7 @@ export default function ProviderCalls() {
   const { isDark, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<'opportunities' | 'proposals' | 'accepted'>('opportunities');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [filterSosOnly, setFilterSosOnly] = useState(false);
 
   const { data: opportunities, loading: loadingOps, error: errorOps, refetch: refetchOps } = useFetch<Call[]>(
     user ? `/api/Services/opportunities-by-user/${user.id}` : null
@@ -196,7 +198,15 @@ export default function ProviderCalls() {
     opp => !handledServiceIds.has(opp.id)
   );
 
-  const calls = activeTab === 'opportunities' ? freshOpportunities : acceptedCalls;
+  const sosCount = freshOpportunities.filter(
+    opp => (opp.urgencyLevel || '').toLowerCase() === 'emergency'
+  ).length;
+
+  const filteredOpportunities = filterSosOnly
+    ? freshOpportunities.filter(opp => (opp.urgencyLevel || '').toLowerCase() === 'emergency')
+    : freshOpportunities;
+
+  const calls = activeTab === 'opportunities' ? filteredOpportunities : acceptedCalls;
   const loading = activeTab === 'opportunities' ? loadingOps : activeTab === 'proposals' ? loadingProps : loadingAcc;
   const error = activeTab === 'opportunities' ? errorOps : activeTab === 'proposals' ? errorProps : errorAcc;
   const hasData = activeTab === 'opportunities' ? !!opportunities : activeTab === 'proposals' ? !!myProposals : !!acceptedCalls;
@@ -269,6 +279,37 @@ export default function ProviderCalls() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Filtro Rápido SOS (Roadmap PO Fase 2) */}
+      {activeTab === 'opportunities' && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => setFilterSosOnly(false)}
+            activeOpacity={0.8}
+            style={[
+              styles.filterChip,
+              !filterSosOnly && [styles.filterChipActive, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF', borderColor: colors.primary }]
+            ]}
+          >
+            <Text style={[styles.filterChipText, !filterSosOnly && { color: colors.primary, fontWeight: '700' }]}>
+              Todos ({freshOpportunities.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setFilterSosOnly(true)}
+            activeOpacity={0.8}
+            style={[
+              styles.filterChip,
+              filterSosOnly && [styles.filterChipActive, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.22)' : '#FEF2F2', borderColor: '#EF4444' }]
+            ]}
+          >
+            <Text style={[styles.filterChipText, filterSosOnly ? { color: '#DC2626', fontWeight: '700' } : { color: '#EF4444' }]}>
+              🚨 SOS ({sosCount})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {isInitialLoading ? (
@@ -446,6 +487,7 @@ export default function ProviderCalls() {
                 professional={call.clientName}
                 distanceKm={call.distanceKm}
                 estimatedDurationMinutes={call.estimatedDurationMinutes}
+                urgencyLevel={call.urgencyLevel}
                 onClick={() => {
                   if (activeTab === 'opportunities') {
                     router.push(`/provider/new-call/${call.id}` as any);
@@ -574,5 +616,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
     borderColor: '#BFDBFE',
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  filterChipActive: {
+    borderWidth: 1.5,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
   },
 });

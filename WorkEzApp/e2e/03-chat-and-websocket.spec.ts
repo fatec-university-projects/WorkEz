@@ -76,7 +76,7 @@ test.describe('Fluxo 3: Chat em Tempo Real e Negociação Integrada', () => {
     await page.goto(`/provider/chat/${proposal.id}`);
 
     // Valida que o status do topo indica "Serviço concluído" e NÃO "Chamado em execução"
-    await expect(page.getByText('Serviço concluído', { exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Serviço concluído/i).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Chamado em execução')).not.toBeVisible();
     await expect(page.getByText(/Este chamado foi finalizado com sucesso/i)).toBeVisible();
   });

@@ -189,7 +189,8 @@ public class ServiceOpportunityApplicationService(
             DistanceKm: distanceKm,
             EstimatedDurationMinutes: travelMin,
             Latitude: sLat,
-            Longitude: sLon
+            Longitude: sLon,
+            UrgencyLevel: s.UrgencyLevel ?? "Medium"
         );
     }
 

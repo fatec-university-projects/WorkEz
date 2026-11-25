@@ -96,7 +96,7 @@ export default function NewCall() {
         }
       } else {
         if (Platform.OS === 'web') {
-          alert('Proposta enviada com sucesso! Seu lance está ativo no leilão.');
+          // Toast / in-app feedback handled on arrival
           router.replace('/provider/calls' as any);
         } else {
           Alert.alert(
@@ -444,6 +444,18 @@ export default function NewCall() {
         <View style={dynamicStyles.contentWrap}>
           {/* Card Detalhes do Chamado */}
           <View style={dynamicStyles.card}>
+            {service?.urgencyLevel?.toLowerCase() === 'emergency' && (
+              <View style={{ backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEF2F2', borderWidth: 1, borderColor: '#EF4444', borderRadius: 12, padding: 12, marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#DC2626' }}>
+                    🚨 Atendimento Emergencial SOS
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: isDark ? '#FCA5A5' : '#B91C1C', lineHeight: 17 }}>
+                  O cliente necessita deste atendimento hoje nas próximas 2 horas. Propostas enviadas com rapidez e valores justos têm prioridade de aceite.
+                </Text>
+              </View>
+            )}
             <View style={dynamicStyles.cardHeaderRow}>
               <View style={dynamicStyles.categoryIconWrap}>
                 <Wrench size={20} color={colors.primary} />

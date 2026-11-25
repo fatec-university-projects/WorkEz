@@ -132,8 +132,7 @@ public class AddressesControllerTests
         // 2. Other user requests
         Authenticate(controller, otherUserId);
         var otherRes = await controller.GetById(addr.Id);
-        var forbidRes = Assert.IsType<ObjectResult>(otherRes);
-        Assert.Equal(StatusCodes.Status403Forbidden, forbidRes.StatusCode);
+        Assert.IsType<ForbidResult>(otherRes);
     }
 
     [Fact]
@@ -240,8 +239,7 @@ public class AddressesControllerTests
         // 1. Other user attempts update
         Authenticate(controller, otherUserId);
         var forbiddenRes = await controller.Update(addr.Id, updateRequest);
-        var forbidObject = Assert.IsType<ObjectResult>(forbiddenRes);
-        Assert.Equal(StatusCodes.Status403Forbidden, forbidObject.StatusCode);
+        Assert.IsType<ForbidResult>(forbiddenRes);
 
         // 2. Owner updates
         Authenticate(controller, ownerId);
@@ -288,8 +286,7 @@ public class AddressesControllerTests
         // 1. Other user attempts delete
         Authenticate(controller, otherUserId);
         var forbiddenRes = await controller.Delete(addr.Id);
-        var forbidObject = Assert.IsType<ObjectResult>(forbiddenRes);
-        Assert.Equal(StatusCodes.Status403Forbidden, forbidObject.StatusCode);
+        Assert.IsType<ForbidResult>(forbiddenRes);
         Assert.Equal(1, await db.Addresses.CountAsync());
 
         // 2. Owner deletes
@@ -376,5 +373,100 @@ public class AddressesControllerTests
 
         var deleteRes = await controller.Delete(Guid.NewGuid());
         Assert.IsType<UnauthorizedObjectResult>(deleteRes);
+    }
+    [Fact]
+    public async Task Create_ShouldReturnBadRequest_WhenAddressAlreadyExistsForSameUser()
+    {
+        using var db = CreateInMemoryDbContext();
+        var repo = new BaseRepository<Address>(db);
+        var controller = new AddressesController(repo);
+
+        var userId = Guid.NewGuid();
+        db.Addresses.Add(new Address
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Street = "Av. Paulista",
+            Number = "1000",
+            Complement = "Apto 101",
+            Neighborhood = "Bela Vista",
+            City = "São Paulo",
+            State = "SP",
+            ZipCode = "01310-100",
+            AddressType = "Home"
+        });
+        await db.SaveChangesAsync();
+
+        Authenticate(controller, userId);
+
+        // Tenta cadastrar o mesmo endereço com complemento DIFERENTE (complemento deve ser desconsiderado)
+        var request = new CreateAddressRequest(
+            Street: "av. paulista",
+            Number: "1000",
+            Complement: "Bloco B - Sala 200",
+            Neighborhood: "Bela Vista",
+            City: "São Paulo",
+            State: "SP",
+            ZipCode: "01310100"
+        );
+
+        var result = await controller.Create(request);
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.NotNull(badRequestResult.Value);
+    }
+
+    [Fact]
+    public async Task Update_ShouldReturnBadRequest_WhenAddressCollidesWithAnotherAddressForSameUser()
+    {
+        using var db = CreateInMemoryDbContext();
+        var repo = new BaseRepository<Address>(db);
+        var controller = new AddressesController(repo);
+
+        var userId = Guid.NewGuid();
+        var addr1 = new Address
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Street = "Av. Paulista",
+            Number = "1000",
+            Complement = "Apto 101",
+            Neighborhood = "Bela Vista",
+            City = "São Paulo",
+            State = "SP",
+            ZipCode = "01310-100",
+            AddressType = "Home"
+        };
+        var addr2 = new Address
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Street = "Rua Augusta",
+            Number = "500",
+            Complement = null,
+            Neighborhood = "Consolação",
+            City = "São Paulo",
+            State = "SP",
+            ZipCode = "01305-000",
+            AddressType = "Work"
+        };
+        db.Addresses.AddRange(addr1, addr2);
+        await db.SaveChangesAsync();
+
+        Authenticate(controller, userId);
+
+        // Tenta atualizar addr2 para ter os mesmos dados de addr1
+        var updateRequest = new UpdateAddressRequest(
+            Street: "Av. Paulista",
+            Number: "1000",
+            Complement: "Apto 101",
+            Neighborhood: "Bela Vista",
+            City: "São Paulo",
+            State: "SP",
+            ZipCode: "01310-100"
+        );
+
+        var result = await controller.Update(addr2.Id, updateRequest);
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.NotNull(badRequestResult.Value);
     }
 }
